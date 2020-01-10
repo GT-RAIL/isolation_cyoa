@@ -8,4 +8,4 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Build the docker file; make sure to set the context
 cd ${DIR}/..
-docker build -t banerjs/fault-isolation:cyoa_website .
+docker build -t banerjs/fault-isolation:cyoa_website -f docker/Dockerfile .

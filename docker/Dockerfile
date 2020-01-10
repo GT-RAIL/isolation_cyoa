@@ -9,12 +9,15 @@ ARG UID=1001
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
+        emacs25-nox \
         git \
         libpq-dev \
+        nano \
         python3-dev \
         sudo \
         unzip \
-        uuid-dev && \
+        uuid-dev \
+        vim && \
     cd / && \
         echo 'Defaults !secure_path' >> /etc/sudoers && \
         groupadd -g ${UID} banerjs && \
@@ -24,10 +27,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set the user, copy the code into the container
 USER banerjs
 ADD --chown=banerjs . /home/banerjs/website
+ENV WEBSITE_WORKSPACE=/home/banerjs/website
 WORKDIR /home/banerjs/website
 
 # Then install django, psycopg2, etc.
 RUN sudo -H pip install -r requirements.txt
+
+# Small setup for QoL
+RUN mkdir /home/banerjs/.saves && \
+    ln -sf /home/banerjs/website/docker/.emacs /home/banerjs/
 
 # Then run the expose settings for the django dev server
 CMD ["python" "manage.py", "runserver", "0:8000"]
