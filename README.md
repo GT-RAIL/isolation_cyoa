@@ -12,7 +12,8 @@ Ensure you have the webserver docker image. Either `docker pull banerjs/fault_is
 Run a postgres container:
 
 ```bash
-docker run -d --rm --name postgres -p 5432:5432 postgres:11
+# No --rm because we want to save state
+docker run -d --name postgres -p 5432:5432 postgres:11
 ```
 
 To connect to the database for the first setup: `docker exec -it postgres psql -U postgres`. Then run:
@@ -35,3 +36,11 @@ Then run the docker container. To run in interactive mode: `./docker/run_docker_
     - https://devcenter.heroku.com/articles/django-app-configuration
     - https://devcenter.heroku.com/articles/django-assets
     - https://devcenter.heroku.com/articles/python-concurrency-and-database-connections
+- Open tabs when shutdown:
+    - https://docs.djangoproject.com/en/3.0/intro/tutorial05/ (tests)
+    - https://docs.djangoproject.com/en/3.0/intro/tutorial02/ (add your app)
+    - https://docs.djangoproject.com/en/3.0/ref/models/fields/ (model fields)
+    - https://docs.djangoproject.com/en/3.0/topics/db/models/
+    - https://docs.djangoproject.com/en/3.0/topics/auth/customizing/#django.contrib.auth.models.AbstractUser (auth pt 1)
+    - https://docs.djangoproject.com/en/3.0/topics/auth/default/ (auth pt 2)
+    - https://docs.djangoproject.com/en/3.0/ref/contrib/auth/ (auth pt 3)
