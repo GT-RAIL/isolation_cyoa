@@ -57,3 +57,6 @@ __pycache__/
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# The Djagno SQLite database
+*.sqlite3

@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         libpq-dev \
         nano \
+        postgresql-client \
         python3-dev \
         sudo \
         unzip \
