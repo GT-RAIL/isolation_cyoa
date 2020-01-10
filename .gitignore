@@ -41,6 +41,10 @@ srv/_*.py
 *.pyc
 qtcreator-*
 *.user
+*.ipynb_checkpoints
+*.sublime-*
+*.pkl
+__pycache__/
 
 /planning/cfg
 /planning/docs
