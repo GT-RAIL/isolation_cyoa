@@ -13,7 +13,7 @@ Run a postgres container:
 
 ```bash
 # No --rm because we want to save state
-docker run -d --name postgres -p 5432:5432 postgres:11
+docker run -d --name postgres -p 5432:5432 -v /home/banerjs/Documents/GT/Research/Data/arbitration/2019-12-09/postgres/data:/var/lib/postgresql/data postgres:11
 ```
 
 To connect to the database for the first setup: `docker exec -it postgres psql -U postgres`. Then run:
