@@ -58,7 +58,9 @@ ROOT_URLCONF = 'website.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'website', 'templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -101,8 +103,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Custom User Model
+# Customizing authentication
 AUTH_USER_MODEL = 'dining_room.User'
+LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/demographics'
 
 
 # Internationalization

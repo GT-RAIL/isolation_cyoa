@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+
+<div class="row justify-content-center">
+    {% if form.errors %}
+    <div class="alert alert-danger">
+    <p>Your username and password didn't match. Please try again.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row justify-content-center">
+    <form method="post" action="{% url 'login' %}">
+    {% csrf_token %}
+    <table class="table table-borderless">
+    <tr>
+        <td>{{ form.username.label_tag }}</td>
+        <td>{{ form.username }}</td>
+    </tr>
+    <tr>
+        <td>{{ form.password.label_tag }}</td>
+        <td>{{ form.password }}</td>
+    </tr>
+    </table>
+
+    <input type="submit" value="login" class="btn btn-block btn-outline-primary">
+    <input type="hidden" name="next" value="{{ next }}">
+    </form>
+</div>
+
+</div>
+<style type="text/css">
+    html, body {
+        height: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}
