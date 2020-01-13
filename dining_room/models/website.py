@@ -167,6 +167,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     gender = models.CharField(max_length=1, choices=Genders.choices, blank=True, null=True)
     date_demographics_completed = models.DateTimeField(_('date demographics completed'), blank=True, null=True)
 
+    # The gold standard questions
+    supposed_to_grab_bowl = models.BooleanField(_("The robot's task is to grab the bowl?"), blank=True, null=True)
+    supposed_to_go_to_couch = models.BooleanField(_("The robot's task is to take the object to the couch?"), blank=True, null=True)
+    will_view_in_third_person = models.BooleanField(_("You will see live camera feeds of the robot in third person?"), blank=True, null=True)
+    will_be_able_to_hear_robot = models.BooleanField(_("You will be able to hear the robot?"), blank=True, null=True)
+
     # Likert Responses
     class LikertResponses(models.IntegerChoices):
         STRONGLY_DISAGREE = 0
@@ -203,8 +209,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
 
     # TODO: Add REACTION questionnaire questions? Or perhaps from Knepper
-
-    # TODO: Add gold standard questions
 
     # Required constants
     USERNAME_FIELD = 'username'

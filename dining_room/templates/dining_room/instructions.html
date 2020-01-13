@@ -7,7 +7,12 @@
 {% block content %}
 <div class="container-fluid">
     <p>There will be a video here explaining what's going on</p>
+
     <p>Meanwhile, why don't you move on to the next page</p>
+
+    <p>You will NOT be able to return to this page! <b>(should this be true?)</b></p>
+
+    <p><a href="{% url 'dining_room:instructions_t' %}">Start the study</a></p>
 </div>
 {% endblock %}
 
