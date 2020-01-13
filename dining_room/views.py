@@ -46,4 +46,4 @@ class DemographicsFormView(LoginRequiredMixin, FormView):
 
 @login_required
 def instructions(request):
-    return JsonResponse({"instructions": True})
+    return render(request, 'dining_room/instructions.html')

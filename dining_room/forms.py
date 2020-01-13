@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from .models import User
 
+
 # Create the forms here
 
 class DemographicsForm(ModelForm):
@@ -13,7 +14,7 @@ class DemographicsForm(ModelForm):
 
     class Meta:
         model = User
-        fields = ['age_group', 'gender', 'robotics_experience']
+        fields = ['age_group', 'gender', 'robot_experience']
 
     def __init__(self, *args, **kwargs):
         # Initialize the form

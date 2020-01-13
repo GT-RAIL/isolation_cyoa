@@ -229,10 +229,10 @@ class DemographicsAdmin(admin.ModelAdmin):
         (None, {
             'fields': (('username', 'study_condition', 'start_condition'), ('date_finished', 'date_demographics_completed'))
         }),
-        ('Demographics', { 'fields': ('gender', 'age_group', 'robotics_experience') }),
+        ('Demographics', { 'fields': ('gender', 'age_group', 'robot_experience') }),
     )
-    list_display = ('username', 'study_condition', 'date_finished', 'gender', 'age_group', 'robotics_experience')
-    list_filter = ('study_condition', 'date_finished', 'gender', 'age_group', 'robotics_experience')
+    list_display = ('username', 'study_condition', 'date_finished', 'gender', 'age_group', 'robot_experience')
+    list_filter = ('study_condition', 'date_finished', 'gender', 'age_group', 'robot_experience')
     ordering = ('date_finished', 'username', 'study_condition')
     search_fields = ('username', 'study_condition')
     readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed')

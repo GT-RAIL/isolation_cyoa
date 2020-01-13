@@ -163,7 +163,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         MALE = 'M'
 
     age_group = models.IntegerField(choices=AgeGroups.choices, blank=True, null=True)
-    robotics_experience = models.IntegerField(choices=ExperienceGroups.choices, blank=True, null=True)
+    robot_experience = models.IntegerField(_("how often do you interact with robots?"), choices=ExperienceGroups.choices, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=Genders.choices, blank=True, null=True)
     date_demographics_completed = models.DateTimeField(_('date demographics completed'), blank=True, null=True)
 
