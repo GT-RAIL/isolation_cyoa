@@ -107,7 +107,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Permissions, etc.
     is_staff = models.BooleanField(_('staff status'), default=False)
     is_active = models.BooleanField(_('active'), default=True)
-    date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
+    date_joined = models.DateTimeField(_('date joined'), auto_now_add=True) # Used in default User
+    date_modified = models.DateTimeField(_('date modified'), auto_now=True)
 
     # Study condition tracking
     class StudyConditions(models.IntegerChoices):
@@ -148,17 +149,30 @@ class User(AbstractBaseUser, PermissionsMixin):
         BTW_45_50 = 6
         ABOVE_50  = 7
 
-    age_group = models.IntegerField(blank=True, null=True)
-    robotics_experience = models.IntegerField(blank=True, null=True)  # From 1-5
+    class ExperienceGroups(models.IntegerChoices):
+        NONE = 0
+        RARELY = 1
+        OCCASIONALLY = 2
+        FREQUENTLY = 3
+        ALWAYS = 4
+
+    class Genders(models.TextChoices):
+        PREFER_NOT_TO_SAY = 'U'  # Unknown
+        FEMALE = 'F'
+        MALE = 'M'
+
+    age_group = models.IntegerField(choices=AgeGroups.choices, blank=True, null=True)
+    robotics_experience = models.IntegerField(choices=ExperienceGroups.choices, blank=True, null=True)
+    gender = models.CharField(max_length=1, choices=Genders.choices, blank=True, null=True)
     date_demographics_completed = models.DateTimeField(_('date demographics completed'), blank=True, null=True)
 
     # Likert Responses
     class LikertResponses(models.IntegerChoices):
-        STRONGLY_DISAGREE = 1
-        DISAGREE = 2
-        NEUTRAL = 3
-        AGREE = 4
-        STRONGLY_AGREE = 5
+        STRONGLY_DISAGREE = 0
+        DISAGREE = 1
+        NEUTRAL = 2
+        AGREE = 3
+        STRONGLY_AGREE = 4
 
     long_time_to_recover = models.IntegerField(
         _("It took me a long time to help the robot recover"),
@@ -207,3 +221,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     def csv_file(self):
         """The CSV file associated with the user's actions"""
         return f"{self.username.lower()}.csv"
+
+
+# class Demographics(models.Model):
+#     """
+#     An unmanaged model to provide a view into the demographics information of
+#     the user. The information here is just to show the data in the admin UI
+#     """
+#     # TODO
+
+#     class Meta:
+#         db_table = 'dining_room_user'
+#         managed = False
