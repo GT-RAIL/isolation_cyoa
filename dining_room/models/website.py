@@ -140,21 +140,22 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # Demographics. TODO: Do we want region, occupation, etc?
     class AgeGroups(models.IntegerChoices):
-        BELOW_20  = 0
-        BTW_20_25 = 1
-        BTW_25_30 = 2
-        BTW_30_35 = 3
-        BTW_35_40 = 4
-        BTW_40_45 = 5
-        BTW_45_50 = 6
-        ABOVE_50  = 7
+        PREFER_NOT_TO_SAY = 0
+        BELOW_20  = 1, _("20 & below")
+        BTW_20_25 = 2, _("21 - 25")
+        BTW_25_30 = 3, _("26 - 30")
+        BTW_30_35 = 4, _("31 - 35")
+        BTW_35_40 = 5, _("36 - 40")
+        BTW_40_45 = 6, _("41 - 45")
+        BTW_45_50 = 7, _("46 - 50")
+        ABOVE_50  = 8, _("51 & over")
 
     class ExperienceGroups(models.IntegerChoices):
-        NONE = 0
-        RARELY = 1
-        OCCASIONALLY = 2
-        FREQUENTLY = 3
-        ALWAYS = 4
+        RARELY_OR_NEVER = 0
+        APPROXIMATELY_TWICE_A_YEAR = 1
+        APPROXIMATELY_TWICE_A_MONTH = 2
+        APPROXIMATELY_TWICE_A_WEEK = 3
+        ALMOST_EVERYDAY = 4
 
     class Genders(models.TextChoices):
         PREFER_NOT_TO_SAY = 'U'  # Unknown
@@ -221,15 +222,3 @@ class User(AbstractBaseUser, PermissionsMixin):
     def csv_file(self):
         """The CSV file associated with the user's actions"""
         return f"{self.username.lower()}.csv"
-
-
-# class Demographics(models.Model):
-#     """
-#     An unmanaged model to provide a view into the demographics information of
-#     the user. The information here is just to show the data in the admin UI
-#     """
-#     # TODO
-
-#     class Meta:
-#         db_table = 'dining_room_user'
-#         managed = False

@@ -36,10 +36,11 @@ class UserAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('unique_key',)}),
+        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'scenario_completed')}),
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
-        (_('Important dates'), {'fields': ('last_login',)}),
+        (_('Important dates'), {'fields': ('last_login', 'date_finished')}),
     )
     add_fieldsets = (
         (None, {
@@ -50,9 +51,9 @@ class UserAdmin(admin.ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
-    list_display = ('username', 'unique_key', 'is_staff')
-    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
-    search_fields = ('username', 'unique_key',)
+    list_display = ('username', 'unique_key', 'study_condition', 'start_condition', 'is_staff')
+    list_filter = ('study_condition', 'is_staff', 'is_superuser', 'is_active', 'groups')
+    search_fields = ('username', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'last_login',)
     filter_horizontal = ('groups', 'user_permissions',)
 
@@ -195,3 +196,45 @@ class UserAdmin(admin.ModelAdmin):
             request.POST = request.POST.copy()
             request.POST['_continue'] = 1
         return super().response_add(request, obj, post_url_continue)
+
+
+# Create proxy views on the model
+
+def create_modeladmin(modeladmin, model, name=None, verbose_name_plural=None):
+    """
+    Create a proxy model on the fly for a given model and register that model
+    with the admin site. From:
+        https://stackoverflow.com/questions/2223375/multiple-modeladmins-views-for-same-model-in-django-admin
+    """
+    class Meta:
+        proxy = True
+        app_label = model._meta.app_label
+
+    if verbose_name_plural is not None:
+        Meta.verbose_name_plural = verbose_name_plural
+
+    attrs = {'__module__': '', 'Meta': Meta}
+
+    newmodel = type(name, (model,), attrs)
+    admin.site.register(newmodel, modeladmin)
+    return modeladmin
+
+
+class DemographicsAdmin(admin.ModelAdmin):
+    """
+    The view into the demographics information on the model
+    """
+
+    fieldsets = (
+        (None, {
+            'fields': (('username', 'study_condition', 'start_condition'), ('date_finished', 'date_demographics_completed'))
+        }),
+        ('Demographics', { 'fields': ('gender', 'age_group', 'robotics_experience') }),
+    )
+    list_display = ('username', 'study_condition', 'date_finished', 'gender', 'age_group', 'robotics_experience')
+    list_filter = ('study_condition', 'date_finished', 'gender', 'age_group', 'robotics_experience')
+    ordering = ('date_finished', 'username', 'study_condition')
+    search_fields = ('username', 'study_condition')
+    readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed')
+
+create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')

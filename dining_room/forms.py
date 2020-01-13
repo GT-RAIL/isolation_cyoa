@@ -22,3 +22,8 @@ class DemographicsForm(ModelForm):
         # Make these fields required
         for key in self.fields:
             self.fields[key].required = True
+
+    def save(self, *args, **kwargs):
+        """Update the date that demographics information was completed"""
+        self.instance.date_demographics_completed = timezone.now()
+        return super().save(*args, **kwargs)
