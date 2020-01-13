@@ -101,6 +101,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Custom User Model
+AUTH_USER_MODEL = 'dining_room.User'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/

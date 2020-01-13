@@ -22,6 +22,7 @@ To connect to the database for the first setup: `docker exec -it postgres psql -
 CREATE USER banerjs WITH PASSWORD 'IsolationCYOA';
 ALTER USER banerjs WITH createdb createrole;
 CREATE DATABASE cyoa;
+ALTER DATABASE cyoa OWNER TO banerjs;
 ```
 
 In subsequent connections, you can then use `docker exec -it postgres psql -U banerjs -d cyoa` to connect directly to the database.
