@@ -134,6 +134,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     start_condition = models.CharField(_('start condition'), max_length=80, blank=True, null=True, choices=StartConditions.choices)
     scenario_completed = models.BooleanField(_('scenario completed?'), blank=True, null=True, default=None)
+    date_started = models.DateTimeField(_('date started'), blank=True, null=True)
+    date_finished = models.DateTimeField(_('date finished'), blank=True, null=True)  # Not necessarily completed the scenario
 
     # Demographics. TODO: Do we want region, occupation, etc?
     class AgeGroups(models.IntegerChoices):
@@ -148,6 +150,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     age_group = models.IntegerField(blank=True, null=True)
     robotics_experience = models.IntegerField(blank=True, null=True)  # From 1-5
+    date_demographics_completed = models.DateTimeField(_('date demographics completed'), blank=True, null=True)
 
     # Likert Responses
     class LikertResponses(models.IntegerChoices):
@@ -181,13 +184,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         _("The system helped me understand what went wrong with the robot"),
         blank=True, null=True, choices=LikertResponses.choices
     )
+    comments = models.TextField(_("Comments and Feedback")) # TODO: Design this generic feedback
+    date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
 
     # TODO: Add REACTION questionnaire questions? Or perhaps from Knepper
 
     # TODO: Add gold standard questions
-
-    # TODO: Design this generic feedback
-    comments = models.TextField(_("Comments and Feedback"))
 
     # Required constants
     USERNAME_FIELD = 'username'
