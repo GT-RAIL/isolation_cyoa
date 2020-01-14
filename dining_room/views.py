@@ -55,7 +55,7 @@ class InstructionsTestView(AbstractFormView):
     """
     template_name = 'dining_room/instructions_test.html'
     form_class = InstructionsTestForm
-    success_url = reverse_lazy('dining_room:videos')
+    success_url = reverse_lazy('dining_room:study')
 
 
 @login_required
@@ -64,5 +64,5 @@ def instructions(request):
 
 
 @login_required
-def video_template(request):
+def study_template(request):
     return JsonResponse({'videos': True})
