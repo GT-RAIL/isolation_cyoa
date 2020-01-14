@@ -35,6 +35,6 @@ Then run the docker container. To run in interactive mode: `./docker/run_docker_
 
 Things to do:
 
-1. Synchronize the static files with dropbox
+1. Update dropbox links to use the dl.dropboxusercontent.com CORS link
 1. Videos UI
 1. Refine the UI
