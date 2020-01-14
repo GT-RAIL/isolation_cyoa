@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <p>Thank you for completing this study. Please enter the following code at AMT, <b>{{ request.user.unique_key }}</b>, in order to receive your compensation (pending verification of the code).</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

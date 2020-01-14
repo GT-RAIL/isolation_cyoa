@@ -37,5 +37,4 @@ Things to do:
 
 1. Synchronize the static files with dropbox
 1. Videos UI
-1. Complete the pipeline
 1. Refine the UI

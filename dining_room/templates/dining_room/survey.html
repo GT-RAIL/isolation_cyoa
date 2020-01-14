@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Survey | Robot Assistance Study</title>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+<div class="row justify-content-center">
+    {% if form.errors %}
+    <div class="alert alert-danger">
+    {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+</div>
+
+<div class="row justify-content-center">
+    <form method="post" action="{% url 'dining_room:instructions_t' %}" class="offset-2 col-8 table-responsive">
+    {% csrf_token %}
+    {% for hidden in form.hidden_fields %}
+    {{ hidden }}
+    {% endfor %}
+    <table class="table table-borderless">
+    {% for field in form.visible_fields %}
+        {% if field.errors %}
+        <tr class="row">
+            <td class="col alert alert-danger">{{ field.errors }}</td>
+        </tr>
+        {% endif %}
+        <tr class="row">
+            <td class="col-4">{{ field.label_tag }}</td>
+            <td class="col">{{ field }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+
+    <div class="row">
+        <div class="col-6 offset-1">
+        <input type="submit" value="submit" class="btn btn-block btn-outline-primary">
+        </div>
+    </div>
+    </form>
+</div>
+
+</div>
+<style type="text/css">
+    html, body {
+        height: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

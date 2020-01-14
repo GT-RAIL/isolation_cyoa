@@ -33,7 +33,7 @@ class Command(BaseCommand):
 
         # TODO: This should be replaced with an automatic inference, as above
         self.start_conditions = [
-            User.StartConditions.AT_KC_ABOVE_MUG,
+            User.StartConditions.AT_COUNTER_ABOVE_MUG,
             User.StartConditions.AT_COUNTER_OCCLUDING,
             User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG,
             # User.StartConditions.AT_COUNTER_MISLOCALIZED,
@@ -165,7 +165,7 @@ class Command(BaseCommand):
             assert user.study_condition == study_condition, f"Study Condition: {user.study_condition} != {study_condition}"
             assert user.start_condition == start_condition, f"Start Condition: {user.start_condition} != {start_condition}"
         except ObjectDoesNotExist:
-            details = self._create_user(study_condition, start_condition)
+            details = self._create_user(study_condition, start_condition, **options)
         except AssertionError as e:
             if options.get('verbosity') > 1:
                 self.stdout.write(f"Mismatch: {e}")

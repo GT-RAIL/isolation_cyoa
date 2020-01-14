@@ -38,4 +38,42 @@ class InstructionsTestForm(ModelForm):
 
     class Meta:
         model = User
-        fields = ['supposed_to_grab_bowl', 'supposed_to_go_to_couch', 'will_view_in_third_person', 'will_be_able_to_hear_robot']
+        fields = [
+            'supposed_to_grab_bowl',
+            'supposed_to_go_to_couch',
+            'will_view_in_third_person',
+            'will_be_able_to_hear_robot'
+        ]
+
+
+class SurveyForm(ModelForm):
+    """
+    The model form for taking the survey at the end of the experiment
+    """
+
+    class Meta:
+        model = User
+        fields = [
+            'long_time_to_recover',
+            'easy_to_diagnose',
+            'long_time_to_understand',
+            'system_helped_resume',
+            'easy_to_recover',
+            'system_helped_understand',
+            'comments'
+        ]
+
+    def __init__(self, *args, **kwargs):
+        # Initialize the form
+        super().__init__(*args, **kwargs)
+
+        # Make all fields barring the comments required
+        for key in self.fields:
+            if key == 'comments':
+                continue
+            self.fields[key].required = True
+
+    def save(self, *args, **kwargs):
+        """Update the date the survey was completed"""
+        self.instance.date_survey_completed = timezone.now()
+        return super().save(*args, **kwargs)

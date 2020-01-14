@@ -1,19 +1,60 @@
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
-from django.views.generic.edit import FormView
+from django.http import JsonResponse, HttpResponseRedirect
+from django.views.generic.base import TemplateView as GenericTemplateView
+from django.views.generic.edit import FormView as GenericFormView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 
 from .models import User
-from .forms import DemographicsForm, InstructionsTestForm
+from .forms import DemographicsForm, InstructionsTestForm, SurveyForm
 
 
 # Create your views here.
 
-class AbstractFormView(LoginRequiredMixin, FormView):
+class CheckProgressMixin:
     """
-    An abstract class for all the forms in our app
+    An mixin that checks the user's progress through the experiment and forces
+    them to follow a certain trajectory
+
+    Should probably write a test for this one
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.date_demographics_completed is None and request.resolver_match.url_name != 'dining_room:demographics':
+            # If dmoegraphics haven't been completed, redirect to demographics
+            return redirect(reverse('dining_room:demographics'))
+
+        elif (
+            (request.user.date_started is None or request.user.date_finished is None or request.user.date_survey_completed is None) and
+            request.resolver_match.url_name not in [
+                'dining_room:instructions', 'dining_room:instructions_t', 'dining_room:study', 'dining_room:survey'
+            ]
+        ):
+            # If the study has not been completed, but demographics have been,
+            # then redirect to the instructions and restart the study
+            return redirect(reverse('dining_room:instructions'))
+
+        elif request.user.date_survey_completed is not None and request.resolver_match.url_name != 'dining_room:complete':
+            # If the user has completed the study, and the survey, then redirect
+            # to the completed page
+            return redirect(reverse('dining_room:complete'))
+
+        # Allow the underlying views to take charge
+        return super().dispatch(request, *args, **kwargs)
+
+
+class TemplateView(LoginRequiredMixin, CheckProgressMixin, GenericTemplateView):
+    """
+    An abstract class view for all the static pages in our app
+    """
+    pass
+
+
+class FormView(LoginRequiredMixin, CheckProgressMixin, GenericFormView):
+    """
+    An abstract class view for all the pages with ModelForms in our app
     """
 
     def get_form_kwargs(self):
@@ -39,7 +80,7 @@ class AbstractFormView(LoginRequiredMixin, FormView):
         return super().form_valid(form)
 
 
-class DemographicsFormView(AbstractFormView):
+class DemographicsFormView(FormView):
     """
     Display the demographics questionnaire form, validate it, and update the
     User object accordingly
@@ -49,7 +90,14 @@ class DemographicsFormView(AbstractFormView):
     success_url = reverse_lazy('dining_room:instructions')
 
 
-class InstructionsTestView(AbstractFormView):
+class InstructionsView(TemplateView):
+    """
+    Display the instructions page
+    """
+    template_name = 'dining_room/instructions.html'
+
+
+class InstructionsTestView(FormView):
     """
     Display the gold standard questions for the instructions and save the data
     """
@@ -58,11 +106,52 @@ class InstructionsTestView(AbstractFormView):
     success_url = reverse_lazy('dining_room:study')
 
 
-@login_required
-def instructions(request):
-    return render(request, 'dining_room/instructions.html')
+class StudyView(TemplateView):
+    """
+    Most of the study template will be handled by AJAX. This view simply sets
+    up the HTML page within which the JS will work
+    """
+    template_name = 'dining_room/study.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        if isinstance(response, HttpResponseRedirect):
+            return response
+
+        # Update the time the user started the study
+        request.user.date_started = timezone.now()
+        request.user.save()
+        return response
+
+
+class SurveyView(FormView):
+    """
+    Process the post completion survey. Also update the timestamps of the user
+    """
+    template_name = 'dining_room/survey.html'
+    form_class = SurveyForm
+    success_url = reverse_lazy('dining_room:complete')
+
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        if isinstance(response, HttpResponseRedirect):
+            return response
+
+        # If we are requesting this form for the first time, we've probably just
+        # completed the study; update the timestamp
+        if request.method == 'GET':
+            request.user.date_finished = timezone.now()
+            request.user.save()
+        return response
+
+
+class CompleteView(TemplateView):
+    """
+    Show the final completion page to the user
+    """
+    template_name = 'dining_room/complete.html'
 
 
 @login_required
-def study_template(request):
+def study_json_template(request):
     return JsonResponse({'videos': True})

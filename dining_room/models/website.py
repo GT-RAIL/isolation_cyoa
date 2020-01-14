@@ -122,7 +122,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         """
         The start conditions. Given by the state description in domain.State
         """
-        AT_KC_ABOVE_MUG = 'kc.kc.default.above_mug.default.empty.dt'
+        AT_COUNTER_ABOVE_MUG = 'kc.kc.default.above_mug.default.empty.dt'
         AT_COUNTER_OCCLUDING = 'kc.kc.occluding.default.default.empty.dt'
         AT_COUNTER_OCCLUDING_ABOVE_MUG = 'kc.kc.occluding.above_mug.default.empty.dt'
         AT_COUNTER_MISLOCALIZED = 'dt.kc.default.default.default.empty.kc'  # Remains
@@ -135,8 +135,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     start_condition = models.CharField(_('start condition'), max_length=80, blank=True, null=True, choices=StartConditions.choices)
     scenario_completed = models.BooleanField(_('scenario completed?'), blank=True, null=True, default=None)
-    date_started = models.DateTimeField(_('date started'), blank=True, null=True)
-    date_finished = models.DateTimeField(_('date finished'), blank=True, null=True)  # Not necessarily completed the scenario
+    date_started = models.DateTimeField(_('date started'), blank=True, null=True)   # Starting the scenario
+    date_finished = models.DateTimeField(_('date finished'), blank=True, null=True) # Not necessarily completed the scenario
 
     # Demographics. TODO: Do we want region, occupation, etc?
     class AgeGroups(models.IntegerChoices):
@@ -209,6 +209,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
 
     # TODO: Add REACTION questionnaire questions? Or perhaps from Knepper
+    # TODO: Add gold standard questions to the survey
 
     # Required constants
     USERNAME_FIELD = 'username'
