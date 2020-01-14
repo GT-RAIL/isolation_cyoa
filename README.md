@@ -37,11 +37,11 @@ Then run the docker container. To run in interactive mode: `./docker/run_docker_
     - https://devcenter.heroku.com/articles/django-app-configuration
     - https://devcenter.heroku.com/articles/django-assets
     - https://devcenter.heroku.com/articles/python-concurrency-and-database-connections
-- Open tabs when shutdown:
-    - https://docs.djangoproject.com/en/3.0/intro/tutorial05/ (tests)
-    - https://docs.djangoproject.com/en/3.0/intro/tutorial02/ (add your app)
-    - https://docs.djangoproject.com/en/3.0/ref/models/fields/ (model fields)
-    - https://docs.djangoproject.com/en/3.0/topics/db/models/
-    - https://docs.djangoproject.com/en/3.0/topics/auth/customizing/#django.contrib.auth.models.AbstractUser (auth pt 1)
-    - https://docs.djangoproject.com/en/3.0/topics/auth/default/ (auth pt 2)
-    - https://docs.djangoproject.com/en/3.0/ref/contrib/auth/ (auth pt 3)
+
+Things to do:
+
+1. Synchronize the static files with dropbox
+1. Synchronize stub users using the CSV file
+1. Videos UI
+1. Complete the pipeline
+1. Refine the UI

@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+# Create a test set of users
+
+import os
+import sys
+import csv
+import uuid
+
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand, CommandError
+
+
+# Fetch the default user model
+User = get_user_model()
+
+
+# Create the Command class
+
+class Command(BaseCommand):
+    help = "Given the number of users per condition, and the list of study and start conditions, create a CSV file of user details"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Infer the start and study conditions
+        self.study_conditions = [
+            x[0] for x in User.study_condition.field.get_choices()
+            if x[0] is not None
+        ]
+
+        # TODO: This should be replaced with an automatic inference, as above
+        self.start_conditions = [
+            User.StartConditions.AT_KC_ABOVE_MUG,
+            User.StartConditions.AT_COUNTER_OCCLUDING,
+            User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG,
+            # User.StartConditions.AT_COUNTER_MISLOCALIZED,
+            # User.StartConditions.AT_TABLE,
+            # User.StartConditions.AT_TABLE_ABOVE_MUG,
+            # User.StartConditions.AT_TABLE_OCCLUDING,
+            # User.StartConditions.AT_TABLE_OCCLUDING_ABOVE_MUG,
+        ]
+
+    def add_arguments(self, parser):
+        parser.add_argument('number_desired_users', type=int, help="The number of users per condition")
+        parser.add_argument('-r', '--regenerate', action='store_true', help="Regenerate the list of users?")
+        parser.add_argument('-f', '--filename', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.csv'), help="The file to store the data in")
+
+    def handle(self, *args, **options):
+        self.stdout.write(self.style.HTTP_INFO("Starting user generation"))
+
+        number_desired_users = options['number_desired_users']
+        user_details = []
+        if not options.get('regenerate') and os.path.exists(options['filename']):
+            with open(options['filename'], 'r') as fd:
+                reader = csv.reader(fd)
+                for details in reader:
+                    user_details.append(details)
+
+        if options.get('verbosity') > 0:
+            self.stdout.write(f"Starting with {len(user_details)} users")
+
+        for study_condition in self.study_conditions:
+            for start_condition in self.start_conditions:
+                # Get the number of users that already exist for the condition
+                if not options.get('regenerate'):
+                    number_existing_users = User.objects.filter(study_condition=study_condition, start_condition=start_condition).count()
+                else:
+                    number_existing_users = 0
+
+                if options.get('verbosity') > 0:
+                    self.stdout.write(f"{number_existing_users} -> {number_desired_users} for {study_condition}, {start_condition}")
+
+                for idx in range(number_existing_users, number_desired_users):
+                    _, details = self._create_user(study_condition, start_condition, **options)
+                    user_details.append(details)
+
+        # Save the details
+        with open(options['filename'], 'w') as fd:
+            writer = csv.writer(fd)
+            for details in user_details:
+                writer.writerow(details)
+
+        # Print complete
+        self.stdout.write(self.style.SUCCESS("User generation complete!"))
+
+    def _create_user(self, study_condition, start_condition, **options):
+        """
+        Create a random user with a username and password. Return the tuple of the
+        username, password, and the unique_key
+        """
+        user = User(username=User.objects.make_random_password(),
+                    unique_key=User.objects.make_random_password(),
+                    study_condition=study_condition,
+                    start_condition=start_condition)
+        password = uuid.uuid4()
+        user.set_password(password)
+        user.save()
+
+        if options.get('verbosity') > 1:
+            self.stdout.write(f"Created: {user.username}, {user.unique_key}")
+
+        return user, (user.username, user.unique_key, user.password)
