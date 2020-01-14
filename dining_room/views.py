@@ -22,27 +22,26 @@ class CheckProgressMixin:
     """
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.date_demographics_completed is None and request.resolver_match.url_name != 'dining_room:demographics':
-            # If dmoegraphics haven't been completed, redirect to demographics
-            return redirect(reverse('dining_room:demographics'))
+        allowed_locations = None
+        if request.user.date_demographics_completed is None:
+            # If demographics haven't been completed, redirect to demographics
+            allowed_locations = ['demographics']
 
-        elif (
-            (request.user.date_started is None or request.user.date_finished is None or request.user.date_survey_completed is None) and
-            request.resolver_match.url_name not in [
-                'dining_room:instructions', 'dining_room:instructions_t', 'dining_room:study', 'dining_room:survey'
-            ]
-        ):
+        elif (request.user.date_started is None or request.user.date_finished is None or request.user.date_survey_completed is None):
             # If the study has not been completed, but demographics have been,
             # then redirect to the instructions and restart the study
-            return redirect(reverse('dining_room:instructions'))
+            allowed_locations = ['instructions', 'test', 'study', 'survey']
 
-        elif request.user.date_survey_completed is not None and request.resolver_match.url_name != 'dining_room:complete':
+        elif request.user.date_survey_completed is not None:
             # If the user has completed the study, and the survey, then redirect
             # to the completed page
-            return redirect(reverse('dining_room:complete'))
+            allowed_locations = ['complete']
 
-        # Allow the underlying views to take charge
-        return super().dispatch(request, *args, **kwargs)
+        if request.resolver_match.url_name in allowed_locations:
+            # Allow the underlying views to take charge
+            return super().dispatch(request, *args, **kwargs)
+        else:
+            return redirect(reverse(f'dining_room:{allowed_locations[0]}'))
 
 
 class TemplateView(LoginRequiredMixin, CheckProgressMixin, GenericTemplateView):
@@ -101,7 +100,7 @@ class InstructionsTestView(FormView):
     """
     Display the gold standard questions for the instructions and save the data
     """
-    template_name = 'dining_room/instructions_test.html'
+    template_name = 'dining_room/test.html'
     form_class = InstructionsTestForm
     success_url = reverse_lazy('dining_room:study')
 

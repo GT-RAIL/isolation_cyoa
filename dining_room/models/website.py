@@ -205,7 +205,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         _("The system helped me understand what went wrong with the robot"),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    comments = models.TextField(_("Comments and Feedback")) # TODO: Design this generic feedback
+    comments = models.TextField(_("Comments and Feedback"), blank=True, null=True) # TODO: Design this generic feedback
     date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
 
     # TODO: Add REACTION questionnaire questions? Or perhaps from Knepper

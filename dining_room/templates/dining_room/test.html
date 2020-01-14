@@ -16,7 +16,7 @@
 </div>
 
 <div class="row justify-content-center">
-    <form method="post" action="{% url 'dining_room:instructions_t' %}" class="offset-2 col-8 table-responsive">
+    <form method="post" action="{% url 'dining_room:test' %}" class="offset-2 col-8 table-responsive">
     {% csrf_token %}
     {% for hidden in form.hidden_fields %}
     {{ hidden }}
