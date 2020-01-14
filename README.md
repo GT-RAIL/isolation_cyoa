@@ -41,7 +41,6 @@ Then run the docker container. To run in interactive mode: `./docker/run_docker_
 Things to do:
 
 1. Synchronize the static files with dropbox
-1. Synchronize stub users using the CSV file
 1. Videos UI
 1. Complete the pipeline
 1. Refine the UI
