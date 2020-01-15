@@ -1,5 +1,5 @@
 import React from 'react';
-import {hot} from 'react-hot-loader';
+import {hot} from 'react-hot-loader/root';
 
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
@@ -63,4 +63,4 @@ class TestComponent extends React.Component {
     }
 }
 
-export default hot(module)(TestComponent);
+export default hot(TestComponent);
