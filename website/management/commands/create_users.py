@@ -134,16 +134,16 @@ class Command(BaseCommand):
         # Print complete
         self.stdout.write(self.style.SUCCESS("User generation complete!"))
 
-    def _create_user(self, study_condition, start_condition, **options):
+    def _create_user(self, study_condition, start_condition, username=None, unique_key=None, password=None, **options):
         """
         Create a random user with a username and password. Return the tuple of the
         username, password, and the unique_key
         """
-        user = User(username=User.objects.make_random_password(),
-                    unique_key=User.objects.make_random_password(),
+        user = User(username=username or User.objects.make_random_password(),
+                    unique_key=unique_key or User.objects.make_random_password(),
                     study_condition=study_condition,
                     start_condition=start_condition)
-        password = uuid.uuid4()
+        password = password or uuid.uuid4()
         user.set_password(password)
         user.save()
 
@@ -165,7 +165,7 @@ class Command(BaseCommand):
             assert user.study_condition == study_condition, f"Study Condition: {user.study_condition} != {study_condition}"
             assert user.start_condition == start_condition, f"Start Condition: {user.start_condition} != {start_condition}"
         except ObjectDoesNotExist:
-            details = self._create_user(study_condition, start_condition, **options)
+            details = self._create_user(study_condition, start_condition, username, unique_key, password, **options)
         except AssertionError as e:
             if options.get('verbosity') > 1:
                 self.stdout.write(f"Mismatch: {e}")
