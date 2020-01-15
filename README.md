@@ -35,6 +35,13 @@ Then run the docker container. To run in interactive mode: `./docker/run_docker_
 
 Things to do:
 
-1. Update dropbox links to use the dl.dropboxusercontent.com CORS link
 1. Videos UI
 1. Refine the UI
+1. Setup Heroku
+1. Setup MTurk to use the CSV (or an API)
+1. Setup scripts to grab production data and save it
+
+If we have the time, we should, in this order:
+
+1. Write some unit tests for the Django code
+1. Create a JS / CSS build and compule system
