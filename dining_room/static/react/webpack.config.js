@@ -1,12 +1,12 @@
 const path = require('path');
 const webpack = require('webpack');
-const TerserJSPlugin = require('terser-webpack-plugin');
+// const TerserJSPlugin = require('terser-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+// const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 
 module.exports = {
     entry: {
-        index: "./src/index.js",
+        index: "./index.js",
     },
     mode: "development",
     module: {
@@ -57,9 +57,9 @@ module.exports = {
         publicPath: "/static/dining_room/",
         filename: "[name].js"
     },
-    optimization: {
-        minimizer: [new TerserJSPlugin({}), new OptimizeCSSAssetsPlugin({})]
-    },
+    // optimization: {
+    //     minimizer: [new TerserJSPlugin({}), new OptimizeCSSAssetsPlugin({})]
+    // },
     devServer: {
         contentBase: __dirname,
         port: 9000,
