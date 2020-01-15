@@ -1,7 +1,10 @@
-var Container = ReactBootstrap.Container;
-var Row = ReactBootstrap.Row;
-var Col = ReactBootstrap.Col;
-var Button = ReactBootstrap.Button;
+import React from 'react';
+import {hot} from 'react-hot-loader';
+
+import Container from 'react-bootstrap/Container';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+import Button from 'react-bootstrap/Button';
 
 
 class TestComponent extends React.Component {
@@ -60,4 +63,4 @@ class TestComponent extends React.Component {
     }
 }
 
-ReactDOM.render(<TestComponent links={["https://dl.dropboxusercontent.com/s/mf385zlxfoyqtb8/kc.kc.gripper.gripper.gripper.look_at_dt.mp4", "https://dl.dropboxusercontent.com/s/p144ik18262tjw9/dt.kc.occluding.default.default.look_at_kc.mp4"]} />, document.getElementById("app"));
+export default hot(module)(TestComponent);

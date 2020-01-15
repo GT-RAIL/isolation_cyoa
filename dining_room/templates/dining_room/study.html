@@ -15,8 +15,9 @@
 </div>
 {% endblock %}
 
-{% block postscripts %}
+{% block scripts %}
 <script src="{% static 'dining_room/study.jsx' %}" type="text/babel"></script>
+
 <script type="text/babel">
     const start_state = "{{ request.user.start_condition }}";
     var current_state = "{{ current_state }}";

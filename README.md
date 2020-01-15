@@ -39,12 +39,9 @@ Things to do:
 
 1. Videos UI
 1. Refine the UI
-1. Setup Heroku
 1. Setup MTurk to use the CSV (or an API)
 1. Setup scripts to grab production data and save it
 
 If we have the time, we should, in this order:
 
-1. Add Redis as the storage for auth sessions
 1. Write some unit tests for the Django code
-1. Create a JS / CSS build and compule system

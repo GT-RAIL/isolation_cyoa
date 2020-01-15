@@ -60,3 +60,6 @@ CATKIN_IGNORE
 
 # The Djagno SQLite database
 *.sqlite3
+
+# Node stuff
+node_modules/
