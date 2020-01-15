@@ -14,8 +14,6 @@ class TestComponent extends React.Component {
 
     toggle() {
         let idx = this.props.links.indexOf(this.state.link);
-        console.log(this.state.link);
-        console.log(idx);
         this.setState({
             link: this.props.links[(idx+1) % this.props.links.length]
         });

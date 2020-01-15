@@ -196,6 +196,14 @@ constants = objdict({
 
     # The arm statuses
     'ARM_STATUS': ['not_moving', 'in_motion'],
+
+    # The diagnosis options
+    'DIAGNOSES': {
+        'lost': 'The robot is lost',
+        'cannot_pick': 'The mug cannot be picked up',
+        'cannot_see': 'The mug is not visible',
+        'different_location': 'The mug is not where it should be',
+    }
 })
 
 
@@ -492,12 +500,12 @@ class Transition:
     # Attributes
     @property
     def start_state(self):
-        """The state that this transition starts at"""
+        """The state that this transition starts at. None if this is the start"""
         return self._start_state
 
     @start_state.setter
     def start_state(self, value):
-        assert isinstance(value, State)
+        assert isinstance(value, State) or value is None
         self._start_state = value
 
     @property
@@ -525,9 +533,9 @@ class Transition:
     def tuple(self):
         """A tuple representation of the transition"""
         return (
-            self.start_state,
+            self.start_state.tuple if self.start_state is not None else None,
             self.action,
-            self.end_state,
+            self.end_state.tuple,
         )
 
     @property
@@ -560,6 +568,11 @@ class Transition:
     @property
     def video_name(self):
         """The name of the video file to use"""
+        # If this is the start, then we have a special case of a noop video.
+        # Handle it before anything else
+        if self.start_state is None:
+            return "{self.end_state.base_location}.{self.end_state.object_location}.{self.end_state.jug_state}.{bowl_state}.{mug_state}.noop.mp4".format(**locals())
+
         # First simply get the noop vs. video action
         if self.action.startswith('at_'):
             video_action = 'noop'
@@ -698,3 +711,6 @@ class Transition:
 
         # Return the result
         return end_state
+
+
+# TODO: Create helper methods for suggesting diagnoses and actions to take
