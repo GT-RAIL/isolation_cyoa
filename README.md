@@ -37,7 +37,7 @@ Then run the docker container. To run in interactive mode: `./docker/run_website
 
 Things to do:
 
-1. Videos UI
+1. Videos UI - define using [Redux](https://redux.js.org/basics/actions)
 1. Refine the UI
 1. Setup MTurk to use the CSV (or an API)
 1. Setup scripts to grab production data and save it
