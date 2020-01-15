@@ -8,6 +8,7 @@ import uuid
 
 import dropbox
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.core.exceptions import ObjectDoesNotExist
@@ -44,12 +45,12 @@ class Command(BaseCommand):
         ]
 
         # Initialize a connection to dropbox
-        self.dbx = dropbox.Dropbox(os.getenv('DROPBOX_ACCESS_TOKEN'))
+        self.dbx = dropbox.Dropbox(os.getenv(settings.DROPBOX_ENV_KEY))
 
     def add_arguments(self, parser):
         parser.add_argument('number_desired_users', type=int, help="The number of users per condition")
         parser.add_argument('-r', '--regenerate', action='store_true', help="Regenerate the list of users?")
-        parser.add_argument('-f', '--filename', default='dropbox://DiningRoom_IsolationCYOA/data/user_details.csv', help="The file to store the data in")
+        parser.add_argument('-f', '--filename', default=os.path.join('dropbox://', settings.DROPBOX_FOLDER_NAME, 'data/user_details.csv'), help="The file to store the data in")
         parser.add_argument('--no_check', action='store_true', help="Check that the user details match; if not, create/update the user")
 
     def _get_local_filename(self, filename):

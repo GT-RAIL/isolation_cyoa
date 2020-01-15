@@ -197,7 +197,7 @@ constants = objdict({
     # The arm statuses
     'ARM_STATUS': ['not_moving', 'in_motion'],
 
-    # The diagnosis options
+    # The diagnosis options. These are keys corresponding to display values
     'DIAGNOSES': {
         'lost': 'The robot is lost',
         'cannot_pick': 'The mug cannot be picked up',
@@ -515,7 +515,7 @@ class Transition:
 
     @action.setter
     def action(self, value):
-        assert value in constants.ACTIONS
+        assert value in constants.ACTIONS or value is None
         self._action = value
 
     @property
@@ -543,7 +543,9 @@ class Transition:
         """A label for the action that can be easily displayed"""
         label = None
 
-        if self.action.startswith('at_'):
+        if self.action is None:
+            pass
+        elif self.action.startswith('at_'):
             location = constants.LOCATION_NAMES[self.action[len('at_'):]]
             label = 'robot_is_at_' + location
         elif self.action.startswith('go_to_'):
@@ -557,20 +559,19 @@ class Transition:
         elif self.action == 'place':
             label = 'stow_object_in_gripper'
 
-        assert label is not None
         return label
 
     @property
     def arm_status(self):
         """Return if the arm is in motion or not"""
-        return constants.ARM_STATUS[int(self.action.startswith('pick_') or self.action == 'place')]
+        return constants.ARM_STATUS[int(self.action is not None and (self.action.startswith('pick_') or self.action == 'place'))]
 
     @property
     def video_name(self):
         """The name of the video file to use"""
         # If this is the start, then we have a special case of a noop video.
         # Handle it before anything else
-        if self.start_state is None:
+        if self.start_state is None and self.action is None:
             return "{self.end_state.base_location}.{self.end_state.object_location}.{self.end_state.jug_state}.{bowl_state}.{mug_state}.noop.mp4".format(**locals())
 
         # First simply get the noop vs. video action

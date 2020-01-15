@@ -1,3 +1,9 @@
+import os
+import csv
+import time
+import dropbox
+
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponseRedirect
 from django.views.generic.base import TemplateView as GenericTemplateView
@@ -149,6 +155,27 @@ class CompleteView(TemplateView):
     Show the final completion page to the user
     """
     template_name = 'dining_room/complete.html'
+
+
+# The API views begin here. Therefore, we should load in the dropbox data
+
+dbx = dropbox.Dropbox(os.getenv(settings.DROPBOX_ENV_KEY))
+
+# Begin with a constant dictionary for the video links. Update the dictionary
+# if the file does not exist, or if the this server was started more than 15 min
+# after the last modification timestamp for the file
+_local_links_file = os.path.join("/tmp", settings.DROPBOX_VIDEO_LINKS_FILE)
+if not os.path.exists(_local_links_file) or os.path.getmtime(_local_links_file) < (time.time() - 900):
+    dbx.files_download_to_file(_local_links_file, os.path.join('/', settings.DROPBOX_FOLDER_NAME, 'data', settings.DROPBOX_VIDEO_LINKS_FILE))
+
+_links_data = []
+with open(_local_links_file, 'r') as fd:
+    _reader = csv.reader(fd)
+    for _row in _reader:
+        _links_data.append(_row)
+
+# The links data is stored in this variable
+VIDEO_LINKS = { _l[0]: _l[-1] for _l in _links_data }
 
 
 @login_required

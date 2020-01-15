@@ -132,3 +132,9 @@ STATIC_URL = '/static/'
 if os.getenv('ENVIRONMENT', 'dev') == 'prod':
     import django_heroku
     django_heroku.settings(locals(), test_runner=False)
+
+
+# Other settings specific to dropbox and our app
+DROPBOX_ENV_KEY = 'DROPBOX_ACCESS_TOKEN'
+DROPBOX_FOLDER_NAME = 'DiningRoom_IsolationCYOA'
+DROPBOX_VIDEO_LINKS_FILE = 'video_links.csv'
