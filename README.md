@@ -22,7 +22,9 @@ ALTER DATABASE cyoa OWNER TO banerjs;
 
 In subsequent connections, you can then use `./docker/run_postgres.sh` to connect directly to the database.
 
-Then run the docker container. To run in interactive mode: `./docker/run_docker_interactive.sh`.
+A similar process exists for getting Redis running: `./docker/run_redis.sh`
+
+Then run the docker container. To run in interactive mode: `./docker/run_website_interactive.sh`.
 
 
 ## Notes
@@ -43,5 +45,6 @@ Things to do:
 
 If we have the time, we should, in this order:
 
+1. Add Redis as the storage for auth sessions
 1. Write some unit tests for the Django code
 1. Create a JS / CSS build and compule system
