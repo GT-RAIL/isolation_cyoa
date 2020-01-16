@@ -147,6 +147,5 @@ if os.getenv('ENVIRONMENT', 'dev') == 'prod':
 
 
 # Other settings specific to dropbox and our app
-DROPBOX_ENV_KEY = 'DROPBOX_ACCESS_TOKEN'
-DROPBOX_FOLDER_NAME = 'DiningRoom_IsolationCYOA'
-DROPBOX_VIDEO_LINKS_FILE = 'video_links.csv'
+DROPBOX_OAUTH2_TOKEN = os.getenv('DROPBOX_ACCESS_TOKEN')
+DROPBOX_ROOT_PATH = '/DiningRoom_IsolationCYOA/'
