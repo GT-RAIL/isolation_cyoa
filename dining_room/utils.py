@@ -14,6 +14,7 @@ import dropbox
 import numpy as np
 
 from django.conf import settings
+from django.core.files.base import File, ContentFile
 from django.utils import timezone
 from storages.backends.dropbox import DropBoxStorage, DropBoxStorageException
 
@@ -21,7 +22,57 @@ from storages.backends.dropbox import DropBoxStorage, DropBoxStorageException
 logger = logging.getLogger(__name__)
 
 
-# The Dropbox connection class
+# Dealing with dropbox connections
+
+
+class OverwriteDropboxStorage(DropBoxStorage):
+    """
+    Overwrite files when saving instead of the default add
+    """
+
+    def save(self, name, content, write_mode=dropbox.files.WriteMode.overwrite, mute=True):
+        """
+        Overwrite the default storage API that renames files. ``content`` is a
+        django File object type or one of its subclasses
+        """
+        if name is None:
+            name = content.name
+
+        return self._save(name, content, write_mode, mute)
+
+    def _save(self, name, content, write_mode, mute=True):
+        """
+        Given the name of the file and the content (django File object or its
+        subclasses) overwrite the file if it exists
+
+        If the incoming stream was a file, it is closed when the method returns
+        """
+
+        # Create a content file if the incoming data is not that
+        if not hasattr(content, 'open'):
+            content = ContentFile(content)
+
+        content.open()
+        if content.size <= self.CHUNK_SIZE:
+            self.client.files_upload(content.read(), self._full_path(name), write_mode, mute=mute)
+        else:
+            self._chunked_upload(content, self._full_path, write_mode, mute)
+
+        content.close()
+        return name
+
+    def _chunked_upload(self, content, dest_path, write_mode, mute=True):
+        upload_session = self.client.files_upload_session_start(content.read(self.CHUNK_SIZE))
+        cursor = dropbox.files.UploadSessionCursor(session_id=upload_session.session_id, offset=content.tell())
+        commit = dropbox.files.CommitInfo(path=dest_path, mode=write_mode, mute=mute)
+
+        while content.tell() < content.size:
+            if (content.size - content.tell()) <= self.CHUNK_SIZE:
+                self.client.files_upload_session_finish(content.read(self.CHUNK_SIZE), cursor, commit)
+            else:
+                self.client.files_upload_session_append_v2(content.read(self.CHUNK_SIZE), cursor)
+                cursor.offset = content.tell()
+
 
 class DropboxConnection:
     """
@@ -38,7 +89,7 @@ class DropboxConnection:
     ]
 
     def __init__(self):
-        self.storage = DropBoxStorage()
+        self.storage = OverwriteDropboxStorage()
 
         # Cache some of the data so that we don't make too many requests
         _video_links = None
@@ -59,7 +110,7 @@ class DropboxConnection:
         to a file. Return the bytes"""
         sio = io.StringIO()
         writer = csv.writer(sio)
-        writer.writerows(sio)
+        writer.writerows(csv_data)
         return codecs.encode(sio.getvalue(), 'utf-8')
 
     @property
@@ -81,6 +132,8 @@ class DropboxConnection:
         Given a dictionary of data, write it to the users's CSV. An empty
         dictionary is added automatically as a restart marker with a timestamp
         of now()
+
+        Returns the data (bytes) that was written to dropbox
         """
         csv_filename = os.path.join(DropboxConnection.USERDATA_FOLDER, user.csv_file)
 
@@ -104,6 +157,10 @@ class DropboxConnection:
 
         # Write the data to dropbox
         write_data = self._set_csv_bytes(experiment_data)
-        # TODO: Figure out how to write the data to dropbox. Also, test if
-        # we can save the same file multiple times. Probably not? In which case
-        # we need to override the storages Storage to do overwrites
+        try:
+            self.storage.save(csv_filename, write_data)
+        except dropbox.exceptions.ApiError as e:
+            logger.error(f"Error writing to Dropbox: {e}")
+            write_data = None
+
+        return write_data
