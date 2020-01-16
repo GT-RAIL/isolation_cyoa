@@ -1,9 +1,12 @@
 import React from 'react';
 import {hot} from 'react-hot-loader/root';
 
-import Questions from './questions';
-import RobotStates from './robot_states';
-import Suggestions from './suggestions';
+// Import the top-level components
+import RobotState from './components/robot_state';
+import Suggestions from './components/suggestions';
+import Goals from './components/goals';
+import History from './components/history';
+import Controls from './components/controls';
 
 
 class App extends React.Component {
@@ -11,23 +14,19 @@ class App extends React.Component {
     render() {
         return (
             <div className="container-fluid">
-                <div className="row">
-                <div className="col">
-                    <Questions />
-                </div>
-                <div className="col">
-                    <div className="row">
-                    <div className="col">
-                        <RobotStates />
-                    </div>
-                    </div>
-                    <div className="row">
-                    <div className="col">
-                        <Suggestions />
-                    </div>
-                    </div>
-                </div>
-                </div>
+            <div className="row mt-3">
+            <div className="col">
+                <RobotState />
+                <Suggestions />
+            </div>
+            <div className="col">
+                <Goals />
+                <hr />
+                <History />
+                <hr />
+                <Controls />
+            </div>
+            </div>
             </div>
         );
     }
