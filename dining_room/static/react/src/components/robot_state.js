@@ -11,6 +11,7 @@ class RobotState extends React.Component {
             <div className="row">
             <div className="col">
                 <RobotVideo />
+                <div className="my-3" />
                 <RobotBeliefs />
             </div>
             </div>

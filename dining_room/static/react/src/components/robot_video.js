@@ -7,7 +7,7 @@ class RobotVideo extends React.Component {
         super(props);
 
         // Constants
-        this.MAX_HEIGHT = "640px";
+        this.MAX_HEIGHT = "600px";
 
         // FIXME: Placeholder video link
         this.VIDEO_LINK = "https://dl.dropboxusercontent.com/s/mf385zlxfoyqtb8/kc.kc.gripper.gripper.gripper.look_at_dt.mp4";

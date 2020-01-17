@@ -30,6 +30,7 @@ class App extends React.Component {
             <div className="row mt-3">
             <div className="col">
                 <RobotState />
+                <hr />
                 <Suggestions />
             </div>
             <div className="col">

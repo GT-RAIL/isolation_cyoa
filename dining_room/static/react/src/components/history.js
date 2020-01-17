@@ -52,7 +52,7 @@ class History extends React.Component {
         super(props);
 
         // Constants
-        this.MAX_HEIGHT = "30%";
+        this.MAX_HEIGHT = "350px";
 
         // The state definition
         this.state = {
