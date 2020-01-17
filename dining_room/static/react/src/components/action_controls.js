@@ -1,10 +1,14 @@
 import React from 'react';
+import Tooltip from 'react-bootstrap/Tooltip';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
 
 class ActionControlButton extends React.Component {
     render() {
         return (
-            <button className="btn btn-outline-info btn-block" style={{height: "100%"}}>{this.props.name}</button>
+            <button className="btn btn-outline-info btn-block" style={{height: "100%", minHeight: "4rem"}}>{this.props.name}</button>
         );
     }
 }
@@ -44,19 +48,27 @@ class ActionControls extends React.Component {
 
             // We want to close off after every sublist has x elements
             if ((sublist.length % this.NUMBER_BUTTONS_PER_ROW) === 0) {
-                action_buttons.push(
-                    <div className="row my-1" key={idx}>{sublist}</div>
-                );
+                action_buttons.push(<div className="row my-1" key={idx}>{sublist}</div>);
                 sublist = [];
             }
         }
-        // const action_buttons = this.state.valid_actions.map(
-        //     (action) => <ActionControlButton {...action} key={action.value} />
-        // );
+
+        // Pad the list if we have more buttons to display
+        if (sublist.length !== 0) {
+            for (let idx = (sublist.length % this.NUMBER_BUTTONS_PER_ROW); idx < this.NUMBER_BUTTONS_PER_ROW; idx++) {
+                sublist.push(<div className="col"></div>);
+            }
+            action_buttons.push(<div className="row my-1" key={-1}>{sublist}</div>);
+        }
 
         return (
             <div className="row">
             <div className="col">
+                <div className="row">
+                <p className="col">
+                    <OverlayTrigger placement="left" overlay={<Tooltip>Select the action that the robot should take to complete its goal</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Actions</b>
+                </p>
+                </div>
                 {action_buttons}
             </div>
             </div>
