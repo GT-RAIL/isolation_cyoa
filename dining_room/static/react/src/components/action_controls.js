@@ -6,6 +6,7 @@ import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestion
 
 
 class ActionControlButton extends React.Component {
+    /** The button for an action */
     render() {
         return (
             <button className="btn btn-outline-info btn-block" style={{height: "100%", minHeight: "4rem"}}>{this.props.name}</button>
@@ -41,14 +42,14 @@ class ActionControls extends React.Component {
     render() {
         let action_buttons = [];
         let sublist = [];
-        for (const [idx, action]of this.state.valid_actions.entries()) {
+        for (const [idx, action] of this.state.valid_actions.entries()) {
             sublist.push(
-                <div className="col"><ActionControlButton {...action} key={action.value} /></div>
+                <div className="col" key={action.value}><ActionControlButton {...action} /></div>
             );
 
             // We want to close off after every sublist has x elements
-            if ((sublist.length % this.NUMBER_BUTTONS_PER_ROW) === 0) {
-                action_buttons.push(<div className="row my-1" key={idx}>{sublist}</div>);
+            if (sublist.length === this.NUMBER_BUTTONS_PER_ROW) {
+                action_buttons.push(<div className="row my-1" key={Math.floor(idx / this.NUMBER_BUTTONS_PER_ROW)}>{sublist}</div>);
                 sublist = [];
             }
         }
@@ -56,7 +57,7 @@ class ActionControls extends React.Component {
         // Pad the list if we have more buttons to display
         if (sublist.length !== 0) {
             for (let idx = (sublist.length % this.NUMBER_BUTTONS_PER_ROW); idx < this.NUMBER_BUTTONS_PER_ROW; idx++) {
-                sublist.push(<div className="col"></div>);
+                sublist.push(<div className="col" key={idx}></div>);
             }
             action_buttons.push(<div className="row my-1" key={-1}>{sublist}</div>);
         }
@@ -66,7 +67,7 @@ class ActionControls extends React.Component {
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="left" overlay={<Tooltip>Select the action that the robot should take to complete its goal</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Actions</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the action that the robot should take to complete its goal</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Actions</b>
                 </p>
                 </div>
                 {action_buttons}
