@@ -64,7 +64,7 @@ class History extends React.Component {
                 { error: ["It was wrong", "Something was wrong"], action: "Another action", result: true },
                 { error: ["Unknown", "Something very wrong"], action: "Yet another action", result: false }
             ]
-        }
+        };
     }
 
     render() {
