@@ -14,7 +14,7 @@ class CompletionModal extends React.Component {
                 <p>The connection with the robot is now severed. Please click the button below to continue with the study.</p>
             </Modal.Body>
             <Modal.Footer>
-                <a href="" role="button" className="btn btn-primary">Continue</a>
+                <a href={window.constants.NEXT_URL} role="button" className="btn btn-primary">Continue</a>
             </Modal.Footer>
             </Modal>
         );

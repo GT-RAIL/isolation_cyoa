@@ -12,7 +12,7 @@ class RobotState extends React.Component {
             <div className="col">
                 <RobotVideo />
                 <div className="my-3" />
-                <RobotBeliefs />
+                <RobotBeliefs video_status={this.props.video_status} />
             </div>
             </div>
         );

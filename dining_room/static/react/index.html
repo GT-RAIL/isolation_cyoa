@@ -13,9 +13,24 @@
 </head>
 
 <body>
+<!-- We want to set these constant before the React app is loaded -->
+  <script type="text/javascript">
+    window.constants = {
+      START_STATE: "{{ request.user.start_condition }}",
+      CURRENT_STATE: "{{ current_state }}",
+      CURRENT_TRANSITION: "{{ current_transition }}",
+      NEXT_URL: "",
+      EXPERIMENT_CONDITION: {
+        show_dx_suggestions: true,
+        show_ax_suggestions: true
+      }
+    };
+  </script>
+
   <div id="app">
   </div>
   <noscript>You need to enable JavaScript for this study</noscript>
+
   <script src="/static/dining_room/study.js"></script>
 </body>
 </html>

@@ -27,21 +27,39 @@ class RobotBeliefs extends React.Component {
     constructor(props) {
         super(props);
 
+        // Constants
+        this.SHOW_IN_VIDEO_ATTRS = ["Arm status"];
+
         // The state definition
         this.state = {
             beliefs: [
                 { attr: "Location", value: "Dining Table" },
                 { attr: "Object in gripper", value: "Empty" },
                 { attr: "Objects in view", value: ["Jug, Bowl"] },
-                { attr: "Arm status", value: "Not moving" }
+                { attr: "Arm status", value: "In motion" }  // The arm status changes to stopped afterwards
             ]
+        }
+    }
+
+    should_show_attr(video_status, attr) {
+        /* Determine if the attribute should be displayed */
+        if (!video_status || !video_status.video_loaded) {
+            return false;
+        }
+        else {
+            return (
+                (!!video_status.video_playing && this.SHOW_IN_VIDEO_ATTRS.includes(attr))
+                || (!video_status.video_playing && !this.SHOW_IN_VIDEO_ATTRS.includes(attr))
+            );
         }
     }
 
     render() {
         let belief_items = []
         for (const [idx, belief] of this.state.beliefs.entries()) {
-            belief_items.push(<RobotBeliefItem {...belief} key={belief.value} />);
+            if (this.should_show_attr(this.props.video_status, belief.attr)) {
+                belief_items.push(<RobotBeliefItem {...belief} key={belief.value} />);
+            }
         }
 
         return (

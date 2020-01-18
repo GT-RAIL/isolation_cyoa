@@ -15,7 +15,11 @@ class App extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            show_completion: false
+            scenario_completed: false,
+            video_status: {
+                video_loaded: false,
+                video_playing: false
+            }
         };
     }
 
@@ -24,14 +28,14 @@ class App extends React.Component {
             <div className="container-fluid">
 
             {/* The modal dialog for when the study is complete */}
-            <CompletionModal show={this.state.show_completion} />
+            <CompletionModal show={this.state.scenario_completed} />
 
             {/* The actual study UI */}
             <div className="row mt-3">
             <div className="col">
-                <RobotState />
+                <RobotState video_status={this.state.video_status} />
                 <hr />
-                <Suggestions />
+                <Suggestions video_status={this.state.video_status} {...this.props.condition} />
             </div>
             <div className="col">
                 <Goals />
@@ -42,7 +46,7 @@ class App extends React.Component {
             </div>
             </div>
             <div className="row">
-            <button className="fixed-bottom btn btn-secondary" onClick={() => { this.setState({ show_completion: true }) } }>Toggle Completion</button>
+            <button className="fixed-bottom btn btn-secondary" onClick={() => { this.setState({ scenario_completed: true }) } }>Toggle Completion</button>
             </div>
             </div>
         );

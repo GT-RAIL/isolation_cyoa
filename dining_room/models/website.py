@@ -118,6 +118,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     study_condition = models.IntegerField(_('study condition'), blank=True, null=True, choices=StudyConditions.choices)
 
+    SHOW_DX_STUDY_CONDITIONS = [StudyConditions.BASELINE]  # FIXME
+    SHOW_AX_STUDY_CONDITIONS = []
+
     class StartConditions(models.TextChoices):
         """
         The start conditions. Given by the state description in domain.State
@@ -223,7 +226,20 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name = _('user')
         verbose_name_plural = _('users')
 
+    # Inferred properties that are used by the code to figure out how to render
+    # the UI for the user
+
     @property
     def csv_file(self):
         """The CSV file associated with the user's actions"""
         return f"{self.username.lower()}.csv"
+
+    @property
+    def show_dx_suggestions(self):
+        """Return a boolean if the user should see diagnosis suggestions"""
+        return self.study_condition in User.SHOW_DX_STUDY_CONDITIONS
+
+    @property
+    def show_ax_suggestions(self):
+        """Return a boolean if the user should see action suggestions"""
+        return self.study_condition in User.SHOW_AX_STUDY_CONDITIONS

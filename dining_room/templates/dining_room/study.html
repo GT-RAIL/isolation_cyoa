@@ -8,20 +8,25 @@
 {% endblock %}
 
 {% block content %}
+<!-- We want to set these constant before the React app is loaded -->
+<script type="text/javascript">
+    window.constants = {
+        START_STATE: "{{ request.user.start_condition }}",
+        CURRENT_STATE: "{{ current_state }}",
+        CURRENT_TRANSITION: "{{ current_transition }}",
+        NEXT_URL: "{% url 'dining_room:survey' %}",
+        EXPERIMENT_CONDITION: {
+            show_dx_suggestions: {{ request.user.show_dx_suggestions|yesno:"true,false" }},
+            show_ax_suggestions: {{ request.user.show_ax_suggestions|yesno:"true,false" }}
+        }
+    };
+</script>
+
 <div id="app">
 </div>
-
-<div>
-    <p>Temporary placeholder to <a href="{% url 'dining_room:survey' %}">next page</a></p>
-</div>
+<noscript>You need to enable JavaScript for this study</noscript>
 {% endblock %}
 
 {% block scripts %}
 <script src="{% static 'dining_room/study.js' %}"></script>
-
-<script type="text/javascript">
-    const START_STATE = "{{ request.user.start_condition }}";
-    var CURRENT_STATE = "{{ current_state }}";
-    var CURRENT_TRANSITION = "{{ current_transition }}";
-</script>
 {% endblock %}
