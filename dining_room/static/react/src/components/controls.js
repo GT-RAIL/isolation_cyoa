@@ -11,6 +11,7 @@ class Controls extends React.Component {
             <div className="row">
             <div className="col">
                 <DiagnosisControls />
+                <div className="my-3" />
                 <ActionControls />
             </div>
             </div>

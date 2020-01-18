@@ -11,6 +11,7 @@ class Suggestions extends React.Component {
             <div className="row">
             <div className="col">
                 <DiagnosisSuggestions />
+                <div className="my-3" />
                 <ActionSuggestions />
             </div>
             </div>

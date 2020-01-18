@@ -49,7 +49,7 @@ class RobotBeliefs extends React.Component {
             <p className="col">
                 <OverlayTrigger placement="right" overlay={<Tooltip>The robot's knowledge, which may be incorrect</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Robot Beliefs</b>
             </p>
-            <div className="col-10">
+            <div className="col-9">
                 <table className="table-sm table table-borderless table-hover">
                     <colgroup>
                         <col width="35%" />
