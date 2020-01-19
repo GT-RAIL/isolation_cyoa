@@ -32,8 +32,8 @@ export function playVideo() {
     return { type: PLAY_VIDEO };
 }
 
-export function displayState(new_state) {
-    return { type: DISPLAY_STATE, new_state };
+export function displayState() {
+    return { type: DISPLAY_STATE };
 }
 
 export function updateHistory(history_item) {

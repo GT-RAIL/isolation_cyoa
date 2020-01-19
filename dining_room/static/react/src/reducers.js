@@ -23,13 +23,42 @@ function ui_status(
     state={
         video_loaded: false,
         video_playing: false,
-        state_to_process: null,
         selected_dx: null,
-        selected_ax: null
+        selected_ax: null,
+        scenario_completed: false,
     },
     action
 ) {
     switch (action.type) {
+        // When the video starts playing, mark it as loaded
+        case PLAY_VIDEO:
+            return {
+                ...state,
+                video_loaded: true,
+                video_playing: true
+            };
+
+        // When it is time to display the state, mark the video as complete
+        case DISPLAY_STATE:
+            return {
+                ...state,
+                video_playing: false,
+            }
+
+        // When the scenario is completed, update the UI state
+        case COMPLETE_SCENARIO:
+            return {
+                ...state,
+                scenario_completed: true
+            }
+
+        // When an action is selected, reset the video variables
+        case SELECT_ACTION:
+            return {
+                ...state,
+                video_loaded: false,
+                video_playing: false
+            };
 
         // The default
         default:
@@ -61,7 +90,12 @@ function history(state=[], action) {
 
 
 /** Handle updates to the transition data */
-function transition(state={}, action) {
+function transition(
+    state={
+        video_link: "https://dl.dropboxusercontent.com/s/mf385zlxfoyqtb8/kc.kc.gripper.gripper.gripper.look_at_dt.mp4"
+    },
+    action
+) {
     switch (action.type) {
 
         // The default
