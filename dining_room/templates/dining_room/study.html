@@ -18,7 +18,9 @@
         EXPERIMENT_CONDITION: {
             show_dx_suggestions: {{ request.user.show_dx_suggestions|yesno:"true,false" }},
             show_ax_suggestions: {{ request.user.show_ax_suggestions|yesno:"true,false" }}
-        }
+        },
+        ACTIONS: {{ actions_constant|safe }},
+        DIAGNOSES: {{ diagnoses_constant|safe }}
     };
 </script>
 

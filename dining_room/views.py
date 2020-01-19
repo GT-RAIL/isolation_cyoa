@@ -1,3 +1,4 @@
+import json
 import logging
 
 from django.conf import settings
@@ -11,6 +12,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 
 from .models import User
+from .models.domain import constants
 from .forms import DemographicsForm, InstructionsTestForm, SurveyForm
 from .utils import DropboxConnection
 
@@ -121,6 +123,12 @@ class StudyView(TemplateView):
     up the HTML page within which the JS will work
     """
     template_name = 'dining_room/study.html'
+
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['actions_constant'] = json.dumps(constants.ACTIONS)
+        context['diagnoses_constant'] = json.dumps(constants.DIAGNOSES)
+        return context
 
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)

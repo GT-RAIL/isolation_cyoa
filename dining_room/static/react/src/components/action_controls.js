@@ -1,17 +1,27 @@
 import React from 'react';
+import { connect } from 'react-redux';
+
 import Tooltip from 'react-bootstrap/Tooltip';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
+import { ACTIONS_ORDER } from '../actions';
+
 
 /** The button for an action */
-class ActionControlButton extends React.Component {
-    render() {
-        return (
-            <button className="btn btn-outline-info btn-block" style={{height: "100%", minHeight: "4rem"}}>{this.props.name}</button>
-        );
-    }
+const ActionControlButton = (props) => {
+    return (
+        <button className="btn btn-outline-info btn-block" style={{height: "100%", minHeight: "4rem"}}>{window.constants.ACTIONS[props.value]}</button>
+    );
+}
+
+
+/** Function to get the props from the global store */
+const mapStateToProps = (state, ownProps) => {
+    return {
+        valid_actions: state.scenario_state.valid_actions
+    };
 }
 
 
@@ -22,29 +32,15 @@ class ActionControls extends React.Component {
 
         // Constants
         this.NUMBER_BUTTONS_PER_ROW = 2;
-
-        // The state definition
-        this.state = {
-            valid_actions: [
-                { name: "This is an action", value: 'action-1' },
-                { name: "This is another action", value: 'action-2' },
-                { name: "Yet another action with a long name", value: 'action-3' },
-                { name: "This is an action", value: 'action-4' },
-                { name: "This is another action", value: 'action-5' },
-                { name: "Yet another action", value: 'action-6' },
-                { name: "This is an action that also has a long name", value: 'action-7' },
-                { name: "This is another action", value: 'action-8' },
-                { name: "Yet another action", value: 'action-9' }
-            ]
-        };
     }
 
     render() {
         let action_buttons = [];
         let sublist = [];
-        for (const [idx, action] of this.state.valid_actions.entries()) {
+        for (const [idx, action] of this.props.valid_actions.entries()) {
+        // for (const [idx, action] of ACTIONS_ORDER.entries()) {
             sublist.push(
-                <div className="col" key={action.value}><ActionControlButton {...action} /></div>
+                <div className="col" key={action}><ActionControlButton value={action} /></div>
             );
 
             // We want to close off after every sublist has x elements
@@ -77,5 +73,5 @@ class ActionControls extends React.Component {
     }
 }
 
-export default ActionControls;
+export default connect(mapStateToProps)(ActionControls);
 export { ActionControlButton };

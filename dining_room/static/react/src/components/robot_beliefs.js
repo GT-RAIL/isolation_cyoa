@@ -1,4 +1,6 @@
 import React from 'react';
+import { connect } from 'react-redux';
+
 import Tooltip from 'react-bootstrap/Tooltip';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -22,6 +24,18 @@ class RobotBeliefItem extends React.Component {
 }
 
 
+/** Function to get the props from the global store */
+const mapStateToProps = (state, ownProps) => {
+    return {
+        video_status: {
+            video_loaded: state.ui_status.video_loaded,
+            video_playing: state.ui_status.video_playing
+        },
+        beliefs: state.scenario_state.robot_beliefs
+    };
+}
+
+
 /** The robot beliefs view */
 class RobotBeliefs extends React.Component {
     constructor(props) {
@@ -29,16 +43,6 @@ class RobotBeliefs extends React.Component {
 
         // Constants
         this.SHOW_IN_VIDEO_ATTRS = ["Arm status"];
-
-        // The state definition
-        this.state = {
-            beliefs: [
-                { attr: "Location", value: "Dining Table" },
-                { attr: "Object in gripper", value: "Empty" },
-                { attr: "Objects in view", value: ["Jug, Bowl"] },
-                { attr: "Arm status", value: "In motion" }
-            ]
-        }
     }
 
     shouldShowAttr(video_status, attr) {
@@ -56,7 +60,7 @@ class RobotBeliefs extends React.Component {
 
     render() {
         let belief_items = []
-        for (const [idx, belief] of this.state.beliefs.entries()) {
+        for (const [idx, belief] of this.props.beliefs.entries()) {
             if (this.shouldShowAttr(this.props.video_status, belief.attr)) {
                 belief_items.push(<RobotBeliefItem {...belief} key={belief.value} />);
             }
@@ -83,5 +87,5 @@ class RobotBeliefs extends React.Component {
     }
 }
 
-export default RobotBeliefs;
+export default connect(mapStateToProps)(RobotBeliefs);
 export { RobotBeliefItem };

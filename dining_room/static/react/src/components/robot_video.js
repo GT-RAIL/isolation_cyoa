@@ -11,7 +11,7 @@ import { playVideo, displayState } from '../actions';
 /** Function to get the props from the global store */
 const mapStateToProps = (state, ownProps) => {
     return {
-        video_link: state.transition.video_link,
+        video_link: state.scenario_state.video_link,
         video_loaded: state.ui_status.video_loaded
     };
 }

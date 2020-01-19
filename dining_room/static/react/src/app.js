@@ -1,6 +1,5 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { hot } from 'react-hot-loader/root';
 
 // Import the top-level components
 import RobotState from './components/robot_state';
@@ -17,16 +16,12 @@ import { completeScenario } from './actions';
 /** Function to get the state from the store */
 const mapStateToProps = (state, ownProps) => {
     return {
-        scenario_completed: state.ui_status.scenario_completed,
-        video_status: {
-            video_loaded: state.ui_status.video_loaded,
-            video_playing: state.ui_status.video_playing
-        }
+        scenario_completed: state.ui_status.scenario_completed
     };
 };
 
 
-/** Callbacks to update the store */
+/** Callbacks to update the store. TODO: This should go away */
 const mapDispatchToProps = (dispatch, ownProps) => {
     return {
         onCompletionClick: (e) => {
@@ -47,9 +42,9 @@ let App = (props) => {
         {/* The actual study UI */}
         <div className="row mt-3">
         <div className="col">
-            <RobotState video_status={props.video_status} />
+            <RobotState />
             <hr />
-            <Suggestions video_status={props.video_status} {...props.condition} />
+            <Suggestions {...props.condition} />
         </div>
         <div className="col">
             <Goals />
@@ -68,8 +63,4 @@ let App = (props) => {
 
 
 // Export as a Redux wrapped component
-App = connect(mapStateToProps, mapDispatchToProps)(App);
-
-
-// Export as a hot-loaded component
-export default hot(App);
+export default connect(mapStateToProps, mapDispatchToProps)(App);

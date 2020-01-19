@@ -132,23 +132,24 @@ def display(string):
     return " ".join([x.capitalize() for x in string.split('_')])
 
 
+# Constants for the domain
 constants = objdict({
     # The actions that we can handle at any given state
-    'ACTIONS': [
-        'at_c',
-        'at_dt',
-        'at_kc',
-        'go_to_c',
-        'go_to_dt',
-        'go_to_kc',
-        'look_at_c',
-        'look_at_dt',
-        'look_at_kc',
-        'pick_bowl',
-        'pick_jug',
-        'pick_mug',
-        'place',
-    ],
+    'ACTIONS': {
+        'at_c': "Robot is at Couch",
+        'at_dt': "Robot is at Dining Table",
+        'at_kc': "Robot is at Kitchen Counter",
+        'go_to_c': "Go to Couch",
+        'go_to_dt': "Go to Dining Table",
+        'go_to_kc': "Go to Kitchen Counter",
+        'look_at_c': "Look at Couch",
+        'look_at_dt': "Look at Dining Table",
+        'look_at_kc': "Look at Kitchen Counter",
+        'pick_bowl': "Pick Bowl",
+        'pick_jug': "Pick Jug",
+        'pick_mug': "Pick Mug",
+        'place': "Stow object in gripper",
+    },
 
     # The objects in this scenario
     'OBJECTS': ['jug', 'bowl', 'mug'],
@@ -203,6 +204,8 @@ constants = objdict({
         'cannot_pick': 'The mug cannot be picked up',
         'cannot_see': 'The mug is not visible',
         'different_location': 'The mug is not where it should be',
+        'unknown': 'Unknown',
+        'none': 'There is no error',
     }
 })
 
@@ -437,7 +440,7 @@ class State:
 
         # Iterate through the actions and add to the transitions dictionary if
         # the action is applicable
-        for action in constants.ACTIONS:
+        for action in constants.ACTIONS.keys():
             end_state = Transition.get_end_state(self, action)
             if end_state is not None:
                 valid_transitions[action] = end_state
@@ -492,7 +495,7 @@ class Transition:
         return hash(self.tuple)
 
     def __str__(self):
-        return str((self.start_state, self.action_label, self.end_state))
+        return str((self.start_state, constants.ACTIONS[self.action], self.end_state))
 
     def __repr__(self):
         return repr(self.tuple)
@@ -515,7 +518,7 @@ class Transition:
 
     @action.setter
     def action(self, value):
-        assert value in constants.ACTIONS or value is None
+        assert value in constants.ACTIONS.keys() or value is None
         self._action = value
 
     @property
@@ -537,29 +540,6 @@ class Transition:
             self.action,
             self.end_state.tuple,
         )
-
-    @property
-    def action_label(self):
-        """A label for the action that can be easily displayed"""
-        label = None
-
-        if self.action is None:
-            pass
-        elif self.action.startswith('at_'):
-            location = constants.LOCATION_NAMES[self.action[len('at_'):]]
-            label = 'robot_is_at_' + location
-        elif self.action.startswith('go_to_'):
-            location = constants.LOCATION_NAMES[self.action[len('go_to_'):]]
-            label = 'go_to_' + location
-        elif self.action.startswith('look_at_'):
-            location = constants.LOCATION_NAMES[self.action[len('look_at_'):]]
-            label = 'look_at_' + location
-        elif self.action.startswith('pick_'):
-            label = self.action
-        elif self.action == 'place':
-            label = 'stow_object_in_gripper'
-
-        return label
 
     @property
     def arm_status(self):
