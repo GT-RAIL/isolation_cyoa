@@ -2,8 +2,8 @@ import React from 'react';
 import Modal from 'react-bootstrap/Modal';
 
 
+/** The modal when the study is complete */
 class CompletionModal extends React.Component {
-    /** The modal when the study is complete */
     render() {
         return (
             <Modal show={this.props.show} size="lg" centered onHide={() => {}}>

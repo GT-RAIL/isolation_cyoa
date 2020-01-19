@@ -5,12 +5,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
 
+/** The action suggestions view */
 class ActionSuggestions extends React.Component {
-    /** The action suggestions view */
     constructor(props) {
         super(props);
 
-        // The state definition
+        // The state definition (these should be props)
         this.state = {
             suggested_actions: ["An action", "Another action", "Yet another action"]
         }

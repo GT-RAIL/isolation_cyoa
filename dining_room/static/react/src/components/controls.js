@@ -4,8 +4,8 @@ import ActionControls from './action_controls';
 import DiagnosisControls from './diagnosis_controls';
 
 
+/** The controls view */
 class Controls extends React.Component {
-    /** The controls view */
     render() {
         return (
             <div className="row">

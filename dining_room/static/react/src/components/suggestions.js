@@ -4,8 +4,8 @@ import DiagnosisSuggestions from './diagnosis_suggestions';
 import ActionSuggestions from './action_suggestions';
 
 
+/** The suggestions view */
 class Suggestions extends React.Component {
-    /** The suggestions view */
     render() {
         let diagnosis_suggestions =
             (!!this.props.show_dx_suggestions && this.props.video_status.video_loaded && !this.props.video_status.video_playing)

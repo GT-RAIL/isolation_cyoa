@@ -5,8 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
 
+/** The button for an action */
 class ActionControlButton extends React.Component {
-    /** The button for an action */
     render() {
         return (
             <button className="btn btn-outline-info btn-block" style={{height: "100%", minHeight: "4rem"}}>{this.props.name}</button>
@@ -15,8 +15,8 @@ class ActionControlButton extends React.Component {
 }
 
 
+/** The action controls view */
 class ActionControls extends React.Component {
-    /** The action controls view */
     constructor(props) {
         super(props);
 

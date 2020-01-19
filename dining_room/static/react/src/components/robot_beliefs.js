@@ -5,8 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
 
+/** Each of the Belief Items */
 class RobotBeliefItem extends React.Component {
-    /** Each of the Belief Items */
     render() {
         let value_display = this.props.value instanceof Array
                             ? ("[ " + this.props.value.join(", ") + " ]")
@@ -22,8 +22,8 @@ class RobotBeliefItem extends React.Component {
 }
 
 
+/** The robot beliefs view */
 class RobotBeliefs extends React.Component {
-    /** The robot beliefs view */
     constructor(props) {
         super(props);
 
@@ -36,12 +36,12 @@ class RobotBeliefs extends React.Component {
                 { attr: "Location", value: "Dining Table" },
                 { attr: "Object in gripper", value: "Empty" },
                 { attr: "Objects in view", value: ["Jug, Bowl"] },
-                { attr: "Arm status", value: "In motion" }  // The arm status changes to stopped afterwards
+                { attr: "Arm status", value: "In motion" }
             ]
         }
     }
 
-    should_show_attr(video_status, attr) {
+    shouldShowAttr(video_status, attr) {
         /* Determine if the attribute should be displayed */
         if (!video_status || !video_status.video_loaded) {
             return false;
@@ -57,7 +57,7 @@ class RobotBeliefs extends React.Component {
     render() {
         let belief_items = []
         for (const [idx, belief] of this.state.beliefs.entries()) {
-            if (this.should_show_attr(this.props.video_status, belief.attr)) {
+            if (this.shouldShowAttr(this.props.video_status, belief.attr)) {
                 belief_items.push(<RobotBeliefItem {...belief} key={belief.value} />);
             }
         }

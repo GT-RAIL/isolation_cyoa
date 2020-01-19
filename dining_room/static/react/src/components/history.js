@@ -6,8 +6,8 @@ import { faTimesCircle } from '@fortawesome/free-regular-svg-icons/faTimesCircle
 import { faCheckCircle } from '@fortawesome/free-regular-svg-icons/faCheckCircle';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
+/** Each item in the shown history */
 class HistoryItem extends React.Component {
-    /** Each item in the shown history */
     render() {
         let error_display = this.props.error instanceof Array
                             ? this.props.error.map((err) => <span key={err}>{err}<br/></span>)
@@ -46,8 +46,8 @@ class HistoryItem extends React.Component {
 }
 
 
+/** The history view */
 class History extends React.Component {
-    /** The history view */
     constructor(props) {
         super(props);
 

@@ -5,8 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
 
+/** The diagnosis suggestions view */
 class DiagnosisSuggestions extends React.Component {
-    /** The diagnosis suggestions view */
     render() {
         return (
             <div className="row">

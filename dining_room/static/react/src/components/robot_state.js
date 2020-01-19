@@ -4,8 +4,8 @@ import RobotVideo from './robot_video';
 import RobotBeliefs from './robot_beliefs';
 
 
+/** The robot state view */
 class RobotState extends React.Component {
-    /** The robot state view */
     render() {
         return (
             <div className="row">

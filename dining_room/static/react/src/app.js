@@ -10,8 +10,8 @@ import Controls from './components/controls';
 import CompletionModal from './components/completion_modal';
 
 
+/** The main app for the videos and the scenario */
 class App extends React.Component {
-    /** The main app for the videos and the scenario */
     constructor(props) {
         super(props);
         this.state = {

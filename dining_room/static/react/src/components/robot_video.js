@@ -4,8 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons/faSpinner';
 
 
+/** The robot video view */
 class RobotVideo extends React.Component {
-    /** The robot video view */
     constructor(props) {
         super(props);
 
