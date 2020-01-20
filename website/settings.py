@@ -92,7 +92,8 @@ DATABASES = {
 
 
 # Setup Caches
-if DEBUG:
+# if DEBUG:
+if False:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.dummy.DummyCache',

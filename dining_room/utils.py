@@ -81,11 +81,12 @@ class DropboxConnection:
     """
 
     VIDEO_LINKS_FILE = 'data/video_links.csv'
-    USERDATA_FOLDER = 'data'
+    USERDATA_FOLDER = 'data/userdata_2020-01-20/'
 
     # The fields in the user data
     USERDATA_CSV_HEADERS = [
-        'timestamp', 'start_state', 'action', 'diagnosis'
+        'timestamp', 'start_state', 'diagnoses', 'action', 'next_state',
+        'video_loaded_time', 'video_stop_time', 'dx_selected_time', 'ax_selected_time'
     ]
 
     def __init__(self):
@@ -140,17 +141,20 @@ class DropboxConnection:
         try:
             read_file = self.storage.open(csv_filename)
             experiment_data = self._get_csv_rows(read_file)
-        except DropBoxStorageException as e:
+        except (dropbox.exceptions.ApiError, DropBoxStorageException) as e:
             experiment_data = [DropboxConnection.USERDATA_CSV_HEADERS]
 
         # If there is no incoming data (the user has restarted), then
-        # automatically populate the timestamp
-        if data is None or len(data) == 0 or data.get('timestamp') is None:
-            data = { 'timestamp': timezone.now() }
+        # create a dictionary. Otherwise, we set the timestamp field here
+        if data is None or not isinstance(data, dict):
+            data = { 'timestamp': timezone.now().timestamp() }
+        else:
+            data['timestamp'] = timezone.now().timestamp()
 
         row = []
         for header in DropboxConnection.USERDATA_CSV_HEADERS:
-            row.append(data.get(header, ''))
+            # We specifically test here for equality to None
+            row.append(data[header] if data.get(header) is not None else '')
 
         # Add the row to the CSV data
         experiment_data.append(row)

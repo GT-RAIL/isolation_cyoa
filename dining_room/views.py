@@ -2,16 +2,19 @@ import json
 import logging
 
 from django.conf import settings
+from django.core.cache import cache
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponseRedirect
 from django.views.generic.base import TemplateView as GenericTemplateView
 from django.views.generic.edit import FormView as GenericFormView
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import never_cache
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 
 from .models import User
 from .models.domain import constants, State, Transition, display
@@ -27,21 +30,29 @@ dbx = DropboxConnection()
 
 # Common methods
 
-# TODO: Cache this JSON function because it is expensive to calculate
 def get_next_state_json(current_state, action):
     """
     Return the next state information given the current state and the action.
-    If action is None, then simply return the current state as a JSON
+    If action is None, then simply return the current state as a JSON. We
+    perform caching within this view function to save time
 
     Args:
-        current_state (state_tuple) : the current state as tuple
+        current_state (tuple/list) : the current state object as a tuple
         action (None / str) : the action to take
 
     Returns:
+        next_state: The next state object
         next_state_json: JSON dictionary of the next state
     """
     current_state = State(current_state)
 
+    # First check the cache for the answer
+    cache_key = f"{str(current_state)}.{action}"
+    cache_value = cache.get(cache_key)
+    if cache_value is not None:
+        return cache_value
+
+    # Generate the JSON data
     action_result = True
     if action is None:
         next_state = current_state
@@ -70,6 +81,9 @@ def get_next_state_json(current_state, action):
         "action_result": action_result,
         "scenario_completed": next_state.is_end_state,
     }
+
+    # Save the data to the cache
+    cache.set(cache_key, next_state_json, timeout=None)
 
     # Return the dictionary
     return next_state_json
@@ -143,6 +157,7 @@ class FormView(LoginRequiredMixin, CheckProgressMixin, GenericFormView):
         return super().form_valid(form)
 
 
+@method_decorator(never_cache, name='dispatch')
 class DemographicsFormView(FormView):
     """
     Display the demographics questionnaire form, validate it, and update the
@@ -153,6 +168,7 @@ class DemographicsFormView(FormView):
     success_url = reverse_lazy('dining_room:instructions')
 
 
+@method_decorator(never_cache, name='dispatch')
 class InstructionsView(TemplateView):
     """
     Display the instructions page
@@ -160,6 +176,7 @@ class InstructionsView(TemplateView):
     template_name = 'dining_room/instructions.html'
 
 
+@method_decorator(never_cache, name='dispatch')
 class InstructionsTestView(FormView):
     """
     Display the gold standard questions for the instructions and save the data
@@ -169,6 +186,7 @@ class InstructionsTestView(FormView):
     success_url = reverse_lazy('dining_room:study')
 
 
+@method_decorator(never_cache, name='dispatch')
 class StudyView(TemplateView):
     """
     Most of the study template will be handled by AJAX. This view simply sets
@@ -193,12 +211,17 @@ class StudyView(TemplateView):
         if isinstance(response, HttpResponseRedirect):
             return response
 
+        # Create a dropbox file for the user, or mark that the user has
+        # restarted the scenarios
+        dbx.write_to_csv(request.user)
+
         # Update the time the user started the study
         request.user.date_started = timezone.now()
         request.user.save()
         return response
 
 
+@method_decorator(never_cache, name='dispatch')
 class SurveyView(FormView):
     """
     Process the post completion survey. Also update the timestamps of the user
@@ -220,6 +243,7 @@ class SurveyView(FormView):
         return response
 
 
+@method_decorator(never_cache, name='dispatch')
 class CompleteView(TemplateView):
     """
     Show the final completion page to the user
@@ -231,15 +255,31 @@ class CompleteView(TemplateView):
 
 @require_POST
 @csrf_exempt
+@never_cache
 def get_next_state(request):
+    # TODO: On an exception, mark the exception and return that the scenario is
+    # complete. We can then discard those situations
     post_data = json.loads(request.body.decode('utf-8'))
-
-    # TODO: Update the CSV
 
     # Get the next state
     current_state_tuple = post_data.get('server_state_tuple')
     action = post_data.get('action')
     next_state_json = get_next_state_json(current_state_tuple, action)
+
+    # Update the CSV with the incoming data
+    dbx.write_to_csv(
+        request.user,
+        **{
+            "start_state": repr(State(current_state_tuple)),
+            "diagnoses": str(post_data.get('ui_state', {}).get('confirmed_dx')),
+            "action": action,
+            "next_state": repr(State(next_state_json['server_state_tuple'])),
+            "video_loaded_time": post_data.get('ui_state', {}).get('video_loaded_time'),
+            "video_stop_time": post_data.get('ui_state', {}).get('video_stop_time'),
+            "dx_selected_time": post_data.get('ui_state', {}).get('dx_selected_time'),
+            "ax_selected_time": post_data.get('ui_state', {}).get('ax_selected_time'),
+        }
+    )
 
     # TODO: Mark complete based on the number of actions
 
