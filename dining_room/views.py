@@ -12,7 +12,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 
 from .models import User
-from .models.domain import constants
+from .models.domain import constants, State, Transition, display
 from .forms import DemographicsForm, InstructionsTestForm, SurveyForm
 from .utils import DropboxConnection
 
@@ -21,6 +21,56 @@ from .utils import DropboxConnection
 
 logger = logging.getLogger(__name__)
 dbx = DropboxConnection()
+
+
+# Common methods
+
+# TODO: Cache this JSON function because it is expensive to calculate
+def get_next_state_json(current_state, action):
+    """
+    Return the next state information given the current state and the action.
+    If action is None, then simply return the current state as a JSON
+
+    Args:
+        current_state (state_tuple) : the current state as tuple
+        action (None / str) : the action to take
+
+    Returns:
+        next_state_json: JSON dictionary of the next state
+    """
+    current_state = State(current_state)
+
+    action_result = True
+    if action is None:
+        next_state = current_state
+        transition = Transition(None, None, current_state)
+    else:
+        next_state = Transition.get_end_state(current_state, action)
+        if next_state is None:
+            action_result = False
+            transition = Transition(None, None, current_state)
+        else:
+            transition = Transition(current_state, action, next_state)
+
+    # Create the JSON dictionary
+    next_state_json = {
+        "server_state_tuple": next_state.tuple,
+        "video_link": dbx.video_links[transition.video_name],
+        "robot_beliefs": [
+            { "attr": "Location", "value": display(constants.LOCATION_NAMES[next_state.base_location]) },
+            { "attr": "Object in gripper", "value": display(next_state.gripper_state) },
+            { "attr": "Objects in view", "value": [display(x) for x in next_state.visible_objects] },
+            { "attr": "Arm status", "value": display(transition.arm_status) },
+        ],
+        "valid_actions": sorted(next_state.get_valid_transitions().keys()),
+        "dx_suggestions": [],
+        "ax_suggestions": [],
+        "action_result": action_result,
+        "scenario_completed": next_state.is_end_state,
+    }
+
+    # Return the dictionary
+    return next_state_json
 
 
 # Create your views here.
@@ -128,6 +178,12 @@ class StudyView(TemplateView):
         context = super().get_context_data(*args, **kwargs)
         context['actions_constant'] = json.dumps(constants.ACTIONS)
         context['diagnoses_constant'] = json.dumps(constants.DIAGNOSES)
+
+        # Get the state json
+        start_state_tuple = self.request.user.start_condition.split('.')
+        start_state_json = get_next_state_json(start_state_tuple, None)
+        context['scenario_state'] = json.dumps(start_state_json)
+
         return context
 
     def dispatch(self, request, *args, **kwargs):

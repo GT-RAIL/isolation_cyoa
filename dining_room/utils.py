@@ -92,7 +92,7 @@ class DropboxConnection:
         self.storage = OverwriteDropboxStorage()
 
         # Cache some of the data so that we don't make too many requests
-        _video_links = None
+        self._video_links = None
 
     def _get_csv_rows(self, read_file):
         """Given a DropBoxFile, try to read it as a CSV and return the rows.

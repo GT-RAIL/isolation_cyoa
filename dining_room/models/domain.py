@@ -429,6 +429,16 @@ class State:
 
         return graspable_objects
 
+    @property
+    def is_end_state(self):
+        """Return True if this is an end state; else return False"""
+        return (
+            self.base_location == 'c'
+            and self.mug_state == 'gripper'
+            and self.gripper_state == 'mug'
+            and self.current_dt_label == 'dt'
+        )
+
     # Methods on states
     def get_valid_transitions(self):
         """
@@ -552,7 +562,7 @@ class Transition:
         # If this is the start, then we have a special case of a noop video.
         # Handle it before anything else
         if self.start_state is None and self.action is None:
-            return "{self.end_state.base_location}.{self.end_state.object_location}.{self.end_state.jug_state}.{bowl_state}.{mug_state}.noop.mp4".format(**locals())
+            return "{self.end_state.base_location}.{self.end_state.object_location}.{self.end_state.jug_state}.{self.end_state.bowl_state}.{self.end_state.mug_state}.noop.mp4".format(**locals())
 
         # First simply get the noop vs. video action
         if self.action.startswith('at_'):

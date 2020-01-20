@@ -11,9 +11,26 @@
 <!-- We want to set these constant before the React app is loaded -->
 <script type="text/javascript">
     window.constants = {
-        START_STATE: "{{ request.user.start_condition }}",
-        CURRENT_STATE: "{{ current_state }}",
-        CURRENT_TRANSITION: "{{ current_transition }}",
+        INITIAL_STATE: {
+            ui_state: {
+                video_loaded: false,
+                video_playing: false,
+                confirmed_dx: [],
+                selected_action: null,
+                // Timestamps
+                video_loaded_time: null,
+                video_stop_time: null,
+                dx_selected_time: null,
+                ax_selected_time: null
+            },
+            scenario_state: {{ scenario_state|safe }},
+            history: {
+                dx_to_add: null,
+                ax_to_add: null,
+                result_to_add: null,
+                history: []
+            }
+        },
         NEXT_URL: "{% url 'dining_room:survey' %}",
         EXPERIMENT_CONDITION: {
             show_dx_suggestions: {{ request.user.show_dx_suggestions|yesno:"true,false" }},
