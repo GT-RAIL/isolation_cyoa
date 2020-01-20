@@ -21,7 +21,10 @@ function ui_status(state=window.constants.INITIAL_STATE.ui_state, action) {
     switch (action.type) {
         // Reset the state of the UI when the state has been updated from server
         case UPDATE_STATE:
-            return window.constants.INITIAL_STATE.ui_state;
+            return {
+                ...window.constants.INITIAL_STATE.ui_state,
+                selected_action_idx: state.selected_action_idx
+            };
 
         // When the video starts playing, mark it as loaded
         case PLAY_VIDEO:
@@ -55,6 +58,7 @@ function ui_status(state=window.constants.INITIAL_STATE.ui_state, action) {
                 ...state,
                 selected_action: action.action,
                 ax_selected_time: Date.now() / 1000,
+                selected_action_idx: state.selected_action_idx + 1,
                 video_loaded: false
             };
 

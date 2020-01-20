@@ -266,22 +266,36 @@ def get_next_state(request):
     action = post_data.get('action')
     next_state_json = get_next_state_json(current_state_tuple, action)
 
-    # Update the CSV with the incoming data
-    dbx.write_to_csv(
-        request.user,
-        **{
-            "start_state": repr(State(current_state_tuple)),
-            "diagnoses": str(post_data.get('ui_state', {}).get('confirmed_dx')),
-            "action": action,
-            "next_state": repr(State(next_state_json['server_state_tuple'])),
-            "video_loaded_time": post_data.get('ui_state', {}).get('video_loaded_time'),
-            "video_stop_time": post_data.get('ui_state', {}).get('video_stop_time'),
-            "dx_selected_time": post_data.get('ui_state', {}).get('dx_selected_time'),
-            "ax_selected_time": post_data.get('ui_state', {}).get('ax_selected_time'),
-        }
-    )
+    # Update the CSV with the incoming data (only if this is on django)
+    if request.user.is_authenticated:
+        dbx.write_to_csv(
+            request.user,
+            **{
+                "start_state": repr(State(current_state_tuple)),
+                "diagnoses": str(post_data.get('ui_state', {}).get('confirmed_dx')),
+                "action": action,
+                "next_state": repr(State(next_state_json['server_state_tuple'])),
+                "video_loaded_time": post_data.get('ui_state', {}).get('video_loaded_time'),
+                "video_stop_time": post_data.get('ui_state', {}).get('video_stop_time'),
+                "dx_selected_time": post_data.get('ui_state', {}).get('dx_selected_time'),
+                "ax_selected_time": post_data.get('ui_state', {}).get('ax_selected_time'),
+            }
+        )
 
-    # TODO: Mark complete based on the number of actions
+        # If the next state JSON says that the user is done, then mark that, else
+        # complete the scenario based on if the user has exceeded max actions
+        if next_state_json['scenario_completed']:
+            request.user.scenario_completed = True
+            request.user.save()
+        elif post_data.get('ui_state', {}).get('selected_action_idx') >= constants.MAX_NUMBER_OF_ACTIONS:
+            next_state_json['scenario_completed'] = True
+            request.user.scenario_completed = False
+            request.user.save()
+
+    # Otherwise, simply check to see if we are over the limit of the maximum
+    # number of actions
+    elif post_data.get('ui_state', {}).get('selected_action_idx') >= constants.MAX_NUMBER_OF_ACTIONS:
+        next_state_json['scenario_completed'] = True
 
     # Return
     return JsonResponse(next_state_json)

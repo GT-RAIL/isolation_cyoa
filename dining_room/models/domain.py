@@ -206,7 +206,10 @@ constants = objdict({
         'different_location': 'The mug is not where it should be',
         'unknown': 'Unknown',
         'none': 'There is no error',
-    }
+    },
+
+    # The maximum number of actions that we allow
+    'MAX_NUMBER_OF_ACTIONS': 20,
 })
 
 
