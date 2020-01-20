@@ -52,7 +52,7 @@ class RobotVideo extends React.Component {
                         <video autoPlay={false}
                                muted={true}
                                className="embed-responsive-item"
-                               key={this.props.video_link}
+                               key={this.props.video_loaded ? this.props.video_link : "loading"}
                                onEnded={this.ended}
                                onCanPlayThrough={this.loaded}
                                ref={this.videoRef}>

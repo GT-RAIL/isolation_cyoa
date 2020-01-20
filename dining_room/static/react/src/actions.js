@@ -10,8 +10,6 @@ export const UPDATE_STATE = 'UPDATE_STATE';
 export const PLAY_VIDEO = 'PLAY_VIDEO';
 export const DISPLAY_STATE = 'DISPLAY_STATE';
 
-export const COMPLETE_SCENARIO = 'COMPLETE_SCENARIO';
-
 export const CONFIRM_DIAGNOSES = 'CONFIRM_DIAGNOSES';
 export const SELECT_ACTION = 'SELECT_ACTION';
 
@@ -52,9 +50,13 @@ export function fetchNextState(action) {
     return (dispatch, getState) => {
         // Update the information about the action
         dispatch(selectAction(action));
-        return fetch("/test")
-            .then((response) => getState())
-            .then((state) => dispatch(updateState(state.scenario_state)))
+
+        // Get the state and send the data to the server. Parse the response
+        // and then send an updated state action
+        let state = getState();
+        return fetch("http://localhost:8000/instructions", { mode: 'no-cors' })
+            .then((response) => getState()) // TODO: Convert response to JSON here
+            .then((state) => { return dispatch(updateState(state.scenario_state)); })
             .then(console.log)
             .catch(console.error);
     }
@@ -69,12 +71,7 @@ export function playVideo() {
 }
 
 export function displayState() {
-    // TODO: Check if the scenario is done and fire an event if so
     return { type: DISPLAY_STATE };
-}
-
-export function completeScenario() {
-    return { type: COMPLETE_SCENARIO };
 }
 
 export function confirmDiagnoses(diagnoses) {

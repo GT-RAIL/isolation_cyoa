@@ -25,14 +25,25 @@ class DiagnosisControls extends React.Component {
         super(props);
 
         // The state definition (this should only change when the video status)
-        // is updated, which is what we want
-        this.state = {
-            selected_diagnoses: [...this.props.confirmed_dx]
-        };
+        // is updated, which is what we want. This does not follow the
+        // recommendations in the React docs, because I don't know how to
+        // follow them for this component without creating an unnecessary
+        // wrapper component.
+        this.state = { selected_diagnoses: [] };
 
         // Bind the functions
         this.select_diagnosis = this.select_diagnosis.bind(this);
         this.confirm_diagnoses = this.confirm_diagnoses.bind(this);
+    }
+
+    static getDerivedStateFromProps(props, state) {
+        // If the video is not playing and has been loaded, then use your own
+        // state. If not, shadow the incoming props
+        if (!!props.video_loaded && !props.video_playing) {
+            return state;
+        } else {
+            return { selected_diagnoses: props.confirmed_dx };
+        }
     }
 
     select_diagnosis(e) {

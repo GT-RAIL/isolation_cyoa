@@ -7,13 +7,31 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
 import { ACTIONS_ORDER } from '../actions';
+import { fetchNextState } from '../actions';
 
 
 /** The button for an action */
-const ActionControlButton = (props) => {
-    return (
-        <button className="btn btn-outline-info btn-block" style={{height: "100%", minHeight: "4rem"}}>{window.constants.ACTIONS[props.value]}</button>
-    );
+class ActionControlButton extends React.Component {
+    constructor(props) {
+        super(props);
+
+        // Bind the functions
+        this.select_action = this.select_action.bind(this);
+    }
+
+    select_action(e) {
+        this.props.dispatch(fetchNextState(this.props.value));
+    }
+
+    render() {
+        return (
+            <button className="btn btn-outline-info btn-block"
+                    style={{height: "100%", minHeight: "4rem"}}
+                    onClick={this.select_action}>
+                {window.constants.ACTIONS[this.props.value]}
+            </button>
+        );
+    }
 }
 
 
@@ -48,7 +66,7 @@ class ActionControls extends React.Component {
         for (const [idx, action] of this.props.valid_actions.entries()) {
         // for (const [idx, action] of ACTIONS_ORDER.entries()) {
             sublist.push(
-                <div className="col" key={action}><ActionControlButton value={action} /></div>
+                <div className="col" key={action}><ActionControlButton dispatch={this.props.dispatch} value={action} /></div>
             );
 
             // We want to close off after every sublist has x elements

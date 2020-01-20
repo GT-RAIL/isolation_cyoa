@@ -12,8 +12,8 @@ import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestion
 class HistoryItem extends React.Component {
     render() {
         let error_display = this.props.error instanceof Array
-                            ? this.props.error.map((err) => <span key={err}>{err}<br/></span>)
-                            : this.props.error;
+                            ? this.props.error.map((err) => <span key={err}>{window.constants.DIAGNOSES[err]}<br/></span>)
+                            : window.constants.DIAGNOSES[this.props.error];
         let result_display = !!this.props.result
                              ? <h5 className="text-success"><FontAwesomeIcon icon={faCheckCircle} /></h5>
                              : <h5 className="text-danger"><FontAwesomeIcon icon={faTimesCircle} /></h5>;
@@ -38,7 +38,7 @@ class HistoryItem extends React.Component {
                 <tr>
                     <th scope="row">{this.props.idx}</th>
                     <td>{error_display}</td>
-                    <td>{this.props.action}</td>
+                    <td>{window.constants.ACTIONS[this.props.action]}</td>
                     <td>{result_display}</td>
                 </tr>
                 </tbody>

@@ -16,28 +16,27 @@ import { completeScenario } from './actions';
 /** Function to get the state from the store */
 const mapStateToProps = (state, ownProps) => {
     return {
-        scenario_completed: state.ui_status.scenario_completed
-    };
-};
-
-
-/** Callbacks to update the store. TODO: This should go away */
-const mapDispatchToProps = (dispatch, ownProps) => {
-    return {
-        onCompletionClick: (e) => {
-            dispatch(completeScenario());
-        }
+        scenario_completed: state.scenario_state.scenario_completed,
+        video_loaded: state.ui_status.video_loaded,
+        video_playing: state.ui_status.video_playing
     };
 };
 
 
 /** The main app for the videos and the scenario */
 let App = (props) => {
+    // If the video is done playing and the state has the scenario as completed,
+    // send the completion event
+    let show_completion = false;
+    if (!!props.video_loaded && !props.video_playing) {
+        show_completion = props.scenario_completed;
+    }
+
     return (
         <div className="container-fluid">
 
         {/* The modal dialog for when the study is complete */}
-        <CompletionModal show={props.scenario_completed} />
+        <CompletionModal show={show_completion} />
 
         {/* The actual study UI */}
         <div className="row mt-3">
@@ -63,4 +62,4 @@ let App = (props) => {
 
 
 // Export as a Redux wrapped component
-export default connect(mapStateToProps, mapDispatchToProps)(App);
+export default connect(mapStateToProps)(App);

@@ -9,7 +9,6 @@ import {
     UPDATE_STATE,
     PLAY_VIDEO,
     DISPLAY_STATE,
-    COMPLETE_SCENARIO,
     CONFIRM_DIAGNOSES,
     SELECT_ACTION
 } from './actions';
@@ -18,23 +17,12 @@ import {
 // Each of the reducers
 
 /** Handle updates to the status of the UI based on the incoming action */
-function ui_status(
-    state={
-        // Actual UI state
-        video_loaded: false,
-        video_playing: false,
-        confirmed_dx: [],
-        selected_action: null,
-        scenario_completed: false,
-        // Timestamps
-        video_loaded_time: null,
-        video_stop_time: null,
-        dx_selected_time: null,
-        ax_selected_time: null
-    },
-    action
-) {
+function ui_status(state=window.constants.INITIAL_STATE.ui_state, action) {
     switch (action.type) {
+        // Reset the state of the UI when the state has been updated from server
+        case UPDATE_STATE:
+            return window.constants.INITIAL_STATE.ui_state;
+
         // When the video starts playing, mark it as loaded
         case PLAY_VIDEO:
             return {
@@ -52,19 +40,13 @@ function ui_status(
                 video_stop_time: Date.now() / 1000
             };
 
-        // When the scenario is completed, update the UI state
-        case COMPLETE_SCENARIO:
-            return {
-                ...state,
-                scenario_completed: true
-            };
-
         // When diagnoses are selected, mark them as selected and update he
         // state of the UI
         case CONFIRM_DIAGNOSES:
             return {
                 ...state,
-                confirmed_dx: action.diagnoses
+                confirmed_dx: action.diagnoses,
+                dx_selected_time: Date.now() / 1000
             };
 
         // When an action is selected, update the timestamp and set the action
@@ -72,7 +54,8 @@ function ui_status(
             return {
                 ...state,
                 selected_action: action.action,
-                ax_selected_time: Date.now() / 1000
+                ax_selected_time: Date.now() / 1000,
+                video_loaded: false
             };
 
         // The default
@@ -83,24 +66,7 @@ function ui_status(
 
 
 /** Handle updates to the state of the scenario based on the incoming action */
-function scenario_state(
-    state={
-        server_state_tuple: ['dt', 'kc', 'gripper', 'default', 'gripper', 'mug', 'dt'],
-        video_link: "https://dl.dropboxusercontent.com/s/qxro9nj1zbf6mmf/dt.kc.gripper.default.gripper.noop.mp4",
-        robot_beliefs: [
-            { attr: "Location", value: "Dining Table" },
-            { attr: "Object in gripper", value: "Empty" },
-            { attr: "Objects in view", value: ["Jug, Bowl"] },
-            { attr: "Arm status", value: "In motion" }
-        ],
-        valid_actions: ['at_c', 'at_dt', 'go_to_c', 'go_to_dt', 'look_at_c', 'look_at_dt', 'pick_bowl', 'pick_mug', 'place'],
-        dx_suggestions: ["cannot_see"],
-        ax_suggestions: ["look_at_dt", "go_to_c", "place"],
-        action_result: true,
-        scenario_completed: false
-    },
-    action
-) {
+function scenario_state(state=window.constants.INITIAL_STATE.scenario_state, action) {
     switch (action.type) {
         // Simply update the state from the server as is
         case UPDATE_STATE:
@@ -114,22 +80,7 @@ function scenario_state(
 
 
 /** Handle updates to the history */
-function history(
-    state={
-        dx_to_add: null,
-        ax_to_add: null,
-        result_to_add: null,
-        history: [
-            { error: ["Something was wrong"], action: "An action", result: true },
-            { error: ["Something else was wrong", "Something was wrong"], action: "Another action", result: true },
-            { error: ["Unknown"], action: "Yet another action", result: false },
-            { error: ["Something was wrong"], action: "An action", result: true },
-            { error: ["It was wrong", "Something was wrong"], action: "Another action", result: true },
-            { error: ["Unknown", "Something very wrong"], action: "Yet another action", result: false }
-        ]
-    },
-    action
-) {
+function history(state=window.constants.INITIAL_STATE.history, action) {
     switch (action.type) {
         // When the video is done playing, update the history if there are
         // items in the buffer to update
