@@ -11,7 +11,7 @@ import {
     DISPLAY_STATE,
     UPDATE_HISTORY,
     COMPLETE_SCENARIO,
-    SELECT_DIAGNOSIS,
+    CONFIRM_DIAGNOSES,
     SELECT_ACTION
 } from './actions';
 
@@ -23,8 +23,13 @@ function ui_status(
     state={
         video_loaded: false,
         video_playing: false,
-        selected_dx: null,
+        confirmed_dx: [],
         scenario_completed: false,
+        // Timestamps
+        video_loaded_time: null,
+        video_stop_time: null,
+        dx_selected_time: null,
+        ax_selected_time: null,
     },
     action
 ) {
@@ -34,7 +39,8 @@ function ui_status(
             return {
                 ...state,
                 video_loaded: true,
-                video_playing: true
+                video_playing: true,
+                video_loaded_time: Date.now() / 1000
             };
 
         // When it is time to display the state, mark the video as complete
@@ -42,6 +48,7 @@ function ui_status(
             return {
                 ...state,
                 video_playing: false,
+                video_stop_time: Date.now() / 1000
             }
 
         // When the scenario is completed, update the UI state
@@ -51,12 +58,24 @@ function ui_status(
                 scenario_completed: true
             }
 
-        // When an action is selected, reset the video variables
+        // When diagnoses are selected, mark them as selected and update he
+        // state of the UI
+        case CONFIRM_DIAGNOSES:
+            return {
+                ...state,
+                confirmed_dx: action.diagnoses
+            }
+
+        // When an action is selected, reset the video variables & send an
+        //  update to the server (since this is where the user selection lives)
         case SELECT_ACTION:
+            // TODO: start the process of getting data from the server
             return {
                 ...state,
                 video_loaded: false,
-                video_playing: false
+                video_playing: false,
+                confirmed_dx: [],
+                ax_selected_time: Date.now() / 1000
             };
 
         // The default
@@ -77,7 +96,7 @@ function scenario_state(
             { attr: "Arm status", value: "In motion" }
         ],
         valid_actions: ['at_c', 'at_dt', 'go_to_c', 'go_to_dt', 'look_at_c', 'look_at_dt', 'pick_bowl', 'pick_mug', 'place'],
-        dx_suggestions: ["cannot_pick", "different_location"],
+        dx_suggestions: ["cannot_see"],
         ax_suggestions: ["look_at_dt", "go_to_c", "place"]
     },
     action

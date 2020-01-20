@@ -20,10 +20,12 @@ const ActionControlButton = (props) => {
 /** Function to get the props from the global store */
 const mapStateToProps = (state, ownProps) => {
     return {
-        valid_actions: state.scenario_state.valid_actions
+        video_loaded: state.ui_status.video_loaded,
+        video_playing: state.ui_status.video_playing,
+        valid_actions: state.scenario_state.valid_actions,
+        dx_confirmed: state.ui_status.confirmed_dx.length > 0
     };
 }
-
 
 /** The action controls view */
 class ActionControls extends React.Component {
@@ -35,6 +37,12 @@ class ActionControls extends React.Component {
     }
 
     render() {
+        // Short circuit if the UI element should not be displayed
+        if (!this.props.video_loaded || !!this.props.video_playing || !this.props.dx_confirmed) {
+            return "";
+        }
+
+        // Calculate how to display the buttons
         let action_buttons = [];
         let sublist = [];
         for (const [idx, action] of this.props.valid_actions.entries()) {

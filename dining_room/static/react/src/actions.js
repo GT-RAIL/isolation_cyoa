@@ -13,7 +13,7 @@ export const DISPLAY_STATE = 'DISPLAY_STATE';
 export const UPDATE_HISTORY = 'UPDATE_HISTORY';
 export const COMPLETE_SCENARIO = 'COMPLETE_SCENARIO';
 
-export const SELECT_DIAGNOSIS = 'SELECT_DIAGNOSIS';
+export const CONFIRM_DIAGNOSES = 'CONFIRM_DIAGNOSES';
 export const SELECT_ACTION = 'SELECT_ACTION';
 
 
@@ -68,8 +68,8 @@ export function completeScenario() {
     return { type: COMPLETE_SCENARIO };
 }
 
-export function selectDiagnosis(diagnosis) {
-    return { type: SELECT_DIAGNOSIS, diagnosis };
+export function confirmDiagnoses(diagnoses) {
+    return { type: CONFIRM_DIAGNOSES, diagnoses };
 }
 
 export function selectAction(action) {

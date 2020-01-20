@@ -18,12 +18,17 @@ const mapStateToProps = (state, ownProps) => {
 
 /** The action suggestions view */
 const ActionSuggestions = (props) => {
+    // Short circuit if the UI element should not be displayed
+    if (!props.video_loaded || !!props.video_playing) {
+        return "";
+    }
+
     let suggestions_display = props.suggestions.map((action) => {
         return <li key={action}>{window.constants.ACTIONS[action]}</li>;
     });
 
     return (
-        <div className={"row" + ((!!props.video_loaded && !props.video_playing) ? "" : " d-none") }>
+        <div className="row">
         <p className="col">
             <OverlayTrigger placement="right" overlay={<Tooltip>Actions the robot thinks might help gather more information or resolve the error</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Recommended Actions</b>
         </p>

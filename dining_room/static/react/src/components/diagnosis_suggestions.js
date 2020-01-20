@@ -21,29 +21,33 @@ const mapStateToProps = (state, ownProps) => {
 
 /** The diagnosis suggestions view */
 const DiagnosisSuggestions = (props) => {
-    let suggestions_display = DIAGNOSIS_ORDER.map((diagnosis) => {
-        return (
-            <button className={"btn btn-outline-dark" + (props.suggestions.includes(diagnosis) ? " active" : "")}
-                    style={{ width: (100/DIAGNOSIS_ORDER.length) + "%", pointerEvents: "none" }}
-                    key={diagnosis}>
-                {window.constants.DIAGNOSES[diagnosis]}
-            </button>
-        );
+    // Short circuit if the UI element should not be displayed
+    if (!props.video_loaded || !!props.video_playing) {
+        return "";
+    }
+
+    let suggestions_display = props.suggestions.map((diagnosis) => {
+        return <li key={diagnosis}>{window.constants.DIAGNOSES[diagnosis]}</li>;
     });
+    // let suggestions_display = DIAGNOSIS_ORDER.map((diagnosis) => {
+    //     return (
+    //         <button className={"btn btn-outline-dark" + (props.suggestions.includes(diagnosis) ? " active" : "")}
+    //                 style={{ width: (100/DIAGNOSIS_ORDER.length) + "%", pointerEvents: "none" }}
+    //                 key={diagnosis}>
+    //             {window.constants.DIAGNOSES[diagnosis]}
+    //         </button>
+    //     );
+    // });
 
     return (
-        <div className={"row" + ((!!props.video_loaded && !props.video_playing) ? "" : " d-none") }>
-        <div className="col">
-            <div className="row">
-            <p className="col">
-                <OverlayTrigger placement="right" overlay={<Tooltip>The errors that the robot thinks might be present right now</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Possible Errors</b>
-            </p>
-            </div>
-            <div className="row">
-            <div className="col btn-group btn-group-toggle">
-                {suggestions_display}
-            </div>
-            </div>
+        <div className="row">
+        <p className="col">
+            <OverlayTrigger placement="right" overlay={<Tooltip>The errors that the robot thinks might be present right now</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Possible Errors</b>
+        </p>
+        <div className="col-9">
+        <ul className="list-unstyled">
+            {suggestions_display}
+        </ul>
         </div>
         </div>
     );
