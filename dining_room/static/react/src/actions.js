@@ -54,10 +54,23 @@ export function fetchNextState(action) {
         // Get the state and send the data to the server. Parse the response
         // and then send an updated state action
         let state = getState();
-        return fetch("http://localhost:8000/instructions", { mode: 'no-cors' })
-            .then((response) => getState()) // TODO: Convert response to JSON here
-            .then((state) => { return dispatch(updateState(state.scenario_state)); })
-            .then(console.log)
+        return fetch(
+                window.constants.NEXT_STATE_URL,
+                {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        server_state_tuple: state.scenario_state.server_state_tuple,
+                        action: action,
+                        ui_state: state.ui_status
+                    })
+                }
+            )
+            .then((response) => response.json())
+            .then((state) => { return dispatch(updateState(state)); })
             .catch(console.error);
     }
 }

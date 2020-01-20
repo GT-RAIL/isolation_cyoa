@@ -32,6 +32,7 @@
             }
         },
         NEXT_URL: "{% url 'dining_room:survey' %}",
+        NEXT_STATE_URL: "{% url 'dining_room:xhr_next_state' %}",
         EXPERIMENT_CONDITION: {
             show_dx_suggestions: {{ request.user.show_dx_suggestions|yesno:"true,false" }},
             show_ax_suggestions: {{ request.user.show_ax_suggestions|yesno:"true,false" }}

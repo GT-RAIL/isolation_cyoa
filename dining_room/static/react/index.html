@@ -29,19 +29,19 @@
           ax_selected_time: null
         },
         scenario_state: {
-          server_state_tuple: ['dt', 'kc', 'gripper', 'default', 'gripper', 'mug', 'dt'],
-          video_link: "https://dl.dropboxusercontent.com/s/qxro9nj1zbf6mmf/dt.kc.gripper.default.gripper.noop.mp4",
-          robot_beliefs: [
-              { attr: "Location", value: "Dining Table" },
-              { attr: "Object in gripper", value: "Empty" },
-              { attr: "Objects in view", value: ["Jug, Bowl"] },
-              { attr: "Arm status", value: "In motion" }
+          "server_state_tuple": ["kc", "kc", "default", "above_mug", "default", "empty", "dt"],
+          "video_link": "https://dl.dropboxusercontent.com/s/fjfpvpwfnc23yuo/kc.kc.default.above_mug.default.noop.mp4",
+          "robot_beliefs": [
+            {"attr": "Location", "value": "Kitchen Counter"},
+            {"attr": "Object in gripper", "value": "Empty"},
+            {"attr": "Objects in view", "value": ["Jug", "Bowl", "Mug"]},
+            {"attr": "Arm status", "value": "Not Moving"}
           ],
-          valid_actions: ['at_c', 'at_dt', 'go_to_c', 'go_to_dt', 'look_at_c', 'look_at_dt', 'pick_bowl', 'pick_mug', 'place'],
-          dx_suggestions: ["cannot_see"],
-          ax_suggestions: ["look_at_dt", "go_to_c", "place"],
-          action_result: true,
-          scenario_completed: false
+          "valid_actions": ["at_c", "at_dt", "go_to_c", "go_to_dt", "look_at_c", "look_at_dt", "pick_bowl", "pick_jug"],
+          "dx_suggestions": [],
+          "ax_suggestions": [],
+          "action_result": true,
+          "scenario_completed": false
         },
         history: {
           dx_to_add: null,
@@ -51,6 +51,7 @@
         }
       },
       NEXT_URL: "",
+      NEXT_STATE_URL: "http://localhost:8000/_/next_state",
       EXPERIMENT_CONDITION: {
         show_dx_suggestions: true,
         show_ax_suggestions: true

@@ -48,11 +48,11 @@ class RobotVideo extends React.Component {
             <div className="row">
             <div className="col">
                 <div className="view">
-                    <div className={"embed-responsive embed-responsive-4by3" + (!!this.props.video_loaded ? " visible" : " invisible")} style={{ maxHeight: this.MAX_HEIGHT }}>
+                    <div className={"embed-responsive embed-responsive-4by3" + (!!this.props.video_loaded ? " visible" : " invisible")} style={{ maxHeight: this.MAX_HEIGHT }} key={this.props.video_loaded}>
                         <video autoPlay={false}
                                muted={true}
                                className="embed-responsive-item"
-                               key={this.props.video_loaded ? this.props.video_link : "loading"}
+                               key={this.props.video_link}
                                onEnded={this.ended}
                                onCanPlayThrough={this.loaded}
                                ref={this.videoRef}>

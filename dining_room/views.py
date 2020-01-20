@@ -6,6 +6,8 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponseRedirect
 from django.views.generic.base import TemplateView as GenericTemplateView
 from django.views.generic.edit import FormView as GenericFormView
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse, reverse_lazy
@@ -227,6 +229,19 @@ class CompleteView(TemplateView):
 
 # API
 
-@login_required
-def study_json_template(request):
-    return JsonResponse({'videos': True})
+@require_POST
+@csrf_exempt
+def get_next_state(request):
+    post_data = json.loads(request.body.decode('utf-8'))
+
+    # TODO: Update the CSV
+
+    # Get the next state
+    current_state_tuple = post_data.get('server_state_tuple')
+    action = post_data.get('action')
+    next_state_json = get_next_state_json(current_state_tuple, action)
+
+    # TODO: Mark complete based on the number of actions
+
+    # Return
+    return JsonResponse(next_state_json)

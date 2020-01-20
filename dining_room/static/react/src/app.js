@@ -53,9 +53,6 @@ let App = (props) => {
             <Controls />
         </div>
         </div>
-        <div className="row">
-        <button className="fixed-bottom btn btn-secondary" onClick={props.onCompletionClick}>Toggle Completion</button>
-        </div>
         </div>
     );
 }
