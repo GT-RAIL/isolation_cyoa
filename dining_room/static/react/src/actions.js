@@ -47,6 +47,19 @@ export const ACTIONS_ORDER = [
 
 // Action Creators
 
+export function fetchNextState(action) {
+    // Asynchronous call to get the state
+    return (dispatch, getState) => {
+        // Update the information about the action
+        dispatch(selectAction(action));
+        return fetch("/test")
+            .then((response) => getState())
+            .then((state) => dispatch(updateState(state.scenario_state)))
+            .then(console.log)
+            .catch(console.error);
+    }
+}
+
 export function updateState(new_state) {
     return { type: UPDATE_STATE, new_state};
 }
@@ -56,6 +69,7 @@ export function playVideo() {
 }
 
 export function displayState() {
+    // TODO: Check if the scenario is done and fire an event if so
     return { type: DISPLAY_STATE };
 }
 
@@ -68,5 +82,7 @@ export function confirmDiagnoses(diagnoses) {
 }
 
 export function selectAction(action) {
+    // Don't call this when an action is selected, call the `fetchNextState`
+    // action instead (this is because of how redux seems to work)
     return { type: SELECT_ACTION, action };
 }

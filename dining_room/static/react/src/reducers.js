@@ -20,15 +20,17 @@ import {
 /** Handle updates to the status of the UI based on the incoming action */
 function ui_status(
     state={
+        // Actual UI state
         video_loaded: false,
         video_playing: false,
         confirmed_dx: [],
+        selected_action: null,
         scenario_completed: false,
         // Timestamps
         video_loaded_time: null,
         video_stop_time: null,
         dx_selected_time: null,
-        ax_selected_time: null,
+        ax_selected_time: null
     },
     action
 ) {
@@ -65,15 +67,11 @@ function ui_status(
                 confirmed_dx: action.diagnoses
             };
 
-        // When an action is selected, reset the video variables & send an
-        //  update to the server (since this is where the user selection lives)
+        // When an action is selected, update the timestamp and set the action
         case SELECT_ACTION:
-            // TODO: start the process of getting data from the server
             return {
                 ...state,
-                video_loaded: false,
-                video_playing: false,
-                confirmed_dx: [],
+                selected_action: action.action,
                 ax_selected_time: Date.now() / 1000
             };
 
@@ -87,6 +85,7 @@ function ui_status(
 /** Handle updates to the state of the scenario based on the incoming action */
 function scenario_state(
     state={
+        server_state_tuple: ['dt', 'kc', 'gripper', 'default', 'gripper', 'mug', 'dt'],
         video_link: "https://dl.dropboxusercontent.com/s/qxro9nj1zbf6mmf/dt.kc.gripper.default.gripper.noop.mp4",
         robot_beliefs: [
             { attr: "Location", value: "Dining Table" },
@@ -97,11 +96,15 @@ function scenario_state(
         valid_actions: ['at_c', 'at_dt', 'go_to_c', 'go_to_dt', 'look_at_c', 'look_at_dt', 'pick_bowl', 'pick_mug', 'place'],
         dx_suggestions: ["cannot_see"],
         ax_suggestions: ["look_at_dt", "go_to_c", "place"],
-        action_result: true
+        action_result: true,
+        scenario_completed: false
     },
     action
 ) {
     switch (action.type) {
+        // Simply update the state from the server as is
+        case UPDATE_STATE:
+            return action.new_state;
 
         // The default
         default:
