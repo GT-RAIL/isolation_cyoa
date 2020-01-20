@@ -10,7 +10,6 @@ export const UPDATE_STATE = 'UPDATE_STATE';
 export const PLAY_VIDEO = 'PLAY_VIDEO';
 export const DISPLAY_STATE = 'DISPLAY_STATE';
 
-export const UPDATE_HISTORY = 'UPDATE_HISTORY';
 export const COMPLETE_SCENARIO = 'COMPLETE_SCENARIO';
 
 export const CONFIRM_DIAGNOSES = 'CONFIRM_DIAGNOSES';
@@ -58,10 +57,6 @@ export function playVideo() {
 
 export function displayState() {
     return { type: DISPLAY_STATE };
-}
-
-export function updateHistory(history_item) {
-    return { type: UPDATE_HISTORY, history_item };
 }
 
 export function completeScenario() {

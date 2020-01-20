@@ -1,4 +1,6 @@
 import React from 'react';
+import { connect } from 'react-redux';
+
 import Tooltip from 'react-bootstrap/Tooltip';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -46,6 +48,13 @@ class HistoryItem extends React.Component {
 }
 
 
+/** Function to get the props from the global store */
+const mapStateToProps = (state, ownProps) => {
+    return {
+        history: state.history.history
+    };
+}
+
 /** The history view */
 class History extends React.Component {
     constructor(props) {
@@ -53,27 +62,15 @@ class History extends React.Component {
 
         // Constants
         this.MAX_HEIGHT = "350px";
-
-        // The state definition
-        this.state = {
-            history: [
-                { error: ["Something was wrong"], action: "An action", result: true },
-                { error: ["Something else was wrong", "Something was wrong"], action: "Another action", result: true },
-                { error: ["Unknown"], action: "Yet another action", result: false },
-                { error: ["Something was wrong"], action: "An action", result: true },
-                { error: ["It was wrong", "Something was wrong"], action: "Another action", result: true },
-                { error: ["Unknown", "Something very wrong"], action: "Yet another action", result: false }
-            ]
-        };
     }
 
     render() {
         let history_items = [];
-        for (const [idx, history] of this.state.history.slice().reverse().entries()) {
+        for (const [idx, history] of this.props.history.slice().reverse().entries()) {
             history_items.push(
-                <div className="row" key={this.state.history.length-idx}>
+                <div className="row" key={this.props.history.length-idx}>
                 <div className="col">
-                    <HistoryItem idx={this.state.history.length-idx} {...history} />
+                    <HistoryItem idx={this.props.history.length-idx} {...history} />
                 </div>
                 </div>
             );
@@ -98,5 +95,5 @@ class History extends React.Component {
     }
 }
 
-export default History;
+export default connect(mapStateToProps)(History);
 export { HistoryItem };

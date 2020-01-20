@@ -9,7 +9,6 @@ import {
     UPDATE_STATE,
     PLAY_VIDEO,
     DISPLAY_STATE,
-    UPDATE_HISTORY,
     COMPLETE_SCENARIO,
     CONFIRM_DIAGNOSES,
     SELECT_ACTION
@@ -49,14 +48,14 @@ function ui_status(
                 ...state,
                 video_playing: false,
                 video_stop_time: Date.now() / 1000
-            }
+            };
 
         // When the scenario is completed, update the UI state
         case COMPLETE_SCENARIO:
             return {
                 ...state,
                 scenario_completed: true
-            }
+            };
 
         // When diagnoses are selected, mark them as selected and update he
         // state of the UI
@@ -64,7 +63,7 @@ function ui_status(
             return {
                 ...state,
                 confirmed_dx: action.diagnoses
-            }
+            };
 
         // When an action is selected, reset the video variables & send an
         //  update to the server (since this is where the user selection lives)
@@ -97,7 +96,8 @@ function scenario_state(
         ],
         valid_actions: ['at_c', 'at_dt', 'go_to_c', 'go_to_dt', 'look_at_c', 'look_at_dt', 'pick_bowl', 'pick_mug', 'place'],
         dx_suggestions: ["cannot_see"],
-        ax_suggestions: ["look_at_dt", "go_to_c", "place"]
+        ax_suggestions: ["look_at_dt", "go_to_c", "place"],
+        action_result: true
     },
     action
 ) {
@@ -111,8 +111,58 @@ function scenario_state(
 
 
 /** Handle updates to the history */
-function history(state=[], action) {
+function history(
+    state={
+        dx_to_add: null,
+        ax_to_add: null,
+        result_to_add: null,
+        history: [
+            { error: ["Something was wrong"], action: "An action", result: true },
+            { error: ["Something else was wrong", "Something was wrong"], action: "Another action", result: true },
+            { error: ["Unknown"], action: "Yet another action", result: false },
+            { error: ["Something was wrong"], action: "An action", result: true },
+            { error: ["It was wrong", "Something was wrong"], action: "Another action", result: true },
+            { error: ["Unknown", "Something very wrong"], action: "Yet another action", result: false }
+        ]
+    },
+    action
+) {
     switch (action.type) {
+        // When the video is done playing, update the history if there are
+        // items in the buffer to update
+        case DISPLAY_STATE:
+            if (!state.dx_to_add || !state.ax_to_add) {
+                return state;
+            }
+
+            return {
+                dx_to_add: null,
+                ax_to_add: null,
+                result_to_add: null,
+                history: [...state.history, { error: state.dx_to_add, action: state.ax_to_add, result: state.result_to_add }]
+            };
+
+        // When the state is updated, get the result from the state
+        case UPDATE_STATE:
+            return {
+                ...state,
+                result_to_add: action.new_state.action_result
+            };
+
+        // When a diagnosis is confirmed, add it to the to be updated history
+        // event
+        case CONFIRM_DIAGNOSES:
+            return {
+                ...state,
+                dx_to_add: action.diagnoses
+            };
+
+        // When an action is selected, add it to the action to update
+        case SELECT_ACTION:
+            return {
+                ...state,
+                ax_to_add: action.action
+            };
 
         // The default
         default:
