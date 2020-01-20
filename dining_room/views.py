@@ -70,7 +70,7 @@ def get_next_state_json(current_state, action):
         "server_state_tuple": next_state.tuple,
         "video_link": dbx.video_links[transition.video_name],
         "robot_beliefs": [
-            { "attr": "Location", "value": display(constants.LOCATION_NAMES[next_state.base_location]) },
+            { "attr": "Location", "value": display(next_state.relocalized_base_location) },
             { "attr": "Object in gripper", "value": display(next_state.gripper_state) },
             { "attr": "Objects in view", "value": [display(x) for x in next_state.visible_objects] },
             { "attr": "Arm status", "value": display(transition.arm_status) },
