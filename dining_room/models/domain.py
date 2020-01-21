@@ -521,7 +521,7 @@ class Transition:
         return hash(self.tuple)
 
     def __str__(self):
-        return str((self.start_state, constants.ACTIONS[self.action], self.end_state))
+        return str((self.start_state, constants.ACTIONS.get(self.action, self.action), self.end_state))
 
     def __repr__(self):
         return repr(self.tuple)

@@ -74,12 +74,12 @@ function scenario_state(state=window.constants.INITIAL_STATE.scenario_state, act
     switch (action.type) {
         // Simply update the state from the server as is if there was no error
         case UPDATE_STATE:
-            if (!!new_state.server_state_tuple) {
+            if (!!action.new_state.server_state_tuple) {
                 return action.new_state;
             } else {
                 return {
                     ...state,
-                    ...new_state
+                    ...action.new_state
                 }
             }
 
