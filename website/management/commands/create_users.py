@@ -45,12 +45,12 @@ class Command(BaseCommand):
         ]
 
         # Initialize a connection to dropbox
-        self.dbx = dropbox.Dropbox(os.getenv(settings.DROPBOX_ENV_KEY))
+        self.dbx = dropbox.Dropbox(settings.DROPBOX_OAUTH2_TOKEN)
 
     def add_arguments(self, parser):
         parser.add_argument('number_desired_users', type=int, help="The number of users per condition")
         parser.add_argument('-r', '--regenerate', action='store_true', help="Regenerate the list of users?")
-        parser.add_argument('-f', '--filename', default=os.path.join('dropbox://', settings.DROPBOX_FOLDER_NAME, 'data/user_details.csv'), help="The file to store the data in")
+        parser.add_argument('-f', '--filename', default=os.path.join('dropbox://', settings.DROPBOX_ROOT_PATH[1:], 'data/user_details.csv'), help="The file to store the data in")
         parser.add_argument('--no_check', action='store_true', help="Check that the user details match; if not, create/update the user")
 
     def _get_local_filename(self, filename):

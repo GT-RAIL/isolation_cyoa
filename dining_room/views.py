@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 
 from django.conf import settings
 from django.core.cache import cache
@@ -26,67 +27,6 @@ from .utils import DropboxConnection
 
 logger = logging.getLogger(__name__)
 dbx = DropboxConnection()
-
-
-# Common methods
-
-def get_next_state_json(current_state, action):
-    """
-    Return the next state information given the current state and the action.
-    If action is None, then simply return the current state as a JSON. We
-    perform caching within this view function to save time
-
-    Args:
-        current_state (tuple/list) : the current state object as a tuple
-        action (None / str) : the action to take
-
-    Returns:
-        next_state: The next state object
-        next_state_json: JSON dictionary of the next state
-    """
-    current_state = State(current_state)
-
-    # First check the cache for the answer
-    cache_key = f"{'.'.join(current_state.tuple)}:{action}"
-    cache_value = cache.get(cache_key)
-    if cache_value is not None:
-        return cache_value
-
-    # Generate the JSON data
-    action_result = True
-    if action is None:
-        next_state = current_state
-        transition = Transition(None, None, current_state)
-    else:
-        next_state = Transition.get_end_state(current_state, action)
-        if next_state is None:
-            action_result = False
-            transition = Transition(None, None, current_state)
-        else:
-            transition = Transition(current_state, action, next_state)
-
-    # Create the JSON dictionary
-    next_state_json = {
-        "server_state_tuple": next_state.tuple,
-        "video_link": dbx.video_links[transition.video_name],
-        "robot_beliefs": [
-            { "attr": "Location", "value": display(next_state.relocalized_base_location) },
-            { "attr": "Object in gripper", "value": display(next_state.gripper_state) },
-            { "attr": "Objects in view", "value": [display(x) for x in next_state.visible_objects] },
-            { "attr": "Arm status", "value": display(transition.arm_status) },
-        ],
-        "valid_actions": sorted(next_state.get_valid_transitions().keys()),
-        "dx_suggestions": [],
-        "ax_suggestions": [],
-        "action_result": action_result,
-        "scenario_completed": next_state.is_end_state,
-    }
-
-    # Save the data to the cache
-    cache.set(cache_key, next_state_json, timeout=None)
-
-    # Return the dictionary
-    return next_state_json
 
 
 # Create your views here.
@@ -239,49 +179,117 @@ class CompleteView(TemplateView):
 
 # API
 
+
+def get_next_state_json(current_state, action):
+    """
+    Return the next state information given the current state and the action.
+    If action is None, then simply return the current state as a JSON. We
+    perform caching within this view function to save time
+
+    Args:
+        current_state (tuple/list) : the current state object as a tuple
+        action (None / str) : the action to take
+
+    Returns:
+        next_state: The next state object
+        next_state_json: JSON dictionary of the next state
+    """
+    current_state = State(current_state)
+
+    # First check the cache for the answer
+    cache_key = f"{'.'.join(current_state.tuple)}:{action}"
+    cache_value = cache.get(cache_key)
+    if cache_value is not None:
+        return cache_value
+
+    # Generate the JSON data
+    action_result = True
+    if action is None:
+        next_state = current_state
+        transition = Transition(None, None, current_state)
+    else:
+        next_state = Transition.get_end_state(current_state, action)
+        if next_state is None:
+            action_result = False
+            transition = Transition(None, None, current_state)
+        else:
+            transition = Transition(current_state, action, next_state)
+
+    # Create the JSON dictionary
+    next_state_json = {
+        "server_state_tuple": next_state.tuple,
+        "video_link": dbx.video_links[transition.video_name],
+        "robot_beliefs": [
+            { "attr": "Location", "value": display(next_state.relocalized_base_location) },
+            { "attr": "Object in gripper", "value": display(next_state.gripper_state) },
+            { "attr": "Objects in view", "value": [display(x) for x in next_state.visible_objects] },
+            { "attr": "Arm status", "value": display(transition.arm_status) },
+        ],
+        "valid_actions": sorted(next_state.get_valid_transitions().keys()),
+        "dx_suggestions": [],
+        "ax_suggestions": [],
+        "action_result": action_result,
+        "scenario_completed": next_state.is_end_state,
+    }
+
+    # Save the data to the cache
+    cache.set(cache_key, next_state_json, timeout=None)
+
+    # Return the dictionary
+    return next_state_json
+
+
 @require_POST
 @csrf_exempt
 @never_cache
 def get_next_state(request):
-    # TODO: On an exception, mark the exception and return that the scenario is
-    # complete. We can then discard those situations
-    post_data = json.loads(request.body.decode('utf-8'))
+    try:
+        post_data = json.loads(request.body.decode('utf-8'))
 
-    # Get the next state
-    current_state_tuple = post_data.get('server_state_tuple')
-    action = post_data.get('action')
-    next_state_json = get_next_state_json(current_state_tuple, action)
+        # Get the next state
+        current_state_tuple = post_data.get('server_state_tuple')
+        action = post_data.get('action')
+        next_state_json = get_next_state_json(current_state_tuple, action)
 
-    # Update the CSV with the incoming data (only if this is on django)
-    if request.user.is_authenticated:
-        dbx.write_to_csv(
-            request.user,
-            **{
-                "start_state": repr(State(current_state_tuple)),
-                "diagnoses": str(post_data.get('ui_state', {}).get('confirmed_dx')),
-                "action": action,
-                "next_state": repr(State(next_state_json['server_state_tuple'])),
-                "video_loaded_time": post_data.get('ui_state', {}).get('video_loaded_time'),
-                "video_stop_time": post_data.get('ui_state', {}).get('video_stop_time'),
-                "dx_selected_time": post_data.get('ui_state', {}).get('dx_selected_time'),
-                "ax_selected_time": post_data.get('ui_state', {}).get('ax_selected_time'),
-            }
-        )
+        # Update the CSV with the incoming data (only if this is on django)
+        if request.user.is_authenticated:
+            dbx.write_to_csv(
+                request.user,
+                **{
+                    "start_state": repr(State(current_state_tuple)),
+                    "diagnoses": str(post_data.get('ui_state', {}).get('confirmed_dx')),
+                    "action": action,
+                    "next_state": repr(State(next_state_json['server_state_tuple'])),
+                    "video_loaded_time": post_data.get('ui_state', {}).get('video_loaded_time'),
+                    "video_stop_time": post_data.get('ui_state', {}).get('video_stop_time'),
+                    "dx_selected_time": post_data.get('ui_state', {}).get('dx_selected_time'),
+                    "ax_selected_time": post_data.get('ui_state', {}).get('ax_selected_time'),
+                }
+            )
 
-        # If the next state JSON says that the user is done, then mark that, else
-        # complete the scenario based on if the user has exceeded max actions
-        if next_state_json['scenario_completed']:
-            request.user.scenario_completed = True
-            request.user.save()
+            # If the next state JSON says that the user is done, then mark that, else
+            # complete the scenario based on if the user has exceeded max actions
+            if next_state_json['scenario_completed']:
+                request.user.scenario_completed = True
+                request.user.save()
+            elif post_data.get('ui_state', {}).get('selected_action_idx') >= constants.MAX_NUMBER_OF_ACTIONS:
+                next_state_json['scenario_completed'] = True
+                request.user.scenario_completed = False
+                request.user.save()
+
+        # Otherwise, simply check to see if we are over the limit of the maximum
+        # number of actions
         elif post_data.get('ui_state', {}).get('selected_action_idx') >= constants.MAX_NUMBER_OF_ACTIONS:
             next_state_json['scenario_completed'] = True
-            request.user.scenario_completed = False
+    except Exception as e:
+        trace = traceback.format_exc()
+        logger.error(f"Error processing next state {e}:\n{trace}")
+        if request.user.is_authenticated:
+            request.user.ignore_data_reason = trace
             request.user.save()
-
-    # Otherwise, simply check to see if we are over the limit of the maximum
-    # number of actions
-    elif post_data.get('ui_state', {}).get('selected_action_idx') >= constants.MAX_NUMBER_OF_ACTIONS:
-        next_state_json['scenario_completed'] = True
+        next_state_json = {
+            'scenario_completed': True
+        }
 
     # Return
     return JsonResponse(next_state_json)

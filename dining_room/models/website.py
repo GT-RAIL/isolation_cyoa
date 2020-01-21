@@ -121,8 +121,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     study_condition = models.IntegerField(_('study condition'), blank=True, null=True, choices=StudyConditions.choices)
 
-    SHOW_DX_STUDY_CONDITIONS = [StudyConditions.DX_ONLY, StudyConditions.DX_AX]
-    SHOW_AX_STUDY_CONDITIONS = [StudyConditions.AX_ONLY, StudyConditions.DX_AX]
+    SHOW_DX_STUDY_CONDITIONS = [
+        StudyConditions.DX_ONLY,
+        StudyConditions.DX_AX,
+    ]
+    SHOW_AX_STUDY_CONDITIONS = [
+        StudyConditions.AX_ONLY,
+        StudyConditions.DX_AX,
+    ]
 
     class StartConditions(models.TextChoices):
         """
@@ -217,6 +223,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     # TODO: Add REACTION questionnaire questions? Or perhaps from Knepper
     # TODO: Add gold standard questions to the survey
 
+    # Field to ignore the user's data in the event of an error
+    ignore_data_reason = models.TextField(blank=True, null=True)
+
     # Required constants
     USERNAME_FIELD = 'username'
     EMAIL_FIELD = 'unique_key'  # Just in case some code actually uses it
@@ -264,11 +273,28 @@ class User(AbstractBaseUser, PermissionsMixin):
 
         return state
 
+    @property
+    def invalid_data(self):
+        """
+        The data for this user is invalid if there is a reason to ignore
+        their data
+        """
+        return (self.ignore_data_reason is not None)
+
     # Custom methods
     def reset_progress(self, *args, **kwargs):
         """
         Reset the state of the user. Accepts the same arguments as save
         """
         self.date_demographics_completed = self.date_started = self.date_finished = self.date_survey_completed = None
+        self.save(*args, **kwargs)
+        return self
+
+    def reset_invalid_data(self, *args, **kwargs):
+        """
+        Reset the invalid data state of the user. Accepts the same arguments as
+        save
+        """
+        self.ignore_data_reason = None
         self.save(*args, **kwargs)
         return self

@@ -72,9 +72,16 @@ function ui_status(state=window.constants.INITIAL_STATE.ui_state, action) {
 /** Handle updates to the state of the scenario based on the incoming action */
 function scenario_state(state=window.constants.INITIAL_STATE.scenario_state, action) {
     switch (action.type) {
-        // Simply update the state from the server as is
+        // Simply update the state from the server as is if there was no error
         case UPDATE_STATE:
-            return action.new_state;
+            if (!!new_state.server_state_tuple) {
+                return action.new_state;
+            } else {
+                return {
+                    ...state,
+                    ...new_state
+                }
+            }
 
         // The default
         default:

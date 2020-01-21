@@ -43,6 +43,25 @@ class StudyProgressListFilter(admin.SimpleListFilter):
             return queryset
 
 
+class InvalidDataListFilter(admin.SimpleListFilter):
+    """
+    Filter by an inferred boolean property in Python
+    """
+    title = _('invalid data')
+    parameter_name = 'invalid_data'
+
+    def lookups(self, request, model_admin):
+        """Return the list of values to show"""
+        return ((True, 'Yes'), (False, 'No'))
+
+    def queryset(self, request, queryset):
+        """Filter the objects"""
+        if self.value() is not None:
+            value = (self.value() == 'True')
+            return queryset.filter(ignore_data_reason__isnull=not value)
+        return queryset
+
+
 # Register your models here.
 
 csrf_protect_m = method_decorator(csrf_protect)
@@ -59,7 +78,7 @@ class UserAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('unique_key',)}),
-        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'study_progress', 'scenario_completed')}),
+        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'study_progress', 'scenario_completed', 'invalid_data')}),
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
@@ -74,21 +93,25 @@ class UserAdmin(admin.ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
-    list_display = ('username', 'unique_key', 'study_condition', 'start_condition', 'study_progress')
-    list_filter = ('study_condition', StudyProgressListFilter, 'is_superuser', 'is_active', 'groups')
+    list_display = ('username', 'unique_key', 'study_condition', 'start_condition', 'study_progress', 'invalid_data')
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'is_superuser')
     search_fields = ('username', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')
-    readonly_fields = ('study_progress',)
-    actions = ['reset_study_progress']
+    readonly_fields = ('study_progress', 'invalid_data')
+    actions = ['reset_study_progress', 'reset_invalid_data']
 
     def reset_study_progress(self, request, queryset):
-        """
-        Reset the study progress of the selected users
-        """
+        """Reset the study progress of the selected users"""
         for obj in queryset:
             obj.reset_progress()
         self.message_user(request, f'Study progress reset for {len(queryset)} {"user" if len(queryset) == 1 else "users"}')
+
+    def reset_invalid_data(self, request, queryset):
+        """Reset the invalid data state for the user"""
+        for obj in queryset:
+            obj.reset_invalid_data()
+        self.message_user(request, f'Data validity reset for {len(queryset)} {"user" if len(queryset) == 1 else "users"}')
 
     def get_fieldsets(self, request, obj=None):
         if not obj:
@@ -260,14 +283,14 @@ class DemographicsAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': (('username', 'study_condition', 'start_condition', 'study_progress'), ('date_finished', 'date_demographics_completed'))
+            'fields': (('username', 'study_condition', 'start_condition', 'study_progress', 'invalid_data'), ('date_finished', 'date_demographics_completed'))
         }),
         ('Demographics', { 'fields': ('gender', 'age_group', 'robot_experience') }),
     )
-    list_display = ('username', 'study_condition', 'date_finished', 'gender', 'age_group', 'robot_experience')
-    list_filter = ('study_condition', StudyProgressListFilter, 'date_finished', 'gender', 'age_group', 'robot_experience')
+    list_display = ('username', 'study_condition', 'invalid_data', 'date_finished', 'gender', 'age_group', 'robot_experience')
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'gender', 'age_group', 'robot_experience')
     ordering = ('date_finished', 'username', 'study_condition')
     search_fields = ('username', 'study_condition')
-    readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress')
+    readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress', 'invalid_data')
 
 create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')
