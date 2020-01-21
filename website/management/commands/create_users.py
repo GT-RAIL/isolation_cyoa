@@ -140,7 +140,7 @@ class Command(BaseCommand):
         Create a random user with a username and password. Return the tuple of the
         username, password, and the unique_key
         """
-        user = User(username=username or User.objects.make_random_password(),
+        user = User(username=username or User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789'),
                     unique_key=unique_key or User.objects.make_random_password(),
                     study_condition=study_condition,
                     start_condition=start_condition)

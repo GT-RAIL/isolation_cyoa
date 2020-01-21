@@ -47,7 +47,7 @@ def get_next_state_json(current_state, action):
     current_state = State(current_state)
 
     # First check the cache for the answer
-    cache_key = f"{str(current_state)}.{action}"
+    cache_key = f"{'.'.join(current_state.tuple)}:{action}"
     cache_value = cache.get(cache_key)
     if cache_value is not None:
         return cache_value
@@ -100,26 +100,12 @@ class CheckProgressMixin:
     """
 
     def dispatch(self, request, *args, **kwargs):
-        allowed_locations = None
-        if request.user.date_demographics_completed is None:
-            # If demographics haven't been completed, redirect to demographics
-            allowed_locations = ['demographics']
-
-        elif (request.user.date_started is None or request.user.date_finished is None or request.user.date_survey_completed is None):
-            # If the study has not been completed, but demographics have been,
-            # then redirect to the instructions and restart the study
-            allowed_locations = ['instructions', 'test', 'study', 'survey']
-
-        elif request.user.date_survey_completed is not None:
-            # If the user has completed the study, and the survey, then redirect
-            # to the completed page
-            allowed_locations = ['complete']
-
-        if request.resolver_match.url_name in allowed_locations:
+        allowed_pages = constants.STUDY_PROGRESS_STATES[request.user.study_progress]
+        if request.resolver_match.url_name in allowed_pages:
             # Allow the underlying views to take charge
             return super().dispatch(request, *args, **kwargs)
         else:
-            return redirect(reverse(f'dining_room:{allowed_locations[0]}'))
+            return redirect(reverse(f'dining_room:{allowed_pages[0]}'))
 
 
 class TemplateView(LoginRequiredMixin, CheckProgressMixin, GenericTemplateView):

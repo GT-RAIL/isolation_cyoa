@@ -18,6 +18,29 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 
 from .models import User
+from .models.domain import constants
+
+
+# Helper classes such as list filters, etc
+
+class StudyProgressListFilter(admin.SimpleListFilter):
+    """
+    Filter by the study progress inherited property
+    """
+    title = _('study progress')
+    parameter_name = 'study_progress'
+
+    def lookups(self, request, model_admin):
+        """Return the list of values to show"""
+        return tuple([(x, x) for x in sorted(constants.STUDY_PROGRESS_STATES.keys())])
+
+    def queryset(self, request, queryset):
+        """Filter the objects"""
+        if self.value() is not None:
+            admissible_ids = [obj.id for obj in queryset if obj.study_progress == self.value()]
+            return queryset.filter(id__in=admissible_ids)
+        else:
+            return queryset
 
 
 # Register your models here.
@@ -36,7 +59,7 @@ class UserAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('unique_key',)}),
-        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'scenario_completed')}),
+        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'study_progress', 'scenario_completed')}),
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
@@ -51,11 +74,21 @@ class UserAdmin(admin.ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
-    list_display = ('username', 'unique_key', 'study_condition', 'start_condition', 'is_staff')
-    list_filter = ('study_condition', 'is_staff', 'is_superuser', 'is_active', 'groups')
+    list_display = ('username', 'unique_key', 'study_condition', 'start_condition', 'study_progress')
+    list_filter = ('study_condition', StudyProgressListFilter, 'is_superuser', 'is_active', 'groups')
     search_fields = ('username', 'unique_key', 'study_condition', 'start_condition')
-    ordering = ('username', 'last_login',)
-    filter_horizontal = ('groups', 'user_permissions',)
+    ordering = ('username', 'last_login')
+    filter_horizontal = ('groups', 'user_permissions')
+    readonly_fields = ('study_progress',)
+    actions = ['reset_study_progress']
+
+    def reset_study_progress(self, request, queryset):
+        """
+        Reset the study progress of the selected users
+        """
+        for obj in queryset:
+            obj.reset_progress()
+        self.message_user(request, f'Study progress reset for {len(queryset)} {"user" if len(queryset) == 1 else "users"}')
 
     def get_fieldsets(self, request, obj=None):
         if not obj:
@@ -227,14 +260,14 @@ class DemographicsAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': (('username', 'study_condition', 'start_condition'), ('date_finished', 'date_demographics_completed'))
+            'fields': (('username', 'study_condition', 'start_condition', 'study_progress'), ('date_finished', 'date_demographics_completed'))
         }),
         ('Demographics', { 'fields': ('gender', 'age_group', 'robot_experience') }),
     )
     list_display = ('username', 'study_condition', 'date_finished', 'gender', 'age_group', 'robot_experience')
-    list_filter = ('study_condition', 'date_finished', 'gender', 'age_group', 'robot_experience')
+    list_filter = ('study_condition', StudyProgressListFilter, 'date_finished', 'gender', 'age_group', 'robot_experience')
     ordering = ('date_finished', 'username', 'study_condition')
     search_fields = ('username', 'study_condition')
-    readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed')
+    readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress')
 
 create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')

@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string, salted_hmac
 from django.utils.translation import gettext_lazy as _
 
-from .domain import State, Transition
+from .domain import State, Transition, constants
 
 # Create the model for the user and the associated manager
 
@@ -114,12 +114,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     class StudyConditions(models.IntegerChoices):
         """The study conditions"""
         BASELINE = 0, _('Baseline')
+        DX_ONLY = 1, _('DX Only')
+        AX_ONLY = 2, _('AX Only')
+        DX_AX = 3, _('DX & AX')
         __empty__ = _('(Unknown)')
 
     study_condition = models.IntegerField(_('study condition'), blank=True, null=True, choices=StudyConditions.choices)
 
-    SHOW_DX_STUDY_CONDITIONS = [StudyConditions.BASELINE]  # FIXME
-    SHOW_AX_STUDY_CONDITIONS = []
+    SHOW_DX_STUDY_CONDITIONS = [StudyConditions.DX_ONLY, StudyConditions.DX_AX]
+    SHOW_AX_STUDY_CONDITIONS = [StudyConditions.AX_ONLY, StudyConditions.DX_AX]
 
     class StartConditions(models.TextChoices):
         """
@@ -243,3 +246,29 @@ class User(AbstractBaseUser, PermissionsMixin):
     def show_ax_suggestions(self):
         """Return a boolean if the user should see action suggestions"""
         return self.study_condition in User.SHOW_AX_STUDY_CONDITIONS
+
+    @property
+    def study_progress(self):
+        """
+        The progress the user has made through the study. These are str
+        constants in the domain and are primarily used to decide the pages the
+        user is allowed to view
+        """
+        state = None
+        if self.date_demographics_completed is None:
+            state = 'CREATED'
+        elif self.date_started is None or self.date_finished is None or self.date_survey_completed is None:
+            state = 'DEMOGRAPHED'
+        elif self.date_survey_completed is not None:
+            state = 'SURVEYED'
+
+        return state
+
+    # Custom methods
+    def reset_progress(self, *args, **kwargs):
+        """
+        Reset the state of the user. Accepts the same arguments as save
+        """
+        self.date_demographics_completed = self.date_started = self.date_finished = self.date_survey_completed = None
+        self.save(*args, **kwargs)
+        return self

@@ -210,6 +210,19 @@ constants = objdict({
 
     # The maximum number of actions that we allow
     'MAX_NUMBER_OF_ACTIONS': 20,
+
+    # A dictionary mapping progress states through the study to the allowed
+    # pages in the event those states are reached
+    'STUDY_PROGRESS_STATES': objdict({
+        # If demographics haven't been completed, redirect to demographics
+        'CREATED': ['demographics'],
+        # If the study has not been completed, but demographics have been,
+        # then redirect to the instructions and restart the study
+        'DEMOGRAPHED': ['instructions', 'test', 'study', 'survey'],
+        # If the user has completed the study, and the survey, then redirect
+        # to the completed page
+        'SURVEYED': ['complete'],
+    }),
 })
 
 
