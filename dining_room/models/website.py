@@ -172,9 +172,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         ALMOST_EVERYDAY = 4
 
     class Genders(models.TextChoices):
-        PREFER_NOT_TO_SAY = 'U'  # Unknown
         FEMALE = 'F'
         MALE = 'M'
+        PREFER_NOT_TO_SAY = 'U'  # Unknown
 
     age_group = models.IntegerField(choices=AgeGroups.choices, blank=True, null=True)
     robot_experience = models.IntegerField(_("how often do you interact with robots?"), choices=ExperienceGroups.choices, blank=True, null=True)

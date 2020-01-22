@@ -1,43 +1,86 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container">
 
-<div class="row justify-content-center">
-    {% if form.errors %}
-    <div class="alert alert-danger">
-    {{ form.non_field_errors }}
-    </div>
-    {% endif %}
-</div>
-
-<div class="row justify-content-center">
-    <form method="post" action="{% url 'dining_room:demographics' %}" class="offset-2 col-8 table-responsive">
+{% spaceless %}
+<div class="row justify-content-center mt-4">
+    <form method="post" action="{% url 'dining_room:demographics' %}" class="col">
     {% csrf_token %}
     {% for hidden in form.hidden_fields %}
     {{ hidden }}
     {% endfor %}
-    <table class="table table-borderless">
-    {% for field in form.visible_fields %}
-        {% if field.errors %}
-        <tr class="row">
-            <td class="col alert alert-danger">{{ field.errors }}</td>
-        </tr>
-        {% endif %}
-        <tr class="row">
-            <td class="col-4">{{ field.label_tag }}</td>
-            <td class="col">{{ field }}</td>
-        </tr>
-    {% endfor %}
-    </table>
 
-    <div class="row">
-        <div class="col-6 offset-1">
-        <input type="submit" value="submit" class="btn btn-block btn-outline-primary">
+    <!-- All the fields here are SELECT fields -->
+    {% with radio_fields="age_group gender robot_experience" horizontal_radio_fields="gender robot_experience" %}
+    {% for field in form.visible_fields %}
+
+    {% if field.name in radio_fields.split and field.name in horizontal_radio_fields.split %}
+        <fieldset class="form-group">
+        <div class="row">
+            <legend class="col-form-label"><h5>{{ field.label }}</h5></legend>
+        </div>
+        {% if field.errors %}
+        <div class="row">
+        <div class="col alert alert-danger">{% for error in field.errors %}<p class="my-1">{{ error }}</p>{% endfor %}</div>
+        </div>
+        {% endif %}
+        <div class="row">
+        <div class="col btn-group" data-toggle="buttons">
+            {% for value, name in field.field.choices %}
+            {% if value != '' %}
+            <label class="col btn btn-outline-dark form-check-label {% if value|safe == field.value|safe %}active{% endif %}">
+            <input class="form-check-input" type="radio" name="{{ field.name }}" value="{{ value }}" style="visibility: hidden;" {% if value|safe == field.value|safe %}checked{% endif %}> {{ name }}
+            </label>
+            {% endif %}
+            {% endfor %}
+        </div>
+        </div>
+        </fieldset>
+    {% elif field.name in radio_fields.split %}
+        <fieldset class="form-group">
+        {% if field.errors %}
+        <div class="row">
+        <div class="col alert alert-danger">{% for error in field.errors %}<p class="my-1">{{ error }}</p>{% endfor %}</div>
+        </div>
+        {% endif %}
+        <div class="row">
+            <legend class="col-form-label col-3 py-0"><h5>{{ field.label }}</h5></legend>
+            <div class="col">
+                {% for value, name in field.field.choices %}
+                {% if value != '' %}
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="{{ field.name }}" value="{{ value }}" {% if value|safe == field.value|safe %}checked{% endif %}>
+                  <label class="form-check-label" for="{{ value }}">{{ name }}</label>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        </fieldset>
+    {% else %}
+        <div class="form-group">
+            {% if field.errors %}
+            <div class="row">
+            <div class="col alert alert-danger">{% for error in field.errors %}<p class="my-1">{{ error }}</p>{% endfor %}</div>
+            </div>
+            {% endif %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+        </div>
+    {% endif %}
+
+    {% endfor %}
+    {% endwith %}
+
+    <div class="row mt-5">
+        <div class="col-6 offset-3">
+        <input type="submit" value="Submit" class="btn btn-lg btn-block btn-outline-primary">
         </div>
     </div>
     </form>
 </div>
+{% endspaceless %}
 
 </div>
 <style type="text/css">
