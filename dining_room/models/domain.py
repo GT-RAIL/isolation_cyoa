@@ -136,18 +136,18 @@ def display(string):
 constants = objdict({
     # The actions that we can handle at any given state
     'ACTIONS': {
-        'at_c': "Robot is at Couch",
-        'at_dt': "Robot is at Dining Table",
-        'at_kc': "Robot is at Kitchen Counter",
-        'go_to_c': "Go to Couch",
-        'go_to_dt': "Go to Dining Table",
-        'go_to_kc': "Go to Kitchen Counter",
+        'at_c': "Update robot's location belief to: Couch",
+        'at_dt': "Update robot's location belief to:  Dining Table",
+        'at_kc': "Update robot's location belief to:  Kitchen Counter",
+        'go_to_c': "Navigate to Couch",
+        'go_to_dt': "Navigate to Dining Table",
+        'go_to_kc': "Navigate to Kitchen Counter",
         'look_at_c': "Look at Couch",
         'look_at_dt': "Look at Dining Table",
         'look_at_kc': "Look at Kitchen Counter",
-        'pick_bowl': "Pick Bowl",
-        'pick_jug': "Pick Jug",
-        'pick_mug': "Pick Mug",
+        'pick_bowl': "Pick up the Bowl",
+        'pick_jug': "Pick up the Jug",
+        'pick_mug': "Pick up the Cup",
         'place': "Stow object in gripper",
     },
 
@@ -201,10 +201,10 @@ constants = objdict({
     # The diagnosis options. These are keys corresponding to display values
     'DIAGNOSES': {
         'lost': 'The robot is lost',
-        'cannot_pick': 'The mug cannot be picked up',
-        'cannot_see': 'The mug is not visible',
-        'different_location': 'The mug is not where it should be',
-        'unknown': 'Unknown',
+        'cannot_pick': 'The cup cannot be picked up',
+        'cannot_see': 'The cup is not visible',
+        'different_location': 'The cup is not where it should be',
+        'unknown': "I don't know",
         'none': 'There is no error',
     },
 

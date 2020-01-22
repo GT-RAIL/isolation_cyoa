@@ -7,7 +7,7 @@ import DiagnosisControls from './diagnosis_controls';
 /** The controls view */
 const Controls = (props) => {
     return (
-        <div className="row">
+        <div className="row bg-light">
         <div className="col">
             <DiagnosisControls />
             <div className="my-3" />

@@ -89,7 +89,7 @@ class ActionControls extends React.Component {
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the action that the robot should take to complete its goal</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Actions</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the next action that the robot should take to eventually achieve its goal</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What action should the robot take to move towards its goal?</b>
                 </p>
                 </div>
                 {action_buttons}

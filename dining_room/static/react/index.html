@@ -35,7 +35,7 @@
           "robot_beliefs": [
             {"attr": "Location", "value": "Kitchen Counter"},
             {"attr": "Object in gripper", "value": "Empty"},
-            {"attr": "Objects in view", "value": ["Jug", "Bowl", "Mug"]},
+            {"attr": "Objects in view", "value": ["Jug", "Bowl", "Cup"]},
             {"attr": "Arm status", "value": "Not Moving"}
           ],
           "valid_actions": ["at_c", "at_dt", "go_to_c", "go_to_dt", "look_at_c", "look_at_dt", "pick_bowl", "pick_jug"],
@@ -57,8 +57,8 @@
         show_dx_suggestions: true,
         show_ax_suggestions: true
       },
-      ACTIONS: {"at_c": "Robot is at Couch", "at_dt": "Robot is at Dining Table", "at_kc": "Robot is at Kitchen Counter", "go_to_c": "Go to Couch", "go_to_dt": "Go to Dining Table", "go_to_kc": "Go to Kitchen Counter", "look_at_c": "Look at Couch", "look_at_dt": "Look at Dining Table", "look_at_kc": "Look at Kitchen Counter", "pick_bowl": "Pick Bowl", "pick_jug": "Pick Jug", "pick_mug": "Pick Mug", "place": "Stow object in gripper"},
-      DIAGNOSES: {"lost": "The robot is lost", "cannot_pick": "The mug cannot be picked up", "cannot_see": "The mug is not visible", "different_location": "The mug is not where it should be", "unknown": "Unknown", "none": "There is no error"}
+      ACTIONS: {"at_c": "Update robot's location belief to: Couch", "at_dt": "Update robot's location belief to:  Dining Table", "at_kc": "Update robot's location belief to:  Kitchen Counter", "go_to_c": "Navigate to Couch", "go_to_dt": "Navigate to Dining Table", "go_to_kc": "Navigate to Kitchen Counter", "look_at_c": "Look at Couch", "look_at_dt": "Look at Dining Table", "look_at_kc": "Look at Kitchen Counter", "pick_bowl": "Pick up the Bowl", "pick_jug": "Pick up the Jug", "pick_mug": "Pick up the Cup", "place": "Stow object in gripper"},
+      DIAGNOSES: {"lost": "The robot is lost", "cannot_pick": "The cup cannot be picked up", "cannot_see": "The cup is not visible", "different_location": "The cup is not where it should be", "unknown": "I don't know", "none": "There is no error"}
     };
   </script>
 

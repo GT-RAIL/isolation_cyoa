@@ -30,7 +30,7 @@ const ActionSuggestions = (props) => {
     return (
         <div className="row">
         <p className="col">
-            <OverlayTrigger placement="right" overlay={<Tooltip>Actions the robot thinks might help gather more information or resolve the error</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Recommended Actions</b>
+            <OverlayTrigger placement="right" overlay={<Tooltip>Actions the robot thinks might help you gather more information or resolve the error</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Recommended Actions</b>
         </p>
         <div className="col-9">
         <ul className="list-unstyled">

@@ -179,6 +179,14 @@ class CompleteView(TemplateView):
 
 # API
 
+def convert_mug_to_cup(value):
+    """Helper function to convert a string from mug to cup"""
+    if isinstance(value, str) and value.lower() == 'mug':
+        return 'cup'
+    else:
+        return value
+
+
 def get_next_state_json(current_state, action):
     """
     Return the next state information given the current state and the action.
@@ -220,8 +228,8 @@ def get_next_state_json(current_state, action):
         "video_link": dbx.video_links[transition.video_name],
         "robot_beliefs": [
             { "attr": "Location", "value": display(next_state.relocalized_base_location) },
-            { "attr": "Object in gripper", "value": display(next_state.gripper_state) },
-            { "attr": "Objects in view", "value": [display(x) for x in next_state.visible_objects] },
+            { "attr": "Object in gripper", "value": display(convert_mug_to_cup(next_state.gripper_state)) },
+            { "attr": "Objects in view", "value": [display(convert_mug_to_cup(x)) for x in next_state.visible_objects] },
             { "attr": "Arm status", "value": display(transition.arm_status) },
         ],
         "valid_actions": sorted(next_state.get_valid_transitions().keys()),

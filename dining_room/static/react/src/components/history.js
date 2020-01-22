@@ -19,30 +19,12 @@ class HistoryItem extends React.Component {
                              : <h5 className="text-danger"><FontAwesomeIcon icon={faTimesCircle} /></h5>;
 
         return (
-            <table className="table-sm table text-center">
-                <colgroup>
-                    <col width="10%" />
-                    <col width="50%" />
-                    <col width="30%" />
-                    <col width="10%" />
-                </colgroup>
-                <thead className="thead-light">
-                <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Errors Present</th>
-                    <th scope="col">Action Taken</th>
-                    <th scope="col">Result</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr>
-                    <th scope="row">{this.props.idx}</th>
-                    <td>{error_display}</td>
-                    <td>{window.constants.ACTIONS[this.props.action]}</td>
-                    <td>{result_display}</td>
-                </tr>
-                </tbody>
-            </table>
+            <tr>
+                <th scope="row">{this.props.idx}</th>
+                <td>{error_display}</td>
+                <td>{window.constants.ACTIONS[this.props.action]}</td>
+                <td>{result_display}</td>
+            </tr>
         );
     }
 }
@@ -61,18 +43,14 @@ class History extends React.Component {
         super(props);
 
         // Constants
-        this.MAX_HEIGHT = "350px";
+        this.MAX_HEIGHT = "250px";
     }
 
     render() {
         let history_items = [];
         for (const [idx, history] of this.props.history.slice().reverse().entries()) {
             history_items.push(
-                <div className="row" key={this.props.history.length-idx}>
-                <div className="col">
-                    <HistoryItem idx={this.props.history.length-idx} {...history} />
-                </div>
-                </div>
+                <HistoryItem key={this.props.history.length-idx} idx={this.props.history.length-idx} {...history} />
             );
         }
 
@@ -81,12 +59,30 @@ class History extends React.Component {
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="right" overlay={<Tooltip>The history of actions you have taken, the most-recent first</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>History</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>The history of actions you have taken with the most-recent first</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>History</b>
                 </p>
                 </div>
                 <div className="row">
                 <div className="col">
-                    {history_items}
+                    <table className={"table-sm table text-center" + (history_items.length > 0 ? "" : " invisible")}>
+                        <colgroup>
+                            <col width="10%" />
+                            <col width="40%" />
+                            <col width="40%" />
+                            <col width="10%" />
+                        </colgroup>
+                        <thead className="thead-light">
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Errors Selected</th>
+                            <th scope="col">Action Taken</th>
+                            <th scope="col">Result</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {history_items}
+                        </tbody>
+                    </table>
                 </div>
                 </div>
             </div>

@@ -67,10 +67,17 @@ class SurveyForm(ModelForm):
         # Initialize the form
         super().__init__(*args, **kwargs)
 
-        # Make all fields barring the comments required
+        # Make all fields barring the comments required (but update CSS classes)
+        # on the comments
         for key in self.fields:
             if key == 'comments':
+                self.fields[key].widget.attrs.update({
+                    'class': 'form-control',
+                    'rows': 10,
+                    'cols': "100%"
+                })
                 continue
+
             self.fields[key].required = True
 
     def save(self, *args, **kwargs):

@@ -11,14 +11,13 @@
     {{ hidden }}
     {% endfor %}
 
-    <!-- All the fields here are SELECT fields -->
     {% with radio_fields="age_group gender robot_experience" horizontal_radio_fields="gender robot_experience" %}
     {% for field in form.visible_fields %}
 
     {% if field.name in radio_fields.split and field.name in horizontal_radio_fields.split %}
         <fieldset class="form-group">
         <div class="row">
-            <legend class="col-form-label"><h5>{{ field.label }}</h5></legend>
+            <legend class="col col-form-label"><h5>{{ field.label }}</h5></legend>
         </div>
         {% if field.errors %}
         <div class="row">
