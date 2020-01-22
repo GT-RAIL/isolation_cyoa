@@ -179,7 +179,6 @@ class CompleteView(TemplateView):
 
 # API
 
-
 def get_next_state_json(current_state, action):
     """
     Return the next state information given the current state and the action.

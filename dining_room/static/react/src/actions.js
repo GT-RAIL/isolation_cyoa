@@ -45,20 +45,15 @@ export const ACTIONS_ORDER = [
 
 // Action Creators
 
-const sleep = (milliseconds) => {
-  return new Promise(resolve => setTimeout(resolve, milliseconds))
-}
-
 export function fetchNextState(action) {
     // Asynchronous call to get the state
-    return async (dispatch, getState) => {
+    return (dispatch, getState) => {
         // Update the information about the action
         dispatch(selectAction(action));
 
         // Get the state and send the data to the server. Parse the response
         // and then send an updated state action
         let state = getState();
-        await sleep(1000);
         return fetch(
                 window.constants.NEXT_STATE_URL,
                 {
@@ -75,7 +70,7 @@ export function fetchNextState(action) {
                 }
             )
             .then((response) => response.json())
-            .then((state) => { return dispatch(updateState(state)); })
+            .then((state) => dispatch(updateState(state)))
             .catch(console.error);
     }
 }

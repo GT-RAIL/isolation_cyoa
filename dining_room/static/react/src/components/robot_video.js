@@ -12,7 +12,8 @@ import { playVideo, displayState } from '../actions';
 const mapStateToProps = (state, ownProps) => {
     return {
         video_link: state.scenario_state.video_link,
-        video_loaded: state.ui_status.video_loaded
+        video_loaded: state.ui_status.video_loaded,
+        ax_selected_time: state.ui_status.ax_selected_time
     };
 }
 
@@ -39,8 +40,10 @@ class RobotVideo extends React.Component {
     }
 
     loaded() {
-        this.props.dispatch(playVideo());
-        setTimeout(() => { this.videoRef.current.play(); }, this.PLAY_TIMEOUT);
+        if (!this.props.video_loaded) {
+            this.props.dispatch(playVideo());
+            setTimeout(() => { this.videoRef.current.play(); }, this.PLAY_TIMEOUT);
+        }
     }
 
     render() {
@@ -48,7 +51,9 @@ class RobotVideo extends React.Component {
             <div className="row">
             <div className="col">
                 <div className="view">
-                    <div className={"embed-responsive embed-responsive-4by3" + (!!this.props.video_loaded ? " visible" : " invisible")} style={{ maxHeight: this.MAX_HEIGHT }} key={this.props.video_loaded}>
+                    <div className={"embed-responsive embed-responsive-4by3" + ((!this.props.ax_selected_time && !!this.props.video_loaded) ? " visible" : " invisible")}
+                         style={{ maxHeight: this.MAX_HEIGHT }}
+                         key={this.props.video_loaded || !!this.props.ax_selected_time}>
                         <video autoPlay={false}
                                muted={true}
                                className="embed-responsive-item"
@@ -59,7 +64,7 @@ class RobotVideo extends React.Component {
                             <source src={this.props.video_link} />
                         </video>
                     </div>
-                    <div className={"mask text-center" + (!this.props.video_loaded ? "" : " d-none")}>
+                    <div className={"mask text-center" + ((!!this.props.ax_selected_time || !this.props.video_loaded) ? "" : " d-none")}>
                         <h1 className="mb-5">Communicating with robot...</h1>
                         <p className="text-primary"><FontAwesomeIcon icon={faSpinner} size="9x" pulse /></p>
                     </div>

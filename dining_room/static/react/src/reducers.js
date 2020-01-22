@@ -58,8 +58,7 @@ function ui_status(state=window.constants.INITIAL_STATE.ui_state, action) {
                 ...state,
                 selected_action: action.action,
                 ax_selected_time: Date.now() / 1000,
-                selected_action_idx: state.selected_action_idx + 1,
-                video_loaded: false
+                selected_action_idx: state.selected_action_idx + 1
             };
 
         // The default
