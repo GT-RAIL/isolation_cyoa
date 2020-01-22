@@ -204,7 +204,6 @@ constants = objdict({
         'cannot_pick': 'The cup cannot be picked up',
         'cannot_see': 'The cup is not visible',
         'different_location': 'The cup is not where it should be',
-        'unknown': "I don't know",
         'none': 'There is no error',
     },
 

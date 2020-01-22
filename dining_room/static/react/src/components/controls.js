@@ -1,6 +1,7 @@
 import React from 'react';
 
 import ActionControls from './action_controls';
+import DiagnosisCertaintyControls from './diagnosis_certainty_controls';
 import DiagnosisControls from './diagnosis_controls';
 
 
@@ -10,6 +11,8 @@ const Controls = (props) => {
         <div className="row bg-light">
         <div className="col">
             <DiagnosisControls />
+            <div className="my-3" />
+            <DiagnosisCertaintyControls />
             <div className="my-3" />
             <ActionControls />
         </div>

@@ -85,8 +85,8 @@ class DropboxConnection:
 
     # The fields in the user data
     USERDATA_CSV_HEADERS = [
-        'timestamp', 'start_state', 'diagnoses', 'action', 'next_state',
-        'video_loaded_time', 'video_stop_time', 'dx_selected_time', 'ax_selected_time'
+        'timestamp', 'start_state', 'diagnoses', 'diagnosis_certainty', 'action', 'next_state',
+        'video_loaded_time', 'video_stop_time', 'dx_selected_time', 'dx_confirmed_time', 'ax_selected_time'
     ]
 
     def __init__(self):

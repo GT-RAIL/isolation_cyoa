@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
 import { DIAGNOSIS_ORDER } from '../actions';
-import { confirmDiagnoses } from '../actions';
+import { selectDiagnoses } from '../actions';
 
 
 /** Function to get the props from the global store */
@@ -33,7 +33,7 @@ class DiagnosisControls extends React.Component {
 
         // Bind the functions
         this.select_diagnosis = this.select_diagnosis.bind(this);
-        this.confirm_diagnoses = this.confirm_diagnoses.bind(this);
+        this.select_diagnoses = this.select_diagnoses.bind(this);
     }
 
     static getDerivedStateFromProps(props, state) {
@@ -57,8 +57,8 @@ class DiagnosisControls extends React.Component {
         this.setState({ selected_diagnoses: new_selection });
     }
 
-    confirm_diagnoses(e) {
-        this.props.dispatch(confirmDiagnoses(this.state.selected_diagnoses));
+    select_diagnoses(e) {
+        this.props.dispatch(selectDiagnoses(this.state.selected_diagnoses));
     }
 
     render() {
@@ -100,8 +100,8 @@ class DiagnosisControls extends React.Component {
                 <div className="offset-8 col">
                     <button className="btn btn-block btn-success"
                             disabled={this.state.selected_diagnoses.length === 0 || this.props.confirmed_dx.length > 0}
-                            onClick={this.confirm_diagnoses}>
-                        Confirm
+                            onClick={this.select_diagnoses}>
+                        Select
                     </button>
                 </div>
                 </div>

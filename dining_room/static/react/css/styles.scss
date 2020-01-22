@@ -41,6 +41,18 @@ $intro-video-transition                      : 1s !default;
   }
 }
 
+// Slider fixes? Taken from github
+.slider.slider-horizontal:hover, .slider.slider-vertical:hover {
+    .tooltip.tooltip-main {
+        opacity: 0.7 !important;
+    }
+    .tooltip-inner {
+        font-size: 90%;
+        width: auto;
+    }
+}
+
+
 // Remove the ability to interact with the video
 video {
     pointer-events: none;

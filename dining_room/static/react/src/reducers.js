@@ -9,6 +9,7 @@ import {
     UPDATE_STATE,
     PLAY_VIDEO,
     DISPLAY_STATE,
+    SELECT_DIAGNOSES,
     CONFIRM_DIAGNOSES,
     SELECT_ACTION
 } from './actions';
@@ -45,12 +46,20 @@ function ui_status(state=window.constants.INITIAL_STATE.ui_state, action) {
 
         // When diagnoses are selected, mark them as selected and update he
         // state of the UI
-        case CONFIRM_DIAGNOSES:
+        case SELECT_DIAGNOSES:
             return {
                 ...state,
                 confirmed_dx: action.diagnoses,
                 dx_selected_time: Date.now() / 1000
             };
+
+        // When diagnoses are confirmed, mark the value
+        case CONFIRM_DIAGNOSES:
+            return {
+                ...state,
+                dx_certainty: action.certainty,
+                dx_confirmed_time: Date.now() / 1000
+            }
 
         // When an action is selected, update the timestamp and set the action
         case SELECT_ACTION:
@@ -115,7 +124,7 @@ function history(state=window.constants.INITIAL_STATE.history, action) {
 
         // When a diagnosis is confirmed, add it to the to be updated history
         // event
-        case CONFIRM_DIAGNOSES:
+        case SELECT_DIAGNOSES:
             return {
                 ...state,
                 dx_to_add: action.diagnoses

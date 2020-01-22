@@ -41,7 +41,8 @@ const mapStateToProps = (state, ownProps) => {
         video_loaded: state.ui_status.video_loaded,
         video_playing: state.ui_status.video_playing,
         valid_actions: state.scenario_state.valid_actions,
-        dx_confirmed: state.ui_status.confirmed_dx.length > 0
+        dx_confirmed: state.ui_status.confirmed_dx.length > 0,
+        dx_certainty: state.ui_status.dx_certainty
     };
 }
 
@@ -56,7 +57,7 @@ class ActionControls extends React.Component {
 
     render() {
         // Short circuit if the UI element should not be displayed
-        if (!this.props.video_loaded || !!this.props.video_playing || !this.props.dx_confirmed) {
+        if (!this.props.video_loaded || !!this.props.video_playing || !this.props.dx_confirmed || !this.props.dx_certainty) {
             return "";
         }
 

@@ -265,11 +265,13 @@ def get_next_state(request):
                 **{
                     "start_state": repr(State(current_state_tuple)),
                     "diagnoses": str(post_data.get('ui_state', {}).get('confirmed_dx')),
+                    "diagnosis_certainty": post_data.get('ui_state', {}).get('dx_certainty'),
                     "action": action,
                     "next_state": repr(State(next_state_json['server_state_tuple'])),
                     "video_loaded_time": post_data.get('ui_state', {}).get('video_loaded_time'),
                     "video_stop_time": post_data.get('ui_state', {}).get('video_stop_time'),
                     "dx_selected_time": post_data.get('ui_state', {}).get('dx_selected_time'),
+                    "dx_confirmed_time": post_data.get('ui_state', {}).get('dx_confirmed_time'),
                     "ax_selected_time": post_data.get('ui_state', {}).get('ax_selected_time'),
                 }
             )

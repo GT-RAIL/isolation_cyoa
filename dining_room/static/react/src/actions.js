@@ -10,6 +10,7 @@ export const UPDATE_STATE = 'UPDATE_STATE';
 export const PLAY_VIDEO = 'PLAY_VIDEO';
 export const DISPLAY_STATE = 'DISPLAY_STATE';
 
+export const SELECT_DIAGNOSES = 'SELECT_DIAGNOSES';
 export const CONFIRM_DIAGNOSES = 'CONFIRM_DIAGNOSES';
 export const SELECT_ACTION = 'SELECT_ACTION';
 
@@ -22,7 +23,6 @@ export const DIAGNOSIS_ORDER = [
     'cannot_pick',
     'cannot_see',
     'different_location',
-    'unknown',
     'none'
 ];
 
@@ -87,8 +87,12 @@ export function displayState() {
     return { type: DISPLAY_STATE };
 }
 
-export function confirmDiagnoses(diagnoses) {
-    return { type: CONFIRM_DIAGNOSES, diagnoses };
+export function selectDiagnoses(diagnoses) {
+    return { type: SELECT_DIAGNOSES, diagnoses };
+}
+
+export function confirmDiagnoses(certainty) {
+    return { type: CONFIRM_DIAGNOSES, certainty };
 }
 
 export function selectAction(action) {
