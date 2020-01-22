@@ -50,6 +50,7 @@ class DiagnosisCertaintyControls extends React.Component {
             tooltip: "hide",
             ticks: [1, 2, 3, 4, 5]
         });
+        this.slider.enable();
     }
 
     destroy_slider() {
@@ -79,6 +80,7 @@ class DiagnosisCertaintyControls extends React.Component {
 
     confirm_diagnoses(e) {
         this.props.dispatch(confirmDiagnoses(this.slider.getValue()));
+        this.slider.disable();
     }
 
     render() {
