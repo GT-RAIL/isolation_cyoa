@@ -113,7 +113,7 @@ class Command(BaseCommand):
             for start_condition in self.start_conditions:
                 # Get the number of users that already exist for the condition
                 if not options.get('regenerate'):
-                    number_existing_users = User.objects.filter(study_condition=study_condition, start_condition=start_condition).count()
+                    number_existing_users = User.objects.filter(study_condition=study_condition, start_condition=start_condition, is_staff=False).count()
                 else:
                     number_existing_users = 0
 

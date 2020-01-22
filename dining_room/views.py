@@ -41,7 +41,7 @@ class CheckProgressMixin:
 
     def dispatch(self, request, *args, **kwargs):
         allowed_pages = constants.STUDY_PROGRESS_STATES[request.user.study_progress]
-        if request.resolver_match.url_name in allowed_pages:
+        if request.user.is_staff or request.resolver_match.url_name in allowed_pages:
             # Allow the underlying views to take charge
             return super().dispatch(request, *args, **kwargs)
         else:
