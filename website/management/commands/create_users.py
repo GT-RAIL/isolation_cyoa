@@ -28,9 +28,10 @@ class Command(BaseCommand):
 
         # Infer the start and study conditions
         self.study_conditions = [
-            x[0] for x in User.study_condition.field.get_choices()
+            x[0] for x in User.StudyConditions.choices
             if x[0] is not None
         ]
+        self.study_conditions_display = dict(User.StudyConditions.choices)
 
         # TODO: This should be replaced with an automatic inference, as above
         self.start_conditions = [
@@ -117,7 +118,7 @@ class Command(BaseCommand):
                     number_existing_users = 0
 
                 if options.get('verbosity') > 0:
-                    self.stdout.write(f"{number_existing_users} -> {number_desired_users} for {study_condition}, {start_condition}")
+                    self.stdout.write(f"{number_existing_users} -> {number_desired_users} for {self.study_conditions_display[study_condition]}, {start_condition}")
 
                 for idx in range(number_existing_users, number_desired_users):
                     details = self._create_user(study_condition, start_condition, **options)

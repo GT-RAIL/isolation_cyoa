@@ -81,7 +81,7 @@ class DropboxConnection:
     """
 
     VIDEO_LINKS_FILE = 'data/video_links.csv'
-    USERDATA_FOLDER = 'data/userdata_2020-01-20/'
+    USERDATA_FOLDER = 'data/'
 
     # The fields in the user data
     USERDATA_CSV_HEADERS = [
@@ -90,6 +90,14 @@ class DropboxConnection:
     ]
 
     def __init__(self):
+        # Set the userdata based on the settings (I don't think settings are
+        # loaded when modules are imported?)
+        self.USERDATA_FOLDER = os.path.join(
+            DropboxConnection.USERDATA_FOLDER,
+            'userdata_2020-01-20' if not settings.DEBUG else 'userdata_dev'
+        )
+
+        # Create the storage system
         self.storage = OverwriteDropboxStorage()
 
         # Cache some of the data so that we don't make too many requests
@@ -136,7 +144,7 @@ class DropboxConnection:
 
         Returns the data (bytes) that was written to dropbox
         """
-        csv_filename = os.path.join(DropboxConnection.USERDATA_FOLDER, user.csv_file)
+        csv_filename = os.path.join(self.USERDATA_FOLDER, user.csv_file)
 
         try:
             read_file = self.storage.open(csv_filename)
