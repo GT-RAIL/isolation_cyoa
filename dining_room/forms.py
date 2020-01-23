@@ -45,6 +45,20 @@ class InstructionsTestForm(ModelForm):
             'will_be_able_to_hear_robot'
         ]
 
+    def clean(self):
+        """Customize the cleaning of this form to disallow empty responses"""
+        cleaned_data = super().clean()
+
+        errors = []
+        for key in self.fields:
+            if cleaned_data.get(key) is None:
+                errors.append(forms.ValidationError("The question '%(question)s' must be answered", params={'question': self.fields[key].label}))
+
+        if len(errors) > 0:
+            raise forms.ValidationError(errors)
+
+        return cleaned_data
+
 
 class SurveyForm(ModelForm):
     """

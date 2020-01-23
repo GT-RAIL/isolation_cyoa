@@ -5,43 +5,75 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container">
 
+<div class="row mt-4">
+    <div class="col">
+    <h3>Knowledge Review</h3>
+    <p>Please answer the following questions correctly before proceeding; <b>your compensation depends on the correctness of your answers</b>. You may return to the instructions to refresh anything you might've forgotten.</p>
+    </div>
+</div>
+
+<hr/>
+
+{% spaceless %}
 <div class="row justify-content-center">
     {% if form.errors %}
-    <div class="alert alert-danger">
-    {{ form.non_field_errors }}
+    <div class="col">
+    <ul class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
     </div>
     {% endif %}
 </div>
-
 <div class="row justify-content-center">
-    <form method="post" action="{% url 'dining_room:test' %}" class="offset-2 col-8 table-responsive">
+    <form method="post" action="{% url 'dining_room:test' %}" class="col">
     {% csrf_token %}
     {% for hidden in form.hidden_fields %}
     {{ hidden }}
     {% endfor %}
-    <table class="table table-borderless">
-    {% for field in form.visible_fields %}
-        {% if field.errors %}
-        <tr class="row">
-            <td class="col alert alert-danger">{{ field.errors }}</td>
-        </tr>
-        {% endif %}
-        <tr class="row">
-            <td class="col-4">{{ field.label_tag }}</td>
-            <td class="col">{{ field }}</td>
-        </tr>
-    {% endfor %}
-    </table>
 
+    {% for field in form.visible_fields %}
+
+    <fieldset class="form-group">
+    {% if field.errors %}
     <div class="row">
-        <div class="col-6 offset-1">
-        <input type="submit" value="submit" class="btn btn-block btn-outline-primary">
+    <div class="col alert alert-danger">{% for error in field.errors %}<p class="my-1">{{ error }}</p>{% endfor %}</div>
+    </div>
+    {% endif %}
+    <div class="row">
+        <legend class="col-form-label col-8 py-0"><h5>{{ field.label }}</h5></legend>
+        <div class="col">
+        <div class="row">
+            {% for value, name in field.field.widget.choices %}
+            {% if value != 'unknown' %}
+            <div class="col form-check form-check-inline">
+            <h5>
+              <input class="form-check-input" type="radio" name="{{ field.name }}" value="{{ value }}" {% if value|safe == field.value|safe %}checked{% endif %}>
+              <label class="form-check-label" for="{{ value }}">{{ name }}</label>
+            </h5>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        </div>
+    </div>
+    </fieldset>
+    {% endfor %}
+
+    <div class="row mt-5">
+        <div class="col-4">
+            <a href="{% url 'dining_room:instructions' %}" class="btn btn-block btn-outline-secondary btn-lg">Return to instructions</a>
+        </div>
+        <div class="col-4 offset-4">
+            <input type="submit" value="Submit" class="btn btn-block btn-outline-primary btn-lg">
         </div>
     </div>
     </form>
 </div>
+{% endspaceless %}
 
 </div>
 <style type="text/css">
