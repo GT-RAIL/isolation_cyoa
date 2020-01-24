@@ -182,10 +182,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_demographics_completed = models.DateTimeField(_('date demographics completed'), blank=True, null=True)
 
     # The gold standard questions
-    supposed_to_grab_bowl = models.BooleanField(_("The robot's task is to grab the bowl?"), blank=True, null=True)
-    supposed_to_go_to_couch = models.BooleanField(_("The robot's task is to take the object to the couch?"), blank=True, null=True)
-    will_view_in_third_person = models.BooleanField(_("You will see live camera feeds of the robot in third person?"), blank=True, null=True)
-    will_be_able_to_hear_robot = models.BooleanField(_("You will be able to hear the robot?"), blank=True, null=True)
+    supposed_to_grab_bowl = models.BooleanField(_("The robot's goal is to pick up the Bowl?"), blank=True, null=True)
+    supposed_to_go_to_couch = models.BooleanField(_("The robot's goal is to end up at the Couch?"), blank=True, null=True)
+    will_view_in_first_person = models.BooleanField(_("You will see a first-person view from the robot's camera in the event of an error?"), blank=True, null=True)
+    supposed_to_select_only_one_error = models.BooleanField(_("When asked to indicate what's wrong, you can only select 1 error?"), blank=True, null=True)
 
     # Likert Responses
     class LikertResponses(models.IntegerChoices):

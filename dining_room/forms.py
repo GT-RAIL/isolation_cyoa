@@ -41,8 +41,8 @@ class InstructionsTestForm(ModelForm):
         fields = [
             'supposed_to_grab_bowl',
             'supposed_to_go_to_couch',
-            'will_view_in_third_person',
-            'will_be_able_to_hear_robot'
+            'will_view_in_first_person',
+            'supposed_to_select_only_one_error',
         ]
 
     def clean(self):
