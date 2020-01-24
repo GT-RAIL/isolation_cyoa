@@ -266,10 +266,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         user is allowed to view
         """
         state = None
-        if self.date_demographics_completed is None:
+        if self.last_login is None:
             state = 'CREATED'
-        elif self.date_started is None or self.date_finished is None or self.date_survey_completed is None:
+        elif self.date_demographics_completed is None:
+            state = 'LOGGED_IN'
+        elif self.date_started is None:
             state = 'DEMOGRAPHED'
+        elif self.date_finished is None:
+            state = 'STARTED'
+        elif self.date_survey_completed is None:
+            state = 'FINISHED'
         elif self.date_survey_completed is not None:
             state = 'SURVEYED'
 

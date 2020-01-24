@@ -211,13 +211,23 @@ constants = objdict({
     'MAX_NUMBER_OF_ACTIONS': 20,
 
     # A dictionary mapping progress states through the study to the allowed
-    # pages in the event those states are reached
+    # pages in the event those states are reached. If the user navigates to an
+    # unallowed page, they are redirected to the first allowed page
     'STUDY_PROGRESS_STATES': objdict({
+        # If the user has been created but hasn't logged in, then redirect to
+        # login. This will happen anyway because of login_required
+        'CREATED': ['login'],
         # If demographics haven't been completed, redirect to demographics
-        'CREATED': ['demographics'],
+        'LOGGED_IN': ['demographics'],
         # If the study has not been completed, but demographics have been,
-        # then redirect to the instructions and restart the study
-        'DEMOGRAPHED': ['instructions', 'test', 'study', 'survey'],
+        # then redirect to the instructions or the knowledge test
+        'DEMOGRAPHED': ['instructions', 'test', 'study'],
+        # If the user has started the study, then they may only be on the study
+        # pages
+        'STARTED': ['study'],
+        # If the user has completed the study but not the survey, then redirect
+        # them to the survey
+        'FINISHED': ['survey'],
         # If the user has completed the study, and the survey, then redirect
         # to the completed page
         'SURVEYED': ['complete'],

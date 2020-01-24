@@ -69,7 +69,7 @@ class DiagnosisControls extends React.Component {
 
         let controls_display = DIAGNOSIS_ORDER.map((diagnosis) => {
             return (
-                <button className={"btn btn-outline-primary" + (this.state.selected_diagnoses.includes(diagnosis) ? " active" : "")}
+                <button className={"btn btn-outline-info" + (this.state.selected_diagnoses.includes(diagnosis) ? " active" : "")}
                         type="button"
                         style={{
                             width: (100/DIAGNOSIS_ORDER.length) + "%",

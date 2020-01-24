@@ -14,40 +14,7 @@
 <hr/>
 
 <div class="row">
-<div class="col">
-    <ul>
-    <li>The robot is in a living room with three pertinent locations - The Couch, The Dining Table, and The Kitchen Counter.</li>
-    <li>There are three pertinent objects in this environment - The Jug, The Bowl, and The Cup (shown below)</li>
-    <li>The robot has been given the goal of grabbin the cup from the Kitchen Counter and taking it to the Couch <small>(in anticipation of a human arriving to receive the cup)</small>.</li>
-    <li>If the robot has an error, it is designed to seek assistance from a remote human, such as yourself.</li>
-    <li>In the event of the error, your job is to direct the robot so that it ends up by the Couch with the Cup.</li>
-    </ul>
-</div>
-</div>
-
-<div class="row">
-<div class="col d-flex justify-content-center">
-    <figure class="figure text-center">
-      <img src="https://dl.dropboxusercontent.com/s/q93qdf6wsynv9gj/jug.png" class="figure-img img-fluid rounded" style="max-height: 100px">
-      <figcaption class="figure-caption">The Jug</figcaption>
-    </figure>
-</div>
-<div class="col d-flex justify-content-center">
-    <figure class="figure text-center">
-      <img src="https://dl.dropboxusercontent.com/s/m9791ha08diz67u/bowl.png" class="figure-img img-fluid rounded" style="max-height: 100px">
-      <figcaption class="figure-caption">The Bowl</figcaption>
-    </figure>
-</div>
-<div class="col d-flex justify-content-center">
-    <figure class="figure text-center">
-      <img src="https://dl.dropboxusercontent.com/s/2nz6qvm2rhk2s8c/mug.png" class="figure-img img-fluid rounded" style="max-height: 100px">
-      <figcaption class="figure-caption">The Cup</figcaption>
-    </figure>
-</div>
-</div>
-
-<div class="row">
-    <p class="col">The video below is an example of the robot completing its task:</p>
+    <p class="col">Please take a moment to view this introductory video:</p>
 </div>
 
 <div class="row">
@@ -60,32 +27,100 @@
 </div>
 </div>
 
-<h1 class="mt-3">TODO: A screenshot of the UI and a brief introduction to the different parts that need to be filled in.</h1>
+<div class="row mt-4">
+<div class="col">
+    <p>To recap:</p>
+    <ul>
+        <li>The robot is in a living room with three pertinent locations - The Couch, The Dining Table, and The Kitchen Counter (shown below).</li>
+        <li>There are three pertinent objects in this environment - The Jug, The Bowl, and The Cup (shown below).</li>
+        <li>The robot has been given the goal of picking up the Cup from the Kitchen Counter and taking it to the Couch.<!--  <small>(in anticipation of a human arriving to receive the cup)</small> -->.</li>
+    </ul>
+</div>
+</div>
 
 <div class="row">
-    <p class="col">When assisting the robot, you will have <b>four types</b> of actions available to you:</p>
+<div class="col-sm-8 d-flex justify-content-center">
+    <figure class="figure text-center">
+        <img src="https://dl.dropboxusercontent.com/s/bonho7r7kvhbskk/environment.png" class="figure-img img-fluid rounded">
+        <figcaption class="figure-caption">The locations in the living room known to the robot.</figcaption>
+    </figure>
+</div>
+<div class="col-sm d-flex justify-content-center">
+    <figure class="figure text-center">
+        <img src="https://dl.dropboxusercontent.com/s/pzmkkhqd4rv40lm/objects.png" class="figure-img img-fluid rounded">
+        <figcaption class="figure-caption">The objects (from left-to-right):<br/>the Jug, the Cup, and the Bowl.</figcaption>
+    </figure>
+</div>
+</div>
+
+<hr/>
+
+<div class="row">
+    <p class="col">During the course of the task, the robot may encounter errors. If the robot has an error, it is designed to seek assistance from a remote human, such as yourself. In the event of such an error, your job is to direct the robot using a Web UI (below) so that it ends up by the Couch with the Cup.</p>
 </div>
 
 <div class="row">
 <div class="col">
-<dl class="row">
-    <dt class="col-sm-3">Navigate to</dt>
-    <dd class="col-sm-9">The action type moves the robot base to the desired location (among the three available) in the room.</dd>
+    <figure class="figure text-center">
+        {% if request.user.show_dx_suggestions and request.user.show_ax_suggestions %}
+        <img src="https://dl.dropboxusercontent.com/s/h4yrxgpw23jghzk/ui_dx_ax.png" class="figure-img img-fluid rounded">
+        {% elif request.user.show_ax_suggestions %}
+        <img src="https://dl.dropboxusercontent.com/s/cw176tczopw50mj/ui_ax.png" class="figure-img img-fluid rounded">
+        {% elif request.user.show_dx_suggestions %}
+        <img src="https://dl.dropboxusercontent.com/s/wgrfnod2mzuoqly/ui_dx.png" class="figure-img img-fluid rounded">
+        {% else %}
+        <img src="https://dl.dropboxusercontent.com/s/irtjzezwf9s072k/ui_baseline.png" class="figure-img img-fluid rounded">
+        {% endif %}
+        <figcaption class="figure-caption">The Web UI for directing the robot.</figcaption>
+    </figure>
+</div>
+</div>
+<div class="row">
+<div class="col">
+    <p>The UI has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}five{% else %}four{% endif %} sections, which are (the numbers correspond to the sections marked in the figure above):</p>
+    <ol>
+        <li>A video feed from the robot's camera accompanied by the robot's knowledge, termed <i>beliefs</i>, of its situation. If the robot's arm is in motion, the beliefs reflect that information.</li>
+        {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}
+        <li>Recommendations from the robot regarding the error condition, if the robot is able to provide any.</li>
+        {% endif %}
+        <li>The goal that the robot is trying to achieve.</li>
+        <li>A history of actions taken by you on the UI, why you took those actions, as well as the results (success or failure) of taking the actions.</li>
+        <li>Three questions for you to answer as you direct the robot towards its goal:
+        <ul class="list-group mt-2">
+            <li class="list-group-item">You will first be asked what <b>errors</b> you think might exist and might be preventing the robot from achieving its goal. You <b class="text-info">may select multiple errors, but you must select atleast one</b>. If you think that there is no error, you may select that as an option.</li>
+            <li class="list-group-item">You will then be asked how <b>confident</b> you are of the errors that you may have chosen. Simply <b class="text-info">move the slider</b> based on your level of confidence.</li>
+            <li class="list-group-item">Finally, you will be asked to take an <b>action</b> to help the robot move towards its goal. After you <b class="text-info">select an action</b>, there will be a momentary delay as communications with the robot are reestablished and the robot is prepared to execute your command.</li>
+        </ul>
+        </li>
+    </ol>
+</div>
+</div>
 
-    <dt class="col-sm-3">Look at</dt>
+<div class="row mt-2">
+    <p class="col">The following is a brief explanation of the types of actions the robot can execute:</p>
+</div>
+<dl class="row">
+    <dt class="col-sm-3 alert alert-info">Navigate to <span class="font-weight-normal">[location]</span></dt>
+    <dd class="col-sm-9">The robot moves to the desired location (among the three available) in the room.</dd>
+
+    <dt class="col-sm-3 alert alert-info">Look at <span class="font-weight-normal">[location]</span></dt>
     <dd class="col-sm-9">The robot moves away from its current location to point its camera at the desired location. After viewing that location for a few seconds, the robot returns to looking at its original location.</dd>
 
-    <dt class="col-sm-3">Update robot's location belief to</dt>
-    <dd class="col-sm-9">The robot maintains a belief of where in the room it is. If you think it is mistaken in its belief, you may update it by taking this action.</dd>
+    <dt class="col-sm-3 alert alert-info">Update robot's location belief to <span class="font-weight-normal">[location]</span></dt>
+    <dd class="col-sm-9">The robot updates where in the room it thinks it is. For example, if the robot thinks it is at the Kitchen Counter when in reality it is at the Couch, this action can update that mistaken belief.</dd>
 
-    <dt class="col-sm-3">Pick up</dt>
-    <dd class="col-sm-9">If the robot recognizes an object and its gripper is empty, then it can be directed to pick up the object.</dd>
+    <dt class="col-sm-3 alert alert-info">Pick up <span class="font-weight-normal">[object]</span></dt>
+    <dd class="col-sm-9">The robot picks up the object in question if it is unblocked and its gripper is empty.</dd>
 
-    <dt class="col-sm-3">Stow object in gripper</dt>
-    <dd class="col-sm-9">If there is an object in the robot's gripper, it can be directed to stow that object on its base. This might involve background arm motion that is not visible in the robot's camera.</dd>
+    <dt class="col-sm-3 alert alert-info">Stow object in gripper</dt>
+    <dd class="col-sm-9">The robot stows the object in its gripper on its base. This might involve arm motion that is not visible in the robot's camera.</dd>
 </dl>
+
+<div class="row">
+    <p class="col">During the course of interacting with the robot, please <span class="text-danger"><b>do not press the browser's Back or Refresh buttons</b></span>.</p>
 </div>
-</div>
+
+<hr/>
 
 <div class="row">
     <p class="col">If you understand these instructions, please click Next.</p>

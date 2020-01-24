@@ -233,8 +233,8 @@ def get_next_state_json(current_state, action):
             { "attr": "Arm status", "value": display(transition.arm_status) },
         ],
         "valid_actions": sorted(next_state.get_valid_transitions().keys()),
-        "dx_suggestions": [],
-        "ax_suggestions": [],
+        "dx_suggestions": ["cannot_pick"],
+        "ax_suggestions": ["look_at_dt", "pick_bowl"],
         "action_result": action_result,
         "scenario_completed": next_state.is_end_state,
     }

@@ -32,9 +32,9 @@
         <div class="col btn-group" data-toggle="buttons">
             {% for value, name in field.field.choices %}
             {% if value != '' %}
-            <label class="col btn btn-outline-dark form-check-label {% if value|safe == field.value|safe %}active{% endif %}">
-            <input class="form-check-input" type="radio" name="{{ field.name }}" value="{{ value }}" style="visibility: hidden;" {% if value|safe == field.value|safe %}checked{% endif %}> {{ name }}
-            </label>
+            <button class="col btn btn-outline-dark form-check-label {% if value|safe == field.value|safe %}active{% endif %}">
+            <input class="form-check-input" type="radio" name="{{ field.name }}" value="{{ value }}" style="display: none;" {% if value|safe == field.value|safe %}checked{% endif %}> {{ name }}
+            </button>
             {% endif %}
             {% endfor %}
         </div>

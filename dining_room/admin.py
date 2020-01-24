@@ -82,7 +82,7 @@ class UserAdmin(admin.ModelAdmin):
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
-        (_('Important dates'), {'fields': ('last_login', 'date_finished')}),
+        (_('Important dates'), {'fields': ('last_login', 'date_demographics_completed', 'date_started', 'date_finished', 'date_survey_completed')}),
     )
     add_fieldsets = (
         (None, {
