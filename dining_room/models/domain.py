@@ -224,7 +224,7 @@ constants = objdict({
         'DEMOGRAPHED': ['instructions', 'test', 'study'],
         # If the user has started the study, then they may only be on the study
         # pages
-        'STARTED': ['study'],
+        'STARTED': ['study', 'survey'],
         # If the user has completed the study but not the survey, then redirect
         # them to the survey
         'FINISHED': ['survey'],
