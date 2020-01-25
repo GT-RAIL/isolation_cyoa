@@ -31,8 +31,8 @@
 <div class="col">
     <p>To recap:</p>
     <ul>
-        <li>The robot is in a living room with three pertinent locations - The Couch, The Dining Table, and The Kitchen Counter (shown below).</li>
-        <li>There are three pertinent objects in this environment - The Jug, The Bowl, and The Cup (shown below).</li>
+        <li>The robot is in a living room with three locations - The Couch, The Dining Table, and The Kitchen Counter (shown below).</li>
+        <li>The robot recognizes three objects in this environment - The Jug, The Bowl, and The Cup (shown below).</li>
         <li>The robot has been given the goal of picking up the Cup from the Kitchen Counter and taking it to the Couch.<!--  <small>(in anticipation of a human arriving to receive the cup)</small> -->.</li>
     </ul>
 </div>
@@ -56,12 +56,13 @@
 <hr/>
 
 <div class="row">
-    <p class="col">During the course of the task, the robot may encounter errors. If the robot has an error, it is designed to seek assistance from a remote human, such as yourself. In the event of such an error, your job is to direct the robot using a Web UI (below) so that it ends up by the Couch with the Cup.</p>
+    <p class="col">The robot may encounter errors during the task. If the robot encounters an error, it is designed to seek assistance from a remote human, such as yourself. In the event of such an error, your job is to direct the robot using a Web UI (below) so that it ends up by the Couch with the Cup.</p>
 </div>
 
 <div class="row">
 <div class="col">
-    <figure class="figure text-center">
+    <figure class="figure text-center" style="min-width: 480px;">
+        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}five{% else %}four{% endif %} sections.</figcaption>
         {% if request.user.show_dx_suggestions and request.user.show_ax_suggestions %}
         <img src="https://dl.dropboxusercontent.com/s/h4yrxgpw23jghzk/ui_dx_ax.png" class="figure-img img-fluid rounded border">
         {% elif request.user.show_ax_suggestions %}
@@ -71,32 +72,21 @@
         {% else %}
         <img src="https://dl.dropboxusercontent.com/s/irtjzezwf9s072k/ui_baseline.png" class="figure-img img-fluid rounded border">
         {% endif %}
-        <figcaption class="figure-caption">The Web UI for directing the robot.</figcaption>
     </figure>
 </div>
 </div>
 <div class="row">
 <div class="col">
-    <p>The UI has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}five{% else %}four{% endif %} sections, which are (the numbers correspond to the sections marked in the figure above):</p>
-    <ol>
-        <li>A video feed from the robot's camera accompanied by the robot's knowledge, termed <i>beliefs</i>, of its situation. If the robot's arm is in motion, the beliefs reflect that information.</li>
-        {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}
-        <li>Recommendations from the robot regarding the error condition, if the robot is able to provide any.</li>
-        {% endif %}
-        <li>The goal that the robot is trying to achieve.</li>
-        <li>A history of actions taken by you on the UI, why you took those actions, as well as the results (success or failure) of taking the actions.</li>
-        <li>Three questions for you to answer as you direct the robot towards its goal:
-        <ul class="list-group mt-2">
-            <li class="list-group-item">You will first be asked what <b>errors</b> you think might exist and might be preventing the robot from achieving its goal. You <b class="text-info">may select multiple errors, but you must select atleast one</b>. If you think that there is no error, you may select that as an option.</li>
-            <li class="list-group-item">You will then be asked how <b>confident</b> you are of the errors that you may have chosen. Simply <b class="text-info">move the slider</b> based on your level of confidence.</li>
-            <li class="list-group-item">Finally, you will be asked to take an <b>action</b> to help the robot move towards its goal. After you <b class="text-info">select an action</b>, there will be a momentary delay as communications with the robot are reestablished and the robot is prepared to execute your command.</li>
-        </ul>
-        </li>
-    </ol>
+    <p>Here are the details of the three questions you will be asked when controlling the robot:</p>
+    <ul class="list-group mt-2">
+        <li class="list-group-item">You will first be asked what <b>errors</b> you think might exist and might be preventing the robot from achieving its goal. You <b class="text-info">may select multiple errors, but you must select atleast one</b>. If you think that there is no error, you may select that as an option.</li>
+        <li class="list-group-item">You will then be asked how <b>confident</b> you are of the errors that you may have chosen. Simply <b class="text-info">move the slider</b> based on your level of confidence.</li>
+        <li class="list-group-item">Finally, you will be asked to take an <b>action</b> to help the robot move towards its goal. After you <b class="text-info">select an action</b>, there will be a momentary delay as communications with the robot are reestablished and the robot is prepared to execute your command.</li>
+    </ul>
 </div>
 </div>
 
-<div class="row mt-2">
+<div class="row mt-4">
     <p class="col">The following is a brief explanation of the types of actions the robot can execute:</p>
 </div>
 <dl class="row">
@@ -117,7 +107,7 @@
 </dl>
 
 <div class="row">
-    <p class="col">During the course of interacting with the robot, please <span class="text-danger"><b>do not press the browser's Back or Refresh buttons</b></span>.</p>
+    <p class="col">During the course of the study, please <span class="text-danger"><b>do not press the browser's Back or Refresh buttons</b></span>.</p>
 </div>
 
 <hr/>

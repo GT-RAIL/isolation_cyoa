@@ -51,8 +51,8 @@
             {% if value != 'unknown' %}
             <div class="col form-check form-check-inline">
             <h5>
-              <input class="form-check-input" type="radio" name="{{ field.name }}" value="{{ value }}" {% if value|safe == field.value|safe %}checked{% endif %}>
-              <label class="form-check-label" for="{{ value }}">{{ name }}</label>
+              <input class="form-check-input" type="radio" id="id_{{ field.name }}_{{ value }}" name="{{ field.name }}" value="{{ value }}" {% if value|safe == field.value|safe %}checked{% endif %}>
+              <label class="form-check-label" for="id_{{ field.name }}_{{ value }}">{{ name }}</label>
             </h5>
             </div>
             {% endif %}
@@ -63,7 +63,7 @@
     </fieldset>
     {% endfor %}
 
-    <div class="row mt-5">
+    <div class="row my-5">
         <div class="col-4">
             <a href="{% url 'dining_room:instructions' %}" class="btn btn-block btn-outline-secondary btn-lg">Return to instructions</a>
         </div>

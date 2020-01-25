@@ -6,11 +6,22 @@
 <div class="row">
     <div class="col mt-4">
     <h3>Assisting a robot in a household task</h3>
-    <p>This study involves the use of a web browser to assist a robot, which may have encountered an error, in completing a simple household task. You will be asked to provide the robot with information on what might have gone wrong and help it with recovering from the error.</p>
-    <p>Your data is anonymized and no personally identifiable information will be solicited. We set a cookie to track your progress through the study, but the cookie is invalidated when the study session is complete. The cookie cannot be reused on third-party websites.</p>
-    <p>Your compensation is contingent on the your performance and conduct in the study. Noncompliance with the instructions will result in the forfeiture of compensation.</p>
-    <p>You are eligible for this study if you are of sound mind, are above the age of 18, are fluent in English, and are comfortable with day-to-day computer use without the need for visual assistive technologies (such as screen-readers). Additionally the study must be completed on a computer (not mobile phone or tablet) using either the latest Google Chrome or the latest Mozilla Firefox web browsers.</p>
-    <p><b>By completing the following questionnaire below, you agree that you have read the text above and agree to abide by it. You may choose to exit the study at any time, at the potential loss of your compensation.</b></p>
+
+    <p>In this study, a robot has the job of retrieving a cup of coffee and bringing it to the couch. You will</p>
+
+    <ul>
+        <li>observe a camera feed from the robot's "eyes"</li>
+        <li>provide information on any errors that occur</li>
+        <li>instruct the robot on what actions to take</li>
+    </ul>
+
+    <p>Your data is anonymized and no personally identifiable information will be collected. We set a cookie to track your progress through the study, but the cookie is invalidated when the study session is complete. The cookie cannot be reused on third-party websites.</p>
+
+    <p>You must complete the full study and obtain an authorization code at the end to receive full payment.</p>
+
+    <p>This study must be completed on a computer (not mobile phone or tablet) using either the latest Google Chrome or the latest Mozilla Firefox web browsers.</p>
+
+    <p><b>By completing the following questionnaire below, you agree that you have read the text above and agree to abide by it.</b></p>
     </div>
 </div>
 
@@ -62,8 +73,8 @@
                 {% for value, name in field.field.choices %}
                 {% if value != '' %}
                 <div class="form-check">
-                  <input class="form-check-input" type="radio" name="{{ field.name }}" value="{{ value }}" {% if value|safe == field.value|safe %}checked{% endif %}>
-                  <label class="form-check-label" for="{{ value }}">{{ name }}</label>
+                  <input class="form-check-input" type="radio" id="id_{{ field.name }}_{{ value }}" name="{{ field.name }}" value="{{ value }}" {% if value|safe == field.value|safe %}checked{% endif %}>
+                  <label class="form-check-label" for="id_{{ field.name }}_{{ value }}">{{ name }}</label>
                 </div>
                 {% endif %}
                 {% endfor %}
@@ -85,7 +96,7 @@
     {% endfor %}
     {% endwith %}
 
-    <div class="row mt-5">
+    <div class="row my-5">
         <div class="col-6 offset-3">
         <input type="submit" value="Submit" class="btn btn-lg btn-block btn-outline-primary">
         </div>
