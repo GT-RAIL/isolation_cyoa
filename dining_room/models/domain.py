@@ -9,56 +9,6 @@ import copy
 import numpy as np
 
 
-"""
-Notes:
-
-- If the object location does not match the base location, then the robot
-    should not report that anything is visible
-- Depending on the condition, the visibility of the robot changes. The bowl and
-    jug are not visible when they have been removed. The mug
-    is not visible if the jug is occluding (it is visible when the bowl is above
-    it though)
-- The pick action should not be available until locations coincide
-- Pick jug is available unless the jug has been removed, pick bowl is available
-    unless the Jug is occluding and the bowl is above the mug. Pick Mug is only
-    available if the other two objects are in default or gripper positions
-- The place action should not be available until the robot has picked something.
-    It is never available in the case of the mug
-- The robot should report gripper empty until a pick occurs.
-- The videos for picking a non-mug and moving are the same as those for moving
-    around after the object has been 'placed'.
-- The gripper should be reported as empty if a place happens after a pick; else
-    there is something in the gripper
-- During pick or place videos, mark the robot's arm as moving, else mark it as
-    still
-- Relocalization simply updates the names of all the associated locations in the
-    state. There (I think) needs to be no other special logic. The video for a
-    relocalization action is the no-op video
-- At location X, go to Y, Z and look at Y, Z are available. In terms of videos,
-    at the kitchen counter, look at dining table serves as the de-facto for both
-    look at the couch and look at the table; similarly, look at kitchen counter
-    at the couch serves as the de-facto for both looking at the kitchen counter
-    and the dining table
-- Reuse videos for conditions that have base positions that don't look at
-    objects. They are:
-    - noop for couch (there is only 1)
-    - noop for dining table when objects are on the kitchen counter unless mug
-        is in the gripper
-    - noop for kitchen counter when objects are on the dining table unless mug
-        is in the gripper
-    - looking at couch from dining table when objects are on the kitchen counter
-        unless mug is in the gripper
-    - going to the couch from the dining table when objects are on the kitchen
-        counter unless mug is in the gripper
-    - going to the dining table from the couch when objects are on the kitchen
-        counter
-    - going to the couch from the kitchen counter when objects are on the dining
-        table unless mug is in the gripper (verify this!)
-
-Ideally, the state should dynamically determine the sets of actions available,
-the text to show, and the video to display
-"""
-
 # Helper functions and classes
 
 # Included here because we might need to use this module as a standalone in a
@@ -584,16 +534,20 @@ class Transition:
     @property
     def video_name(self):
         """The name of the video file to use"""
-        # If this is the start, then we have a special case of a noop video.
-        # Handle it before anything else
+        # If this is the start, then we should be using the end state to
+        # determine the video name. Else use the start state
         if self.start_state is None and self.action is None:
-            return "{self.end_state.base_location}.{self.end_state.object_location}.{self.end_state.jug_state}.{self.end_state.bowl_state}.{self.end_state.mug_state}.noop.mp4".format(**locals())
+            state = self.end_state
+            action = 'noop'
+        else:
+            state = self.start_state
+            action = self.action
 
         # First simply get the noop vs. video action
-        if self.action.startswith('at_'):
+        if action.startswith('at_'):
             video_action = 'noop'
         else:
-            video_action = self.action
+            video_action = action
 
         # Then update look_at_ and go_to_ action definitions based on the
         # localization params
@@ -606,44 +560,63 @@ class Transition:
                 location_name = video_action[len('go_to_'):]
 
             location_name = constants.LOCATION_NAMES[location_name]
-            dt_mapping = constants.LOCATION_MAPPINGS['dining_table_to_' + constants.LOCATION_NAMES[self.start_state.current_dt_label]]
+            dt_mapping = constants.LOCATION_MAPPINGS['dining_table_to_' + constants.LOCATION_NAMES[state.current_dt_label]]
             desired_location = { v: k for k, v in dt_mapping.items() }[location_name]
             desired_location = constants.LOCATION_NAMES[desired_location]
             video_action = action_type + desired_location
 
         # Then, reuse the look_at_ actions if they are the reusable type
-        if self.start_state.base_location == 'kc' and video_action == 'look_at_c':
+        if state.base_location == 'kc' and video_action == 'look_at_c':
             video_action = 'look_at_dt'
-        elif self.start_state.base_location == 'c' and video_action == 'look_at_dt':
+        elif state.base_location == 'c' and video_action == 'look_at_dt':
             video_action = 'look_at_kc'
 
         # Then reuse the singular videos that don't look at the objects
-        object_location = self.start_state.object_location
-        jug_state, bowl_state, mug_state = self.start_state.jug_state, self.start_state.bowl_state, self.start_state.mug_state
+        object_location = state.object_location
+        jug_state, bowl_state, mug_state = state.jug_state, state.bowl_state, state.mug_state
 
-        if self.start_state.base_location == 'c' and video_action == 'noop':
+        # The robot is at the couch and is looking at the couch with nothing in
+        # its hand
+        if state.base_location == 'c' and video_action == 'noop':
             object_location = 'kc'
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
 
-        elif self.start_state.base_location == 'dt' and self.start_state.object_location == 'kc' and video_action == 'noop' and self.start_state.mug_state != 'gripper':
+        # The robot is at DT and the objects are at KC, but the robot is doing
+        # a noop action
+        elif state.base_location == 'dt' and state.object_location == 'kc' and video_action == 'noop' and state.mug_state != 'gripper':
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
 
-        elif self.start_state.base_location == 'kc' and self.start_state.object_location == 'dt' and video_action == 'noop' and self.start_state.mug_state != 'gripper':
+        # The robot is at KC and the objects are at DT, but the robot is doing
+        # a noop action
+        elif state.base_location == 'kc' and state.object_location == 'dt' and video_action == 'noop' and state.mug_state != 'gripper':
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
 
-        elif self.start_state.base_location == 'dt' and self.start_state.object_location == 'kc' and video_action == 'look_at_c' and self.start_state.mug_state != 'gripper':
+        # The robot is at DT and the objects are at KC, and the robot is going
+        # to look at the couch
+        elif state.base_location == 'dt' and state.object_location == 'kc' and video_action == 'look_at_c' and state.mug_state != 'gripper':
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
 
-        elif self.start_state.base_location == 'dt' and self.start_state.object_location == 'kc' and video_action == 'go_to_c' and self.start_state.mug_state != 'gripper':
+        # The robot is at DT and the objects are at KC, and the robot is going
+        # to navigate to the couch
+        elif state.base_location == 'dt' and state.object_location == 'kc' and video_action == 'go_to_c' and state.mug_state != 'gripper':
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
 
-        elif self.start_state.base_location == 'c' and self.start_state.object_location == 'kc' and video_action == 'go_to_dt':
+        # The robot is at the couch, the objects are at KC, but the robot is
+        # navigating to DT
+        elif state.base_location == 'c' and state.object_location == 'kc' and video_action == 'go_to_dt':
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
 
-        elif self.start_state.base_location == 'kc' and self.start_state.object_location == 'dt' and video_action == 'go_to_c' and self.start_state.mug_state != 'gripper':
+        # The robot is at KC, the objects are at DT, and the robot is
+        # navigating to the couch
+        elif state.base_location == 'kc' and state.object_location == 'dt' and video_action == 'go_to_c' and state.mug_state != 'gripper':
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
 
-        return "{self.start_state.base_location}.{object_location}.{jug_state}.{bowl_state}.{mug_state}.{video_action}.mp4".format(**locals())
+        # The robot is at DT, all the objects have been picked up, then reuse
+        # the videos from the kc picks
+        elif state.object_location == 'dt' and (state.jug_state == state.bowl_state == state.mug_state == 'gripper'):
+            object_location = 'kc'
+
+        return "{state.base_location}.{object_location}.{jug_state}.{bowl_state}.{mug_state}.{video_action}.mp4".format(**locals())
 
     # Methods
     @staticmethod

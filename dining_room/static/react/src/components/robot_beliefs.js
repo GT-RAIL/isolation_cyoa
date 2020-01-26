@@ -9,10 +9,25 @@ import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestion
 
 /** Each of the Belief Items */
 class RobotBeliefItem extends React.Component {
+    constructor(props) {
+        super(props);
+
+        // Constants
+        this.BLINKING_BELIEFS = {
+            "Arm status": ["In Motion"]
+        }
+    }
+
     render() {
         let value_display = this.props.value instanceof Array
                             ? ("[ " + this.props.value.join(", ") + " ]")
                             : this.props.value;
+
+        // If this should blink, then make it blink
+        if (!!this.BLINKING_BELIEFS[this.props.attr]
+            && this.BLINKING_BELIEFS[this.props.attr].includes(this.props.value)) {
+            value_display = (<span className="blinking">{value_display}</span>);
+        }
 
         return (
             <tr>

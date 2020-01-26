@@ -119,6 +119,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         DX_ONLY = 1, _('DX Only')
         AX_ONLY = 2, _('AX Only')
         DX_AX = 3, _('DX & AX')
+        # TODO: Add the actions with SA improvement conditions
+        # TODO: Add the noise conditions
         __empty__ = _('(Unknown)')
 
     study_condition = models.IntegerField(_('study condition'), blank=True, null=True, choices=StudyConditions.choices)
@@ -139,11 +141,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         AT_COUNTER_ABOVE_MUG = 'kc.kc.default.above_mug.default.empty.dt'
         AT_COUNTER_OCCLUDING = 'kc.kc.occluding.default.default.empty.dt'
         AT_COUNTER_OCCLUDING_ABOVE_MUG = 'kc.kc.occluding.above_mug.default.empty.dt'
-        AT_COUNTER_MISLOCALIZED = 'dt.kc.default.default.default.empty.kc'  # Remains
-        AT_TABLE = 'kc.dt.default.default.default.empty.dt'                 # Remains
-        AT_TABLE_ABOVE_MUG = 'kc.dt.default.above_mug.default.empty.dt'     # Remains
-        AT_TABLE_OCCLUDING = 'kc.dt.occluding.default.default.empty.dt'     # Remains
-        AT_TABLE_OCCLUDING_ABOVE_MUG = 'kc.dt.occluding.above_mug.default.empty.dt' # Remains
+        AT_COUNTER_MISLOCALIZED = 'dt.kc.default.default.default.empty.kc'
+        AT_TABLE = 'kc.dt.default.default.default.empty.dt'
+        AT_TABLE_ABOVE_MUG = 'kc.dt.default.above_mug.default.empty.dt'
+        AT_TABLE_OCCLUDING = 'kc.dt.occluding.default.default.empty.dt'
+        AT_TABLE_OCCLUDING_ABOVE_MUG = 'kc.dt.occluding.above_mug.default.empty.dt'
 
         __empty__ = _('(Unknown)')
 

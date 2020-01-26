@@ -57,3 +57,17 @@ $intro-video-transition                      : 1s !default;
 video {
     pointer-events: none;
 }
+
+
+// Add a blinking class
+.blinking {
+    animation: blinkingText 2.0s infinite;
+}
+
+@keyframes blinkingText {
+    0%{   opacity: 1; }
+    49%{  opacity: 1; }
+    60%{  opacity: 0; }
+    99%{  opacity: 0; }
+    100%{ opacity: 1; }
+}
