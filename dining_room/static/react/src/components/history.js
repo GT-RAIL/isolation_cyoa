@@ -74,7 +74,7 @@ class History extends React.Component {
                         <thead className="thead-light">
                         <tr>
                             <th scope="col">#</th>
-                            <th scope="col">Errors Selected</th>
+                            <th scope="col">Problems Identified</th>
                             <th scope="col">Action Taken</th>
                             <th scope="col">Result</th>
                         </tr>

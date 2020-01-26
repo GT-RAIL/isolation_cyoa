@@ -42,7 +42,7 @@ const DiagnosisSuggestions = (props) => {
     return (
         <div className="row">
         <p className="col">
-            <OverlayTrigger placement="right" overlay={<Tooltip>The errors that the robot thinks might be present right now</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Possible Errors</b>
+            <OverlayTrigger placement="right" overlay={<Tooltip>The problems that the robot thinks might be stopping it from reaching its goal</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Possible Problems</b>
         </p>
         <div className="col-9">
         <ul className="list-unstyled">

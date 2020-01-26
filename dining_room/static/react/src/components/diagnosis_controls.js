@@ -88,7 +88,7 @@ class DiagnosisControls extends React.Component {
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="right" overlay={<Tooltip>The errors in the system that you observe or are trying to resolve</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What do you think is interfering with the robot's ability to achieve its goal?</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the problems in the current situation you observe or are trying to resolve</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What do you think is interfering with the robot's ability to achieve its goal?</b>
                 </p>
                 </div>
                 <div className="row">

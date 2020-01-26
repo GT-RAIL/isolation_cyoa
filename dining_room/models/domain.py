@@ -98,7 +98,7 @@ constants = objdict({
         'pick_bowl': "Pick up the Bowl",
         'pick_jug': "Pick up the Jug",
         'pick_mug': "Pick up the Cup",
-        'place': "Stow object in gripper",
+        'place': "Put away held object",
     },
 
     # The objects in this scenario
@@ -137,6 +137,7 @@ constants = objdict({
 
     # Empty gripper
     'EMPTY_GRIPPER': 'empty',
+    'EMPTY_GRIPPER_DISPLAY': 'nothing',
 
     # Object states
     'OBJECT_STATES': {
@@ -154,7 +155,7 @@ constants = objdict({
         'cannot_pick': 'The cup cannot be picked up',
         'cannot_see': 'The cup is not visible',
         'different_location': 'The cup is not where it should be',
-        'none': 'There is no error',
+        'none': 'There is no problem',
     },
 
     # The maximum number of actions that we allow

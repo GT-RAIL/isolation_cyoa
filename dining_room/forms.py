@@ -43,6 +43,7 @@ class InstructionsTestForm(ModelForm):
             'supposed_to_go_to_couch',
             'will_view_in_first_person',
             'supposed_to_select_only_one_error',
+            'actions_involve_invisible_arm_motion',
         ]
 
     def clean(self):

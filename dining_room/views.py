@@ -187,6 +187,12 @@ def convert_mug_to_cup(value):
         return value
 
 
+def convert_empty_gripper(value):
+    if value == constants.EMPTY_GRIPPER:
+        value = constants.EMPTY_GRIPPER_DISPLAY
+    return value
+
+
 def get_next_state_json(current_state, action):
     """
     Return the next state information given the current state and the action.
@@ -228,7 +234,7 @@ def get_next_state_json(current_state, action):
         "video_link": dbx.video_links[transition.video_name],
         "robot_beliefs": [
             { "attr": "Location", "value": display(next_state.relocalized_base_location) },
-            { "attr": "Object in gripper", "value": display(convert_mug_to_cup(next_state.gripper_state)) },
+            { "attr": "Object in hand", "value": display(convert_mug_to_cup(convert_empty_gripper(next_state.gripper_state))) },
             { "attr": "Objects in view", "value": [display(convert_mug_to_cup(x)) for x in next_state.visible_objects] },
             { "attr": "Arm status", "value": display(transition.arm_status) },
         ],

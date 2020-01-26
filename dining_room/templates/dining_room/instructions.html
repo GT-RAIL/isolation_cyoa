@@ -56,13 +56,13 @@
 <hr/>
 
 <div class="row">
-    <p class="col">The robot may encounter errors during the task. If the robot encounters an error, it is designed to seek assistance from a remote human, such as yourself. In the event of such an error, your job is to direct the robot using a Web UI (below) so that it ends up by the Couch with the Cup.</p>
+    <p class="col">The robot may encounter problems in completing its task. If the robot encounters a problem, it is designed to seek assistance from a remote human, such as yourself. In such an event, your job is to direct the robot using a Web UI (below) so that it ends up by the Couch with the Cup.</p>
 </div>
 
 <div class="row">
 <div class="col">
     <figure class="figure text-center" style="min-width: 480px;">
-        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}five{% else %}four{% endif %} sections.</figcaption>
+        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}six{% else %}five{% endif %} sections.</figcaption>
         {% if request.user.show_dx_suggestions and request.user.show_ax_suggestions %}
         <img src="https://dl.dropboxusercontent.com/s/h4yrxgpw23jghzk/ui_dx_ax.png" class="figure-img img-fluid rounded border">
         {% elif request.user.show_ax_suggestions %}
@@ -79,8 +79,8 @@
 <div class="col">
     <p>Here are the details of the three questions you will be asked when controlling the robot:</p>
     <ul class="list-group mt-2">
-        <li class="list-group-item">You will first be asked what <b>errors</b> you think might exist and might be preventing the robot from achieving its goal. You <b class="text-info">may select multiple errors, but you must select atleast one</b>. If you think that there is no error, you may select that as an option.</li>
-        <li class="list-group-item">You will then be asked how <b>confident</b> you are of the errors that you may have chosen. Simply <b class="text-info">move the slider</b> based on your level of confidence.</li>
+        <li class="list-group-item">You will first be asked what <b>problems</b> you think might be preventing the robot from achieving its goal. You <b class="text-info">may select multiple problems, but you must select atleast one</b>. If you think that there is no problem, you may select that as an option.</li>
+        <li class="list-group-item">You will then be asked how <b>confident</b> you are of the problems that you may identified. Simply <b class="text-info">move the slider</b> based on your level of confidence.</li>
         <li class="list-group-item">Finally, you will be asked to take an <b>action</b> to help the robot move towards its goal. After you <b class="text-info">select an action</b>, there will be a momentary delay as communications with the robot are reestablished and the robot is prepared to execute your command.</li>
     </ul>
 </div>
@@ -100,10 +100,10 @@
     <dd class="col-sm-9">The robot updates where in the room it thinks it is. For example, if the robot thinks it is at the Kitchen Counter when in reality it is at the Couch, this action can update that mistaken belief.</dd>
 
     <dt class="col-sm-3 alert alert-info">Pick up <span class="font-weight-normal">[object]</span></dt>
-    <dd class="col-sm-9">The robot picks up the object in question if it is unblocked and its gripper is empty.</dd>
+    <dd class="col-sm-9">The robot picks up the object in question if it is unblocked and its hand is empty.</dd>
 
-    <dt class="col-sm-3 alert alert-info">Stow object in gripper</dt>
-    <dd class="col-sm-9">The robot stows the object in its gripper on its base. This might involve arm motion that is not visible in the robot's camera.</dd>
+    <dt class="col-sm-3 alert alert-info">Put away held object</dt>
+    <dd class="col-sm-9">The robot puts away the object in its hand. This might involve arm motion that is not visible in the robot's camera.</dd>
 </dl>
 
 <div class="row">

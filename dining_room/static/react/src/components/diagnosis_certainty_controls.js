@@ -94,7 +94,7 @@ class DiagnosisCertaintyControls extends React.Component {
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="right" overlay={<Tooltip>Please indicate on a scale how certain you are of the errors that you have selected</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>How sure are you of the errors?</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>Indicate on the scale how certain you are of the problems that you have identified</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>How sure are you of the above problems?</b>
                 </p>
                 </div>
                 <div className="row">

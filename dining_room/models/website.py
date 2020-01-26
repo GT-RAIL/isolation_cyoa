@@ -103,8 +103,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     # User Auth
     username_validator = ASCIIUsernameValidator()
 
-    username = models.CharField(_('username'), max_length=150, unique=True, validators=[username_validator])
-    unique_key = models.CharField(_('unique_key'), max_length=150, unique=True)
+    username = models.CharField(_('username'), max_length=30, unique=True, validators=[username_validator])
+    unique_key = models.CharField(_('unique_key'), max_length=30, unique=True)
 
     # Permissions, etc.
     is_staff = models.BooleanField(_('staff status'), default=False)
@@ -166,28 +166,29 @@ class User(AbstractBaseUser, PermissionsMixin):
         BTW_45_50 = 7, _("46 - 50")
         ABOVE_50  = 8, _("51 & over")
 
-    class ExperienceGroups(models.IntegerChoices):
-        RARELY_OR_NEVER = 0
-        APPROXIMATELY_TWICE_A_YEAR = 1
-        APPROXIMATELY_TWICE_A_MONTH = 2
-        APPROXIMATELY_TWICE_A_WEEK = 3
-        ALMOST_EVERYDAY = 4
-
     class Genders(models.TextChoices):
         FEMALE = 'F'
         MALE = 'M'
-        PREFER_NOT_TO_SAY = 'U'  # Unknown
+        PREFER_NOT_TO_SAY = 'U', _("Other / Prefer Not to Say")  # Unknown
+
+    class RobotExperienceGroups(models.IntegerChoices):
+        RARELY_OR_NEVER = 0
+        ONE_TO_THREE_TIMES_A_YEAR = 1, _("1 - 3 Times a Year")
+        MONTHLY = 2
+        WEEKLY = 3
+        DAILY = 4
 
     age_group = models.IntegerField(choices=AgeGroups.choices, blank=True, null=True)
-    robot_experience = models.IntegerField(_("how often do you interact with robots?"), choices=ExperienceGroups.choices, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=Genders.choices, blank=True, null=True)
+    robot_experience = models.IntegerField(_("how often do you interact with robots?"), choices=RobotExperienceGroups.choices, blank=True, null=True)
     date_demographics_completed = models.DateTimeField(_('date demographics completed'), blank=True, null=True)
 
-    # The gold standard questions
+    # The knowledge review questions
     supposed_to_grab_bowl = models.BooleanField(_("The robot's goal is to pick up the Bowl?"), blank=True, null=True)
     supposed_to_go_to_couch = models.BooleanField(_("The robot's goal is to end up at the Couch?"), blank=True, null=True)
-    will_view_in_first_person = models.BooleanField(_("You will see a first-person view from the robot's camera in the event of an error?"), blank=True, null=True)
-    supposed_to_select_only_one_error = models.BooleanField(_("When asked to indicate what's wrong, you can only select 1 error?"), blank=True, null=True)
+    will_view_in_first_person = models.BooleanField(_("You will see a first-person view from the robot's camera?"), blank=True, null=True)
+    supposed_to_select_only_one_error = models.BooleanField(_("Even if there are multiple problems stopping the robot reaching its goal, you may only select one problem?"), blank=True, null=True)
+    actions_involve_invisible_arm_motion = models.BooleanField(_("Some actions might involve robot arm motions that are not visible on the camera?"), blank=True, null=True)
 
     # Likert Responses
     class LikertResponses(models.IntegerChoices):
