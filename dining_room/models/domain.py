@@ -399,10 +399,10 @@ class State:
         """The objects that are 'visible' to the robot"""
         visible_objects = []
         if self.base_location == self.object_location:
-            if self.jug_state != 'gripper':
+            if self.jug_state != 'gripper' and not (self.mug_state == 'gripper' and self.object_location == 'dt'):
                 visible_objects.append('jug')
 
-            if self.bowl_state != 'gripper':
+            if self.bowl_state != 'gripper' and not (self.mug_state == 'gripper' and self.object_location == 'kc' and self.jug_state == 'gripper'):
                 visible_objects.append('bowl')
 
             if self.mug_state == 'default' and self.jug_state != 'occluding':
@@ -618,9 +618,15 @@ class Transition:
 
         # The robot is at the couch and is looking at the couch with nothing in
         # its hand
-        if state.base_location == 'c' and video_action == 'noop':
+        if state.base_location == 'c' and video_action == 'noop' and mug_state != 'gripper':
             object_location = 'kc'
             jug_state, bowl_state, mug_state = 'default', 'above_mug', 'default'
+
+        # The robot is at the couch and is looking at the couch with the mug in
+        # its hand
+        elif state.base_location == 'c' and video_action == 'noop' and mug_state == 'gripper':
+            object_location = 'kc'
+            jug_state, bowl_state, mug_state = 'gripper', 'gripper', 'gripper'
 
         # The robot is at DT and the objects are at KC, but the robot is doing
         # a noop action
