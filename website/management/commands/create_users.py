@@ -33,16 +33,9 @@ class Command(BaseCommand):
         ]
         self.study_conditions_display = dict(User.StudyConditions.choices)
 
-        # TODO: This should be replaced with an automatic inference, as above
         self.start_conditions = [
-            User.StartConditions.AT_COUNTER_ABOVE_MUG,
-            User.StartConditions.AT_COUNTER_OCCLUDING,
-            User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG,
-            # User.StartConditions.AT_COUNTER_MISLOCALIZED,
-            # User.StartConditions.AT_TABLE,
-            # User.StartConditions.AT_TABLE_ABOVE_MUG,
-            # User.StartConditions.AT_TABLE_OCCLUDING,
-            # User.StartConditions.AT_TABLE_OCCLUDING_ABOVE_MUG,
+            x[0] for x in User.StartConditions.choices
+            if x[0] is not None
         ]
 
         # Initialize a connection to dropbox
