@@ -69,13 +69,16 @@ class SurveyForm(ModelForm):
     class Meta:
         model = User
         fields = [
-            'long_time_to_recover',
-            'easy_to_diagnose',
-            'long_time_to_understand',
-            'system_helped_resume',
-            'easy_to_recover',
+            'certain_of_actions',
+            'not_sure_how_to_help',
             'system_helped_understand',
-            'comments'
+            'could_not_identify_problems',
+            'information_was_enough',
+            'identify_problems_in_future',
+            'system_was_responsible',
+            'rely_on_system_in_future',
+            'user_was_competent',
+            'comments',
         ]
 
     def __init__(self, *args, **kwargs):

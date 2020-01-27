@@ -1,33 +1,46 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container">
 
 <div class="row justify-content-center">
     {% if form.errors %}
     <div class="alert alert-danger">
-    <p>Your username and password didn't match. Please try again.</p>
+    <p>Your username does not exist. If you think this is an error, please open a support ticket through Amazon Mechanical Turk.</p>
     </div>
     {% endif %}
 </div>
 
-<div class="row justify-content-center">
-    <form method="post" action="{% url 'dining_room:login' %}">
-    {% csrf_token %}
-    <table class="table table-borderless">
-    <tr>
-        <td>{{ form.username.label_tag }}</td>
-        <td>{{ form.username }}</td>
-    </tr>
-    <tr>
-        <td>{{ form.password.label_tag }}</td>
-        <td>{{ form.password }}</td>
-    </tr>
-    </table>
+<div id="startStudy" class="row justify-content-center mt-4">
+<div class="col-6">
+    <a href="" class="btn btn-block btn-success">Begin Study</a>
+</div>
+</div>
 
-    <input type="submit" value="login" class="btn btn-block btn-outline-primary">
-    <input type="hidden" name="next" value="{{ next }}">
+<div id="loginForm" class="row mt-4">
+<div class="col">
+    <p><small class="text-center">Have you started or completed this study before? Enter the username that you were provided.</small></p>
+    <form method="post" action="{% url 'dining_room:login' %}" class="form-inline">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <label for="{{ form.username.id_for_label }}" class="sr-only">{{ form.username.label }}</label>
+        <input type="text" class="form-control mb-2 mr-2" id="{{ form.username.id_for_label }}" name="{{ form.username.name }}" placeholder="{{ form.username.label }}">
+
+        <button type="submit" value="login" class="btn btn-outline-primary mb-2">Login</button>
     </form>
+</div>
+</div>
+
+<div id="errorMessage" class="row justify-content-center d-none">
+<div class="alert alert-danger">
+    <p>This study requires the use of:</p>
+    <ul>
+        <li>The latest Chrome or Firefox browsers with support for streaming video.</li>
+        <li>The use of a desktop computer.</li>
+        <li>Screen resolution greater than '800x600'.</li>
+    </ul>
+</div>
 </div>
 
 </div>
@@ -36,4 +49,27 @@
         height: 100%;
     }
 </style>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="https://unpkg.com/bowser@2.7.0/es5.js" crossorigin></script>
+<script type="text/javascript">
+    var browser = bowser.getParser(window.navigator.userAgent);
+    var allowed_browsers = [
+        bowser.BROWSER_MAP.chrome,
+        // bowser.BROWSER_MAP.chromium,
+        bowser.BROWSER_MAP.firefox,
+        bowser.BROWSER_MAP.edge,
+        bowser.BROWSER_MAP.safari
+    ];
+
+    if (window.screen.availWidth <= 800
+        || browser.getPlatformType() !== bowser.PLATFORMS_MAP.desktop
+        || !allowed_browsers.includes(browser.getBrowserName())
+    ) {
+        $("#loginForm").addClass("d-none");
+        $("#errorMessage").removeClass("d-none");
+    }
+</script>
 {% endblock %}

@@ -12,6 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .domain import State, Transition, constants
 
+
 # Create the model for the user and the associated manager
 
 class UserManager(models.Manager):
@@ -154,7 +155,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_started = models.DateTimeField(_('date started'), blank=True, null=True)   # Starting the scenario
     date_finished = models.DateTimeField(_('date finished'), blank=True, null=True) # Not necessarily completed the scenario
 
-    # Demographics. TODO: Do we want region, occupation, etc?
+    # Demographics
     class AgeGroups(models.IntegerChoices):
         PREFER_NOT_TO_SAY = 0
         BELOW_20  = 1, _("20 & below")
@@ -198,35 +199,45 @@ class User(AbstractBaseUser, PermissionsMixin):
         AGREE = 3
         STRONGLY_AGREE = 4
 
-    long_time_to_recover = models.IntegerField(
-        _("It took me a long time to help the robot recover"),
+    certain_of_actions = models.IntegerField(
+        _("I was always certain of the actions that I was taking."),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    easy_to_diagnose = models.IntegerField(
-        _("It was easy to diagnose the error"),
-        blank=True, null=True, choices=LikertResponses.choices
-    )
-    long_time_to_understand = models.IntegerField(
-        _("It took me a long time to understand what was wrong with the robot"),
-        blank=True, null=True, choices=LikertResponses.choices
-    )
-    system_helped_resume = models.IntegerField(
-        _("The system helped me in assisting the robot"),
-        blank=True, null=True, choices=LikertResponses.choices
-    )
-    easy_to_recover = models.IntegerField(
-        _("It was easy to recover from the errors in the task"),
+    not_sure_how_to_help = models.IntegerField(
+        _("I was not always sure how to help the robot with the problems that I identified."),
         blank=True, null=True, choices=LikertResponses.choices
     )
     system_helped_understand = models.IntegerField(
-        _("The system helped me understand what went wrong with the robot"),
+        _("The system helped me understand what went wrong with the robot."),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    comments = models.TextField(_("Comments and Feedback"), blank=True, null=True) # TODO: Design this generic feedback
-    date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
+    could_not_identify_problems = models.IntegerField(
+        _("I could not always identify the problems affecting the robot's ability to achieve its goal."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    information_was_enough = models.IntegerField(
+        _("The amount of information presented to me was sufficient to easily diagnose problems."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    identify_problems_in_future = models.IntegerField(
+        _("I am certain that in the future I will be able to easily identify problems using this system, and help the robot overcome them."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    system_was_responsible = models.IntegerField(
+        _("The system was largely responsible in helping me identify and address problems with the robot's tasks."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    rely_on_system_in_future = models.IntegerField(
+        _("I would rely on this system to assist the robot in the event of future problems with its tasks."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    user_was_competent = models.IntegerField(
+        _("I think that I was a competent user of the system during the study."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
 
-    # TODO: Add REACTION questionnaire questions? Or perhaps from Knepper
-    # TODO: Add gold standard questions to the survey
+    comments = models.TextField(_("Comments and Feedback"), blank=True, null=True)
+    date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
 
     # Field to ignore the user's data in the event of an error
     ignore_data_reason = models.TextField(blank=True, null=True)
@@ -309,3 +320,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.ignore_data_reason = None
         self.save(*args, **kwargs)
         return self
+
+
+# Model for managing the study condition
+
+# class StudyCondition

@@ -29,6 +29,7 @@ class DiagnosisCertaintyControls extends React.Component {
         // Constants
         this.MAX_VALUE = 5;
         this.MIN_VALUE = 1;
+        this.DEFAULT_VALUE = 3;
 
         // Initialize the state
         this.state = {};
@@ -46,7 +47,7 @@ class DiagnosisCertaintyControls extends React.Component {
             min: this.MIN_VALUE,
             max: this.MAX_VALUE,
             step: 1,
-            value: this.props.dx_certainty,
+            value: this.props.dx_certainty || this.DEFAULT_VALUE,
             tooltip: "hide",
             ticks: [1, 2, 3, 4, 5]
         });

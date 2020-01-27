@@ -12,10 +12,15 @@
 
 <div class="row">
 <div class="col">
-    <p>Thank you for completing this study. Please enter the following code on Amazon Mechanical Turk in order to receive your compensation (pending verification of the code):</p>
+    <p>Thank you for completing this study. Please enter the following on Amazon Mechanical Turk in order to receive your compensation (pending verification of the code):</p>
 
     <blockquote class="blockquote">
-    <b>{{ request.user.unique_key }}</b>
+    <div class="row align-items-center my-1">
+        <span class="col-3">Your username: </span><span class="col"><b>{{ request.user.username }}</b></span>
+    </div>
+    <div class="row align-items-center my-1">
+        <span class="col-3">Your unique code: </span><span class="col"><b>{{ request.user.unique_key }}</b></span>
+    </div>
     </blockquote>
 
     <p>You may now <a href="{% url 'dining_room:logout' %}">exit the study</a></p>

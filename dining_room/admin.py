@@ -285,12 +285,32 @@ class DemographicsAdmin(admin.ModelAdmin):
         (None, {
             'fields': (('username', 'study_condition', 'start_condition', 'study_progress', 'invalid_data'), ('date_finished', 'date_demographics_completed'))
         }),
-        ('Demographics', { 'fields': ('gender', 'age_group', 'robot_experience') }),
+        ('Demographics', { 'fields': ('age_group', 'gender', 'robot_experience') }),
     )
-    list_display = ('username', 'study_condition', 'invalid_data', 'date_finished', 'gender', 'age_group', 'robot_experience')
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'gender', 'age_group', 'robot_experience')
+    list_display = ('username', 'study_condition', 'invalid_data', 'date_finished', 'age_group', 'gender', 'robot_experience')
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'age_group', 'gender', 'robot_experience')
     ordering = ('date_finished', 'username', 'study_condition')
     search_fields = ('username', 'study_condition')
     readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress', 'invalid_data')
 
 create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')
+
+
+# class DemographicsAdmin(admin.ModelAdmin):
+#     """
+#     The view into the survey information on the model
+#     """
+
+#     fieldsets = (
+#         (None, {
+#             'fields': (('username', 'study_condition', 'start_condition', 'study_progress', 'invalid_data'), ('date_finished', 'date_survey_completed'))
+#         }),
+#         ('Survey', { 'fields': ('long_time_to_recover', 'age_group', 'robot_experience') }),
+#     )
+#     list_display = ('username', 'study_condition', 'invalid_data', 'date_finished', 'gender', 'age_group', 'robot_experience')
+#     list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'gender', 'age_group', 'robot_experience')
+#     ordering = ('date_finished', 'username', 'study_condition')
+#     search_fields = ('username', 'study_condition')
+#     readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress', 'invalid_data')
+
+# create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')

@@ -13,6 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView as AuthLoginView
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -81,6 +82,22 @@ class FormView(LoginRequiredMixin, CheckProgressMixin, GenericFormView):
         """
         self.object = form.save()
         return super().form_valid(form)
+
+
+class LoginView(AuthLoginView):
+    """
+    Log the user in based on their username
+    """
+    template_name='dining_room/login.html'
+    redirect_authenticated_user=True
+
+    def get_form_kwargs(self):
+        """Update the context dictionary with the username as the password"""
+        self.request.POST = self.request.POST.copy()
+        self.request.POST['password'] = self.request.POST.get('username')
+
+        kwargs = super().get_form_kwargs()
+        return kwargs
 
 
 @method_decorator(never_cache, name='dispatch')

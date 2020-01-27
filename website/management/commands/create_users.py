@@ -21,6 +21,12 @@ User = get_user_model()
 # Create the Command class
 
 class Command(BaseCommand):
+    """
+    NOTE: This command has now been deprecated in favour of login with a button
+    on the UI where we dynamically create users as they appear (based on AMT
+    settings)
+    """
+
     help = "Given the number of users per condition, and the list of study and start conditions, create a CSV file of user details"
 
     def __init__(self, *args, **kwargs):
