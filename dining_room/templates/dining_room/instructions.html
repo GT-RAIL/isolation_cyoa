@@ -59,18 +59,18 @@
     <p class="col">The robot may encounter problems in completing its task. If the robot encounters a problem, it is designed to seek assistance from a remote human, such as yourself. In such an event, your job is to direct the robot using a Web UI (below) so that it ends up by the Couch with the Cup.</p>
 </div>
 
-<div class="row">
-<div class="col">
-    <figure class="figure text-center" style="min-width: 480px;">
-        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}six{% else %}five{% endif %} sections.</figcaption>
+<div class="row mx-n5">
+<div class="col px-0">
+    <figure class="figure text-center">
+        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}six{% else %}five{% endif %} sections. The screenshot includes brief descriptions of the sections in red.</figcaption>
         {% if request.user.show_dx_suggestions and request.user.show_ax_suggestions %}
-        <img src="https://dl.dropboxusercontent.com/s/h4yrxgpw23jghzk/ui_dx_ax.png" class="figure-img img-fluid rounded border">
+        <img src="https://dl.dropboxusercontent.com/s/h4yrxgpw23jghzk/ui_dx_ax.png" class="figure-img img-fluid rounded border p-1">
         {% elif request.user.show_ax_suggestions %}
-        <img src="https://dl.dropboxusercontent.com/s/cw176tczopw50mj/ui_ax.png" class="figure-img img-fluid rounded border">
+        <img src="https://dl.dropboxusercontent.com/s/cw176tczopw50mj/ui_ax.png" class="figure-img img-fluid rounded border p-1">
         {% elif request.user.show_dx_suggestions %}
-        <img src="https://dl.dropboxusercontent.com/s/wgrfnod2mzuoqly/ui_dx.png" class="figure-img img-fluid rounded border">
+        <img src="https://dl.dropboxusercontent.com/s/wgrfnod2mzuoqly/ui_dx.png" class="figure-img img-fluid rounded border p-1">
         {% else %}
-        <img src="https://dl.dropboxusercontent.com/s/irtjzezwf9s072k/ui_baseline.png" class="figure-img img-fluid rounded border">
+        <img src="https://dl.dropboxusercontent.com/s/irtjzezwf9s072k/ui_baseline.png" class="figure-img img-fluid rounded border p-1">
         {% endif %}
     </figure>
 </div>
