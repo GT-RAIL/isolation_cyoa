@@ -225,6 +225,7 @@ def get_next_state_json(current_state, action):
         if next_state is None:
             action_result = False
             transition = Transition(None, None, current_state)
+            next_state = current_state
         else:
             transition = Transition(current_state, action, next_state)
 
@@ -238,7 +239,7 @@ def get_next_state_json(current_state, action):
             { "attr": "Objects in view", "value": [display(convert_mug_to_cup(x)) for x in next_state.visible_objects] },
             { "attr": "Arm status", "value": display(transition.arm_status) },
         ],
-        "valid_actions": sorted(next_state.get_valid_transitions().keys()),
+        "valid_actions": next_state.get_valid_actions(),
         "dx_suggestions": ["cannot_pick"],
         "ax_suggestions": ["look_at_dt", "pick_bowl"],
         "action_result": action_result,

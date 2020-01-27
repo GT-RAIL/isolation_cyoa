@@ -41,7 +41,9 @@
             {"attr": "Objects in view", "value": ["Jug", "Bowl", "Cup"]},
             {"attr": "Arm status", "value": "Not Moving"}
           ],
-          "valid_actions": ["at_c", "at_dt", "go_to_c", "go_to_dt", "look_at_c", "look_at_dt", "pick_bowl", "pick_jug"],
+          "valid_actions": {
+            "at_c": true, "at_dt": true, "at_kc": false, "go_to_c": true, "go_to_dt": true, "go_to_kc": false, "look_at_c": true, "look_at_dt": true, "look_at_kc": false, "pick_bowl": true, "pick_jug": true, "pick_mug": true, "place": false
+          },
           "dx_suggestions": [],
           "ax_suggestions": [],
           "action_result": true,

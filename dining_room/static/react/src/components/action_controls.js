@@ -25,9 +25,10 @@ class ActionControlButton extends React.Component {
 
     render() {
         return (
-            <button className="btn btn-outline-info btn-block"
+            <button className={"btn btn-block " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
                     style={{height: "100%", minHeight: "4rem"}}
-                    onClick={this.select_action}>
+                    onClick={this.select_action}
+                    disabled={this.props.disabled}>
                 {window.constants.ACTIONS[this.props.value]}
             </button>
         );
@@ -52,7 +53,36 @@ class ActionControls extends React.Component {
         super(props);
 
         // Constants
-        this.NUMBER_BUTTONS_PER_ROW = 2;
+        this.BUTTONS_LAYOUT = [
+            {
+                name: "Update location beliefs",
+                actions: ['at_c', 'at_dt', 'at_kc']
+            },
+            {
+                name: "Navigate",
+                actions: ['go_to_c', 'go_to_kc', 'go_to_dt']
+            },
+            {
+                name: "Look at",
+                actions: ['look_at_c', 'look_at_kc', 'look_at_dt']
+            },
+            {
+                name: "Pick",
+                actions: ['pick_jug', 'pick_bowl', 'pick_mug']
+            },
+            {
+                name: "Put away",
+                actions: ['place']
+            }
+        ];
+
+        // Inferred property
+        this.MAX_BUTTONS_PER_ROW = 0;
+        for (const [idx, display_object] of this.BUTTONS_LAYOUT.entries()) {
+            if (display_object.actions.length > this.MAX_BUTTONS_PER_ROW) {
+                this.MAX_BUTTONS_PER_ROW = display_object.actions.length;
+            }
+        }
     }
 
     render() {
@@ -63,26 +93,25 @@ class ActionControls extends React.Component {
 
         // Calculate how to display the buttons
         let action_buttons = [];
-        let sublist = [];
-        for (const [idx, action] of this.props.valid_actions.entries()) {
-        // for (const [idx, action] of ACTIONS_ORDER.entries()) {
-            sublist.push(
-                <div className="col" key={action}><ActionControlButton dispatch={this.props.dispatch} value={action} /></div>
+        for (const [didx, display_object] of this.BUTTONS_LAYOUT.entries()) {
+
+            // Create the buttons and set disabled according to the data
+            let sublayout = [];
+            for (const [sidx, action_name] of display_object.actions.entries()) {
+                sublayout.push(
+                    <div className="col" key={action_name}>
+                    <ActionControlButton dispatch={this.props.dispatch} value={action_name} disabled={!this.props.valid_actions[action_name]} />
+                    </div>
+                );
+            }
+            for (let idx = sublayout.length; idx < this.MAX_BUTTONS_PER_ROW; idx++) {
+                sublayout.push(<div className="col" key={idx}></div>);
+            }
+
+            // Add the buttons in a row
+            action_buttons.push(
+                <div className="row my-1" key={display_object.name}>{sublayout}</div>
             );
-
-            // We want to close off after every sublist has x elements
-            if (sublist.length === this.NUMBER_BUTTONS_PER_ROW) {
-                action_buttons.push(<div className="row my-1" key={Math.floor(idx / this.NUMBER_BUTTONS_PER_ROW)}>{sublist}</div>);
-                sublist = [];
-            }
-        }
-
-        // Pad the list if we have more buttons to display
-        if (sublist.length !== 0) {
-            for (let idx = (sublist.length % this.NUMBER_BUTTONS_PER_ROW); idx < this.NUMBER_BUTTONS_PER_ROW; idx++) {
-                sublist.push(<div className="col" key={idx}></div>);
-            }
-            action_buttons.push(<div className="row my-1" key={-1}>{sublist}</div>);
         }
 
         return (

@@ -82,6 +82,30 @@ def display(string):
     return " ".join([x.capitalize() for x in string.split('_')])
 
 
+def get_location_from_action_name(action):
+    """Return the location from the name of the action"""
+    if action.startswith('at_'):
+        location_name = action[len('at_'):]
+    elif action.startswith('go_to_'):
+        location_name = action[len('go_to_'):]
+    elif action.startswith('look_at_'):
+        location_name = action[len('look_at_'):]
+    else:
+        location_name = None
+
+    return location_name
+
+
+def get_object_from_action_name(action):
+    """Return the object from the name of the action"""
+    if action.startswith('pick_'):
+        object_name = action[len('pick_'):]
+    else:
+        object_name = None
+
+    return object_name
+
+
 # Constants for the domain
 constants = objdict({
     # The actions that we can handle at any given state
@@ -378,7 +402,7 @@ class State:
             if self.jug_state != 'gripper':
                 visible_objects.append('jug')
 
-            if self.bowl_state != 'gripper' and not (self.jug_state == 'occluding' and self.bowl_state == 'above_mug'):
+            if self.bowl_state != 'gripper':
                 visible_objects.append('bowl')
 
             if self.mug_state == 'default' and self.jug_state != 'occluding':
@@ -397,7 +421,7 @@ class State:
             if 'jug' in visible_objects:
                 graspable_objects.append('jug')
 
-            if 'bowl' in visible_objects:
+            if 'bowl' in visible_objects and (self.jug_state != 'occluding' or self.bowl_state != 'above_mug'):
                 graspable_objects.append('bowl')
 
             if 'mug' in visible_objects and self.bowl_state != 'above_mug':
@@ -416,23 +440,39 @@ class State:
         )
 
     # Methods on states
-    def get_valid_transitions(self):
+    def get_valid_actions(self):
         """
-        Should be called at most once when the state is first created to get the
-        list of potential next states. The returned values, if saved to a
-        dictionary can be reused to dynamically grow a state transition graph
+        The valid actions that are applicable in this state. Return a dictionary
+        of the actions in constants.ACTIONS associated with a boolean true or
+        false value
         """
-        valid_transitions = {}  # Keyed by the actions. Values are next states
+        actions_valid_check = {}
 
         # Iterate through the actions and add to the transitions dictionary if
         # the action is applicable
         for action in constants.ACTIONS.keys():
+
+            # First, if this is a valid transition, then by all means add it to
+            # the list of things that the person can do
             end_state = Transition.get_end_state(self, action)
             if end_state is not None:
-                valid_transitions[action] = end_state
+                actions_valid_check[action] = True
+                continue
+
+            # But, if it isn't a valid transition, check to see if the state of
+            # the robot would change (we know some hard coded conditions), so
+            # update the list of actions based on that
+            location_name, object_name = get_location_from_action_name(action), get_object_from_action_name(action)
+
+            if object_name is not None and object_name in self.visible_objects and self.gripper_empty:
+                actions_valid_check[action] = True
+                continue
+
+            # Otherwise, the action is invalid here
+            actions_valid_check[action] = False
 
         # Return the computed transitions
-        return valid_transitions
+        return actions_valid_check
 
 
 class Transition:
@@ -634,19 +674,7 @@ class Transition:
         graspable_objects = state.graspable_objects
 
         # Get some attributes about the action
-        if action.startswith('at_'):
-            location_name = action[len('at_'):]
-        elif action.startswith('go_to_'):
-            location_name = action[len('go_to_'):]
-        elif action.startswith('look_at_'):
-            location_name = action[len('look_at_'):]
-        else:
-            location_name = None
-
-        if action.startswith('pick_'):
-            object_name = action[len('pick_'):]
-        else:
-            object_name = None
+        location_name, object_name = get_location_from_action_name(action), get_object_from_action_name(action)
 
         # Do not allow AT(X), GOTO(X), LOOK_AT(X) if we are at X (according
         # to the localization)
@@ -655,6 +683,10 @@ class Transition:
 
         # Do not allow a place if the gripper is empty or if the mug is in there
         if (state.gripper_empty or state.gripper_state == 'mug') and action == 'place':
+            return end_state
+
+        # Do not allow a move or look action if we have something in the gripper
+        if not state.gripper_empty and state.gripper_state != 'mug' and (action.startswith('go_to_') or action.startswith('look_at_')):
             return end_state
 
         # Do not allow a pick of an object if it is not graspable
