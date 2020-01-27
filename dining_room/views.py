@@ -229,10 +229,18 @@ def get_next_state_json(current_state, action):
         else:
             transition = Transition(current_state, action, next_state)
 
+    # Check to see if the video exists. If it doesn't, mark it as failed, show
+    # the no-op video and mark this action as failed
+    video_link = dbx.video_links.get(transition.video_name)
+    if video_link is None:
+        action_result = False
+        transition = Transition(None, None, current_state)
+        next_state = current_state
+
     # Create the JSON dictionary
     next_state_json = {
         "server_state_tuple": next_state.tuple,
-        "video_link": dbx.video_links[transition.video_name],
+        "video_link": video_link,
         "robot_beliefs": [
             { "attr": "Location", "value": display(next_state.relocalized_base_location) },
             { "attr": "Object in hand", "value": display(convert_mug_to_cup(convert_empty_gripper(next_state.gripper_state))) },
@@ -240,8 +248,8 @@ def get_next_state_json(current_state, action):
             { "attr": "Arm status", "value": display(transition.arm_status) },
         ],
         "valid_actions": next_state.get_valid_actions(),
-        "dx_suggestions": ["cannot_pick"],
-        "ax_suggestions": ["look_at_dt", "pick_bowl"],
+        "dx_suggestions": [],
+        "ax_suggestions": [],
         "action_result": action_result,
         "scenario_completed": next_state.is_end_state,
     }
