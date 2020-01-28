@@ -3,6 +3,7 @@ import logging
 
 from django import forms
 from django.db.models import Q
+from django.contrib.auth import authenticate, login
 from django.utils import timezone
 
 from .models import User, StudyManagement
@@ -22,6 +23,12 @@ class CreateUserForm(forms.Form):
 
     DATE_JOINED_TIMEDELTA = datetime.timedelta(minutes=20)
 
+    def __init__(self, request=None, *args, **kwargs):
+        """Initialize the same way as an AuthenticationForm"""
+        self.request = request
+        self.user_cache = None
+        super().__init__(*args, **kwargs)
+
     def _create_user(self, study_condition, start_condition):
         username = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
         unique_key = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
@@ -38,7 +45,7 @@ class CreateUserForm(forms.Form):
         # First check that we haven't exceeded the max number of users
         number_of_users = User.objects.filter(is_staff=False).count()
         if sm.max_number_of_people <= number_of_users:
-            raise forms.ValidationError("Cannot create form")
+            raise forms.ValidationError("Cannot create user")
 
         # Then iterate through the conditions and create a user. We can optimize
         # this to start with the minimum number of users in a given condition.
@@ -71,7 +78,15 @@ class CreateUserForm(forms.Form):
 
         # Raise an error if we didn't manage to create a user
         if user is None:
-            raise forms.ValidationError("Cannot create form")
+            raise forms.ValidationError("Cannot create user")
+
+        # Authenticate the user in
+        self.user_cache = authenticate(self.request, username=user.username, password=user.username)
+        if self.user_cache is None:
+            raise forms.ValidationError("Cannot authenticate user")
+
+        # Log the user in
+        self.user_cache = login(self.request, self.user_cache)
 
         # Return the cleaned data
         return cleaned_data

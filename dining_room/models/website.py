@@ -351,6 +351,8 @@ class StudyManagement(models.Model):
     max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
     data_directory = models.CharField(max_length=20, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
 
+    _enabled_study_conditions = _enabled_start_conditions = None
+
     class Meta:
         verbose_name = _('study management')
         verbose_name_plural = _('study management')
@@ -360,11 +362,20 @@ class StudyManagement(models.Model):
 
     @property
     def enabled_start_conditions_list(self):
-        return [User.StartConditions(x.strip()) for x in self.enabled_start_conditions.split('\n')]
+        if self._enabled_start_conditions is None:
+            self._enabled_start_conditions = []
+            for condition in self.enabled_start_conditions.split('\n'):
+                if condition.strip() in User.StartConditions:
+                    self._enabled_start_conditions.append(User.StartConditions(condition.strip()))
+
+        return self._enabled_start_conditions
 
     @property
     def enabled_study_conditions_list(self):
-        return [x for x in User.StudyConditions if self.check_study_condition(x)]
+        if self._enabled_study_conditions is None:
+            self._enabled_study_conditions = [x for x in User.StudyConditions if self.check_study_condition(x)]
+
+        return self._enabled_study_conditions
 
     @property
     def resolved_data_directory(self):
@@ -374,7 +385,7 @@ class StudyManagement(models.Model):
     def get_default():
         """Get the default study management object that we shall be using. I
         think this should be a 'manager', but it doesn't really matter now"""
-        return StudyManagement.objects.order_by('pk')[0]
+        return StudyManagement.objects.order_by('-pk')[0]
 
     def check_study_condition(self, condition):
         """Check that the condition, given by an int, is enabled"""
