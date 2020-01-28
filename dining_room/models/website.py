@@ -338,4 +338,19 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 # Model for managing the study condition
 
-# class StudyCondition
+class StudyManagement(models.Model):
+    """
+    This model manages how new users are assigned to study conditions
+    """
+
+    enabled_study_conditions = models.PositiveIntegerField(default=0, help_text="A bit vector for the study conditions that are enabled")
+    enabled_start_conditions = models.TextField(default="", help_text="Semi-colon separated start conditions")
+    number_per_condition = models.PositiveIntegerField(default=0, help_text="Number of people per combination of the conditions")
+    max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
+
+    class Meta:
+        verbose_name = _('study management')
+        verbose_name_plural = _('study management')
+
+    def __str__(self):
+        return f"Max {self.max_number_of_people} people with {self.number_per_condition} per condition"

@@ -17,7 +17,7 @@ from django.utils.translation import gettext, gettext_lazy as _
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 
-from .models import User
+from .models import User, StudyManagement
 from .models.domain import constants
 
 
@@ -63,6 +63,11 @@ class InvalidDataListFilter(admin.SimpleListFilter):
 
 
 # Register your models here.
+
+@admin.register(StudyManagement)
+class StudyManagementAdmin(admin.ModelAdmin):
+    pass
+
 
 csrf_protect_m = method_decorator(csrf_protect)
 sensitive_post_parameters_m = method_decorator(sensitive_post_parameters())
