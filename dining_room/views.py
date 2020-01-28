@@ -105,6 +105,13 @@ class LoginView(AuthLoginView):
         kwargs = super().get_form_kwargs()
         return kwargs
 
+    def form_valid(self, form):
+        """If this is a superuser, then we do not log them in"""
+        if form.get_user().is_staff:
+            return self.form_invalid(form)
+        else:
+            return super().form_valid(form)
+
 
 @method_decorator(never_cache, name='dispatch')
 class DemographicsFormView(FormView):
@@ -301,7 +308,7 @@ def get_next_state_json(current_state, action):
     }
 
     # Save the data to the cache
-    cache.set(cache_key, next_state_json, timeout=None)
+    cache.set(cache_key, next_state_json)
 
     # Return the dictionary
     return next_state_json

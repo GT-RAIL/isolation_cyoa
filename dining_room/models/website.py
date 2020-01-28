@@ -58,7 +58,7 @@ class UserManager(models.Manager):
         extra_fields.pop('password', None)
         return self._create_user(username, unique_key, password, **extra_fields)
 
-    def create_superuser(self, username, **extra_fields):
+    def create_superuser(self, username, password, **extra_fields):
         """"""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
@@ -70,9 +70,8 @@ class UserManager(models.Manager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError("Superuser must have is_superuser=True")
 
-        unique_key = password = username
+        unique_key = username
         extra_fields.pop('unique_key', None)
-        extra_fields.pop('password', None)
         return self._create_user(username, unique_key, password, **extra_fields)
 
     def with_perm(self, perm, is_active=True, include_superusers=True, backend=None, obj=None):
