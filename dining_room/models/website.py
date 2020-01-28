@@ -121,10 +121,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Study condition tracking
     class StudyConditions(models.IntegerChoices):
         """The study conditions"""
-        BASELINE = 0, _('Baseline')
-        DX_ONLY = 1, _('DX Only')
-        AX_ONLY = 2, _('AX Only')
-        DX_AX = 3, _('DX & AX')
+        BASELINE = 1, _('Baseline')
+        DX_ONLY = 2, _('DX Only')
+        AX_ONLY = 3, _('AX Only')
+        DX_AX = 4, _('DX & AX')
         # TODO: Add the actions with SA improvement conditions
         # TODO: Add the noise conditions
         __empty__ = _('(Unknown)')
@@ -354,3 +354,23 @@ class StudyManagement(models.Model):
 
     def __str__(self):
         return f"Max {self.max_number_of_people} people with {self.number_per_condition} per condition"
+
+    @property
+    def enabled_start_conditions_list(self):
+        return [x.strip() for x in self.enabled_start_conditions.split(';')]
+
+    @property
+    def enabled_study_conditions_list(self):
+        enabled_conditions = []
+        for condition in User.StudyConditions.choices:
+            if self.check_study_condition(condition):
+                enabled_conditions.append(condition)
+
+        return enabled_conditions
+
+    def check_study_condition(self, condition):
+        pass
+        # print(condition)
+
+    def check_start_condition(self, condition):
+        pass
