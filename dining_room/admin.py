@@ -78,7 +78,7 @@ class UserAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('unique_key',)}),
-        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'study_progress', 'scenario_completed', 'invalid_data')}),
+        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'study_progress', 'scenario_completed', 'number_incorrect_knowledge_reviews', 'invalid_data')}),
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
@@ -98,7 +98,7 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ('username', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')
-    readonly_fields = ('study_progress', 'invalid_data')
+    readonly_fields = ('study_progress', 'invalid_data', 'number_incorrect_knowledge_reviews')
     actions = ['reset_study_progress', 'reset_invalid_data']
 
     def reset_study_progress(self, request, queryset):
@@ -296,21 +296,41 @@ class DemographicsAdmin(admin.ModelAdmin):
 create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')
 
 
-# class DemographicsAdmin(admin.ModelAdmin):
-#     """
-#     The view into the survey information on the model
-#     """
+class SurveysAdmin(admin.ModelAdmin):
+    """
+    The view into the survey information on the model
+    """
 
-#     fieldsets = (
-#         (None, {
-#             'fields': (('username', 'study_condition', 'start_condition', 'study_progress', 'invalid_data'), ('date_finished', 'date_survey_completed'))
-#         }),
-#         ('Survey', { 'fields': ('long_time_to_recover', 'age_group', 'robot_experience') }),
-#     )
-#     list_display = ('username', 'study_condition', 'invalid_data', 'date_finished', 'gender', 'age_group', 'robot_experience')
-#     list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'gender', 'age_group', 'robot_experience')
-#     ordering = ('date_finished', 'username', 'study_condition')
-#     search_fields = ('username', 'study_condition')
-#     readonly_fields = ('username', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress', 'invalid_data')
+    fieldsets = (
+        (None, {
+            'fields': (('username', 'study_progress', 'invalid_data'), ('study_condition', 'start_condition'))
+        }),
+        ('Survey', {
+            'fields': (
+                ('date_survey_completed',),
+                ('certain_of_actions', 'not_sure_how_to_help', 'system_helped_understand', 'could_not_identify_problems', 'information_was_enough', 'identify_problems_in_future', 'system_was_responsible', 'rely_on_system_in_future', 'user_was_competent'),
+                ('comments',)
+            )
+        }),
+    )
+    list_display = ('username', 'study_condition', 'start_condition', 'invalid_data', 'study_progress', 'date_survey_completed')
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter)
+    ordering = ('date_survey_completed', 'username', 'study_condition')
+    search_fields = ('username', 'study_condition')
+    readonly_fields = (
+        'username',
+        'study_progress',
+        'invalid_data',
+        'certain_of_actions',
+        'not_sure_how_to_help',
+        'system_helped_understand',
+        'could_not_identify_problems',
+        'information_was_enough',
+        'identify_problems_in_future',
+        'system_was_responsible',
+        'rely_on_system_in_future',
+        'user_was_competent',
+        'comments'
+    )
 
-# create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')
+create_modeladmin(SurveysAdmin, User, name='Survey', verbose_name_plural='Surveys')

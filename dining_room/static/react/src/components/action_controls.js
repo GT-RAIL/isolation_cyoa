@@ -25,7 +25,7 @@ class ActionControlButton extends React.Component {
 
     render() {
         return (
-            <button className={"btn btn-block " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
+            <button className={"col btn " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
                     style={{height: "100%", minHeight: "4rem"}}
                     onClick={this.select_action}
                     disabled={this.props.disabled}>
@@ -99,18 +99,20 @@ class ActionControls extends React.Component {
             let sublayout = [];
             for (const [sidx, action_name] of display_object.actions.entries()) {
                 sublayout.push(
-                    <div className="col" key={action_name}>
-                    <ActionControlButton dispatch={this.props.dispatch} value={action_name} disabled={!this.props.valid_actions[action_name]} />
-                    </div>
+                    <ActionControlButton key={action_name} dispatch={this.props.dispatch} value={action_name} disabled={!this.props.valid_actions[action_name]} />
                 );
             }
             for (let idx = sublayout.length; idx < this.MAX_BUTTONS_PER_ROW; idx++) {
-                sublayout.push(<div className="col" key={idx}></div>);
+                sublayout.push(<div className="btn col invisible" key={idx}></div>);
             }
 
             // Add the buttons in a row
             action_buttons.push(
-                <div className="row my-1" key={display_object.name}>{sublayout}</div>
+                <div className="row my-1" key={display_object.name}>
+                    <div className="col btn-group">
+                    {sublayout}
+                    </div>
+                </div>
             );
         }
 

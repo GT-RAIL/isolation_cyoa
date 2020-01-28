@@ -49,12 +49,14 @@ class UserManager(models.Manager):
         user.save(using=self._db)
         return user
 
-    def create_user(self, username, unique_key, password, **extra_fields):
+    def create_user(self, username, unique_key, **extra_fields):
         extra_fields.setdefault('is_staff', False)
         extra_fields.setdefault('is_superuser', False)
+        password = username
+        extra_fields.pop('password', None)
         return self._create_user(username, unique_key, password, **extra_fields)
 
-    def create_superuser(self, username, unique_key, password, **extra_fields):
+    def create_superuser(self, username, **extra_fields):
         """"""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
@@ -66,6 +68,9 @@ class UserManager(models.Manager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError("Superuser must have is_superuser=True")
 
+        unique_key = password = username
+        extra_fields.pop('unique_key', None)
+        extra_fields.pop('password', None)
         return self._create_user(username, unique_key, password, **extra_fields)
 
     def with_perm(self, perm, is_active=True, include_superusers=True, backend=None, obj=None):
@@ -190,6 +195,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     will_view_in_first_person = models.BooleanField(_("You will see a first-person view from the robot's camera?"), blank=True, null=True)
     supposed_to_select_only_one_error = models.BooleanField(_("Even if there are multiple problems stopping the robot reaching its goal, you may only select one problem?"), blank=True, null=True)
     actions_involve_invisible_arm_motion = models.BooleanField(_("Some actions might involve robot arm motions that are not visible on the camera?"), blank=True, null=True)
+    number_incorrect_knowledge_reviews = models.IntegerField(default=0)
+
+    ACCEPTABLE_REVIEW_ANSWERS = [
+        ('supposed_to_grab_bowl', False),
+        ('supposed_to_go_to_couch', True),
+        ('will_view_in_first_person', True),
+        ('supposed_to_select_only_one_error', False),
+        ('actions_involve_invisible_arm_motion', True),
+    ]
 
     # Likert Responses
     class LikertResponses(models.IntegerChoices):

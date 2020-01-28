@@ -38,18 +38,21 @@ class InstructionsTestForm(ModelForm):
 
     class Meta:
         model = User
-        fields = [
-            'supposed_to_grab_bowl',
-            'supposed_to_go_to_couch',
-            'will_view_in_first_person',
-            'supposed_to_select_only_one_error',
-            'actions_involve_invisible_arm_motion',
-        ]
+        fields = [x[0] for x in User.ACCEPTABLE_REVIEW_ANSWERS]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Initialize the answers as a dict
+        self.acceptable_answers = dict(User.ACCEPTABLE_REVIEW_ANSWERS)
 
     def clean(self):
-        """Customize the cleaning of this form to disallow empty responses"""
+        """Customize the cleaning of this form to disallow empty responses or
+        incorrect responses"""
         cleaned_data = super().clean()
 
+        # First check to see if any questions are blank. Force an answer of all
+        # questions so that people cannot game the system
         errors = []
         for key in self.fields:
             if cleaned_data.get(key) is None:
@@ -57,6 +60,14 @@ class InstructionsTestForm(ModelForm):
 
         if len(errors) > 0:
             raise forms.ValidationError(errors)
+
+        # Then check to see the knowledge review answers, and update the
+        # instance if the review is incorrect
+        for key in self.fields:
+            if cleaned_data.get(key, 'Unknown') != self.acceptable_answers[key]:
+                self.instance.number_incorrect_knowledge_reviews += 1
+                self.instance.save()
+                raise forms.ValidationError("One of the questions has been incorrectly answered")
 
         return cleaned_data
 
