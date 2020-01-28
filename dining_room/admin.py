@@ -101,7 +101,7 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('username', 'unique_key', 'study_condition', 'start_condition', 'study_progress', 'invalid_data')
     list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, InvalidDataListFilter, 'is_superuser')
     search_fields = ('username', 'unique_key', 'study_condition', 'start_condition')
-    ordering = ('username', 'last_login')
+    ordering = ('username', 'date_joined', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')
     readonly_fields = ('study_progress', 'invalid_data', 'number_incorrect_knowledge_reviews')
     actions = ['reset_study_progress', 'reset_invalid_data']

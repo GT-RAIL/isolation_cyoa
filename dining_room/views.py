@@ -21,7 +21,7 @@ from django.utils.decorators import method_decorator
 
 from .models import User
 from .models.domain import constants, State, Transition, display
-from .forms import DemographicsForm, InstructionsTestForm, SurveyForm
+from .forms import DemographicsForm, InstructionsTestForm, SurveyForm, CreateUserForm
 from .utils import DropboxConnection
 
 
@@ -91,6 +91,11 @@ class LoginView(AuthLoginView):
     """
     template_name='dining_room/login.html'
     redirect_authenticated_user=True
+
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['create_form'] = CreateUserForm(self.request)
+        return context
 
     def get_form_kwargs(self):
         """Update the context dictionary with the username as the password"""
@@ -201,10 +206,20 @@ def create(request):
     """Create a user; if that works, authenticate them and return them to the
     login page, which will then redirect them to the appropriate page. If not,
     send them back to login but with errors"""
-    messages.error(
-        request,
-        "Thank you for your time, but it appears that all robots are being helped right now; please check back later if the HIT is still available on Mechanical Turk."
-    )
+
+    # Create the user generation form
+    form = CreateUserForm(request, request.POST)
+
+    # If the form is not valid (this is when we log the user in, if possible)
+    # then include an error message
+    if not form.is_valid():
+        messages.error(
+            request,
+            "Thank you for your time, but it appears that all robots are being helped right now; please check back later if the HIT is still available on Mechanical Turk."
+        )
+
+    # Redirect to the login page. If the user is logged in, they'll get
+    # redirected to the appropriate page
     return redirect(reverse('dining_room:login'))
 
 

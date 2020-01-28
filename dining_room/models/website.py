@@ -360,16 +360,11 @@ class StudyManagement(models.Model):
 
     @property
     def enabled_start_conditions_list(self):
-        return [x.strip() for x in self.enabled_start_conditions.split('\n')]
+        return [User.StartConditions(x.strip()) for x in self.enabled_start_conditions.split('\n')]
 
     @property
     def enabled_study_conditions_list(self):
-        enabled_conditions = []
-        for condition in User.StudyConditions:
-            if self.check_study_condition(condition.value):
-                enabled_conditions.append(condition)
-
-        return enabled_conditions
+        return [x for x in User.StudyConditions if self.check_study_condition(x)]
 
     @property
     def resolved_data_directory(self):
@@ -387,4 +382,4 @@ class StudyManagement(models.Model):
 
     def check_start_condition(self, condition):
         """Check that the condition, given by a string, is enabled"""
-        return condition in self.enabled_study_conditions_list
+        return condition in self.enabled_start_conditions_list

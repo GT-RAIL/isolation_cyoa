@@ -1,13 +1,83 @@
+import datetime
+import logging
+
 from django import forms
-from django.forms import ModelForm
+from django.db.models import Q
 from django.utils import timezone
 
-from .models import User
+from .models import User, StudyManagement
 
 
 # Create the forms here
 
-class DemographicsForm(ModelForm):
+logger = logging.getLogger(__name__)
+
+
+class CreateUserForm(forms.Form):
+    """
+    A form to create a user (if the study conditions allow for it), and log them
+    in if successful. If not, a validation error is raised. The form takes
+    nothing as input
+    """
+
+    DATE_JOINED_TIMEDELTA = datetime.timedelta(minutes=20)
+
+    def _create_user(self, study_condition, start_condition):
+        username = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
+        unique_key = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
+        user = User.objects.create_user(username, unique_key, study_condition=study_condition, start_condition=start_condition)
+        return user
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # Check to see if there are conditions that need to be satisfied on the
+        # manager and create a user if so
+        sm = StudyManagement.get_default()
+
+        # First check that we haven't exceeded the max number of users
+        number_of_users = User.objects.filter(is_staff=False).count()
+        if sm.max_number_of_people <= number_of_users:
+            raise forms.ValidationError("Cannot create form")
+
+        # Then iterate through the conditions and create a user. We can optimize
+        # this to start with the minimum number of users in a given condition.
+        user = None
+        for num_users in range(1, sm.number_per_condition+1):
+            for study_condition in sm.enabled_study_conditions_list:
+                for start_condition in sm.enabled_start_conditions_list:
+                    users_in_condition = Q(is_staff=False, start_condition=start_condition, study_condition=study_condition)
+                    # date_joined_condition = Q(date_joined__gte=(timezone.now()-CreateUserForm.DATE_JOINED_TIMEDELTA))
+                    # date_finished_condition = Q(date_finished__isnull=False)
+
+                    # Check the number of active users, if less add a user, else
+                    # continue
+                    number_users_in_condition = User.objects.filter(
+                        users_in_condition
+                        # & (date_joined_condition | date_finished_condition)
+                    ).count()
+                    if number_users_in_condition < num_users:
+                        user = self._create_user(study_condition, start_condition)
+                        logger.info(f"{user} created for {start_condition}, {study_condition}")
+                        break
+
+                # Exit if we've created an user
+                if user is not None:
+                    break
+
+            # Exit if we've created an user
+            if user is not None:
+                break
+
+        # Raise an error if we didn't manage to create a user
+        if user is None:
+            raise forms.ValidationError("Cannot create form")
+
+        # Return the cleaned data
+        return cleaned_data
+
+
+class DemographicsForm(forms.ModelForm):
     """
     The model form related to the demographics questionnaire
     """
@@ -30,7 +100,7 @@ class DemographicsForm(ModelForm):
         return super().save(*args, **kwargs)
 
 
-class InstructionsTestForm(ModelForm):
+class InstructionsTestForm(forms.ModelForm):
     """
     The model form related to the demographics questionnaire. We do minimal
     checking on this data and simply proceed
@@ -72,7 +142,7 @@ class InstructionsTestForm(ModelForm):
         return cleaned_data
 
 
-class SurveyForm(ModelForm):
+class SurveyForm(forms.ModelForm):
     """
     The model form for taking the survey at the end of the experiment
     """
