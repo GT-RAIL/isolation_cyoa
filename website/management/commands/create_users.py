@@ -81,6 +81,8 @@ class Command(BaseCommand):
         return filename
 
     def handle(self, *args, **options):
+        raise CommandError("This command has been deprecated and should not be used")
+
         self.stdout.write(self.style.HTTP_INFO("Starting user generation"))
 
         # Get the local file

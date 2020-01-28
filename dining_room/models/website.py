@@ -1,6 +1,8 @@
+import os
 import csv
 import dropbox
 
+from django.conf import settings
 from django.db import models
 from django.contrib import auth
 from django.contrib.auth.models import (AbstractBaseUser,
@@ -344,9 +346,10 @@ class StudyManagement(models.Model):
     """
 
     enabled_study_conditions = models.PositiveIntegerField(default=0, help_text="A bit vector for the study conditions that are enabled")
-    enabled_start_conditions = models.TextField(default="", help_text="Semi-colon separated start conditions")
+    enabled_start_conditions = models.TextField(default="none", help_text="\\n separated start conditions")
     number_per_condition = models.PositiveIntegerField(default=0, help_text="Number of people per combination of the conditions")
     max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
+    data_directory = models.CharField(max_length=20, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
 
     class Meta:
         verbose_name = _('study management')
@@ -357,20 +360,31 @@ class StudyManagement(models.Model):
 
     @property
     def enabled_start_conditions_list(self):
-        return [x.strip() for x in self.enabled_start_conditions.split(';')]
+        return [x.strip() for x in self.enabled_start_conditions.split('\n')]
 
     @property
     def enabled_study_conditions_list(self):
         enabled_conditions = []
-        for condition in User.StudyConditions.choices:
-            if self.check_study_condition(condition):
+        for condition in User.StudyConditions:
+            if self.check_study_condition(condition.value):
                 enabled_conditions.append(condition)
 
         return enabled_conditions
 
+    @property
+    def resolved_data_directory(self):
+        return os.path.join(settings.DROPBOX_DATA_FOLDER, self.data_directory)
+
+    @staticmethod
+    def get_default():
+        """Get the default study management object that we shall be using. I
+        think this should be a 'manager', but it doesn't really matter now"""
+        return StudyManagement.objects.order_by('pk')[0]
+
     def check_study_condition(self, condition):
-        pass
-        # print(condition)
+        """Check that the condition, given by an int, is enabled"""
+        return (self.enabled_study_conditions & (1 << (condition-1))) > 0
 
     def check_start_condition(self, condition):
-        pass
+        """Check that the condition, given by a string, is enabled"""
+        return condition in self.enabled_study_conditions_list

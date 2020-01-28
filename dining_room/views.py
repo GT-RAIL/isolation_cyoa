@@ -11,6 +11,7 @@ from django.views.generic.edit import FormView as GenericFormView
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView as AuthLoginView
@@ -192,6 +193,19 @@ class CompleteView(TemplateView):
     Show the final completion page to the user
     """
     template_name = 'dining_room/complete.html'
+
+
+@require_POST
+@never_cache
+def create(request):
+    """Create a user; if that works, authenticate them and return them to the
+    login page, which will then redirect them to the appropriate page. If not,
+    send them back to login but with errors"""
+    messages.error(
+        request,
+        "Thank you for your time, but it appears that all robots are being helped right now; please check back later if the HIT is still available on Mechanical Turk."
+    )
+    return redirect(reverse('dining_room:login'))
 
 
 # API

@@ -3,23 +3,37 @@
 {% block content %}
 <div class="container">
 
-<div class="row justify-content-center">
-    {% if form.errors %}
-    <div class="alert alert-danger">
-    <p>Your username does not exist. If you think this is an error, please open a support ticket through Amazon Mechanical Turk.</p>
-    </div>
-    {% endif %}
-</div>
-
 <div id="startStudy" class="row justify-content-center mt-4">
 <div class="col-6">
-    <a href="" class="btn btn-block btn-success">Begin Study</a>
+    <form method="post" action="{% url 'dining_room:create' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-block btn-success">Begin Study</a>
+    </form>
 </div>
 </div>
+
+{% if messages %}
+{% spaceless %}
+<div class="row mt-2">
+<div class="col alert alert-danger">
+    {% for message in messages %}
+    {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+    <p class="my-0">{{ message }}</p>
+    {% endif %}
+    {% endfor %}
+</div>
+</div>
+{% endspaceless %}
+{% endif %}
 
 <div id="loginForm" class="row mt-4">
 <div class="col">
     <p><small class="text-center">Have you started or completed this study before? Enter the username that you were provided.</small></p>
+    {% if form.errors %}
+    <div class="alert alert-danger">
+        <span>Your username does not exist. If you think this is an error, please open a support ticket through Mechanical Turk.</span>
+    </div>
+    {% endif %}
     <form method="post" action="{% url 'dining_room:login' %}" class="form-inline">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next }}">
@@ -33,7 +47,7 @@
 </div>
 
 <div id="errorMessage" class="row justify-content-center d-none">
-<div class="alert alert-danger">
+<div class="col alert alert-danger">
     <p>This study requires the use of:</p>
     <ul>
         <li>The latest Chrome or Firefox browsers with support for streaming video.</li>
@@ -69,6 +83,7 @@
         || !allowed_browsers.includes(browser.getBrowserName())
     ) {
         $("#loginForm").addClass("d-none");
+        $("#startStudy").addClass("d-none");
         $("#errorMessage").removeClass("d-none");
     }
 </script>

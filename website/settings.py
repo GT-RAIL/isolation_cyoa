@@ -165,3 +165,4 @@ if os.getenv('ENVIRONMENT', 'dev') == 'prod':
 # Other settings specific to dropbox and our app
 DROPBOX_OAUTH2_TOKEN = os.getenv('DROPBOX_ACCESS_TOKEN')
 DROPBOX_ROOT_PATH = '/DiningRoom_IsolationCYOA/'
+DROPBOX_DATA_FOLDER = 'data'

@@ -18,6 +18,8 @@ from django.core.files.base import File, ContentFile
 from django.utils import timezone
 from storages.backends.dropbox import DropBoxStorage, DropBoxStorageException
 
+from .models import StudyManagement
+
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +82,7 @@ class DropboxConnection:
     storage API
     """
 
-    VIDEO_LINKS_FILE = 'data/video_links.csv'
-    USERDATA_FOLDER = 'data/'
+    VIDEO_LINKS_FILE = os.path.join(settings.DROPBOX_DATA_FOLDER, 'video_links.csv')
 
     # The fields in the user data
     USERDATA_CSV_HEADERS = [
@@ -90,13 +91,6 @@ class DropboxConnection:
     ]
 
     def __init__(self):
-        # Set the userdata based on the settings (I don't think settings are
-        # loaded when modules are imported?)
-        self.USERDATA_FOLDER = os.path.join(
-            DropboxConnection.USERDATA_FOLDER,
-            'userdata_2020-01-20' if not settings.DEBUG else 'userdata_dev'
-        )
-
         # Create the storage system
         self.storage = OverwriteDropboxStorage()
 
@@ -144,7 +138,8 @@ class DropboxConnection:
 
         Returns the data (bytes) that was written to dropbox
         """
-        csv_filename = os.path.join(self.USERDATA_FOLDER, user.csv_file)
+        sm = StudyManagement.get_default()
+        csv_filename = os.path.join(sm.resolved_data_directory, user.csv_file)
 
         try:
             read_file = self.storage.open(csv_filename)
