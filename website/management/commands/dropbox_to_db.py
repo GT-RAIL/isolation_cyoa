@@ -38,6 +38,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('data_directory', help=f"The data directory in {os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)} to get the json files from")
         parser.add_argument('-i', '--ignore-duplicates', action="store_true")
+        parser.add_argument('-c', '--confirm-duplicates', action='store_true', help="Confirm duplicates with human")
 
     def _download_dropbox(self, dbx_filename, local_filename):
         try:
@@ -81,15 +82,46 @@ class Command(BaseCommand):
                 data = json.load(fd)
 
             for row in data:
+                # Try to save the data
                 try:
                     data_dict = { k: v for k, v in row['fields'].items() if k not in model_details.get('ignore_fields', {}) }
                     item = model_details['model'](**data_dict)
                     item.save()
+                    continue
                 except Exception as e:
-                    if not options.get('ignore_duplicates'):
+                    if not options.get('ignore_duplicates') and not options.get('confirm_duplicates'):
                         raise CommandError(f"Failure saving model: {e}\n{traceback.format_exc()}")
                     else:
-                        self.stdout.write(f"Not writing row with pk {row['pk']}: {e}")
+                        self.stdout.write(f"Not writing row for model {row['model']} with pk {row['pk']}: {e}")
+                        if options.get('confirm_duplicates'):
+                            self.stdout.write('Should we update model (u), ignore (i), or error (e) out?')
+                            response = ''
+                            while response.lower() not in ['u', 'e', 'i']:
+                                response = input('> ')
+
+                            if response.lower() == 'e':
+                                raise CommandError("Exiting, as directed")
+                            elif response.lower() == 'i':
+                                continue
+
+                # If we're here, then update the data
+                queryset = model_details['model'].objects.all()
+                for field, value in data_dict.items():
+                    new_queryset = queryset.filter(**{field: value})
+                    if new_queryset.count() == 0:
+                        continue
+
+                    queryset = new_queryset
+                    if queryset.count() == 1:
+                        break
+
+                if queryset.count() != 1:
+                    raise CommandError("Could not find a suitable item to update in DB")
+
+                item = queryset[0]
+                for field, value in data_dict.items():
+                    setattr(item, field, value)
+                item.save()
 
             # Print complete
             if options.get('verbosity') > 0:

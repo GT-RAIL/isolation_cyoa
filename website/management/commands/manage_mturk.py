@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Dump the data as JSON to the dropbox folder specified by the StudyManagement
+# Manage the data in the AMT CSV files
 
 import os
 import sys
@@ -26,10 +26,9 @@ class Command(BaseCommand):
     the CSV. Also output a CSV to update worker qualifications
     """
 
-    help = "Parse MTurk files to approve work and to update worker qualifications"
+    help = "Parse MTurk CSV files to approve work and to update worker qualifications"
 
     BATCH_RESULTS_FILE_FORMAT = 'Batch_{batch_number}_batch_results.csv'
-    WORKERS_FILE_FORMAT = 'User_{user_id}_workers.csv'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -41,7 +40,6 @@ class Command(BaseCommand):
         sm = StudyManagement.get_default()
 
         parser.add_argument('batch_number', type=int, help="The batch number for the job on AMT")
-        parser.add_argument('--user_id', type=int, default=52584, help="The ID assigned to us on AMT")
         parser.add_argument('--output-folder', default=os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')), help="Folder to output generated CSV to")
         parser.add_argument('--dropbox-folder', default=sm.data_directory, help="The data directory on dropbox to get the CSV files from")
 
@@ -59,13 +57,10 @@ class Command(BaseCommand):
 
         # Fetch the files locally
         batch_filename = Command.BATCH_RESULTS_FILE_FORMAT.format(**options)
-        workers_filename = Command.WORKERS_FILE_FORMAT.format(**options)
         self._download_dropbox(os.path.join(dbx_folder, batch_filename), os.path.join(local_folder, batch_filename))
-        self._download_dropbox(os.path.join(dbx_folder, workers_filename), os.path.join(local_folder, workers_filename))
 
         # Parse out the files into dataframes
         batch_df = pd.read_csv(os.path.join(local_folder, batch_filename))
-        workers_df = pd.read_csv(os.path.join(local_folder, workers_filename))
 
         # First we update the accept / reject
         worker_statuses = []
