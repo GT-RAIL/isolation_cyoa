@@ -138,7 +138,7 @@ class DropboxConnection:
 
         Returns the data (bytes) that was written to dropbox
         """
-        sm = StudyManagement.get_default()
+        sm = user.study_management or StudyManagement.get_default()
         csv_filename = os.path.join(sm.resolved_data_directory, user.csv_file)
 
         try:

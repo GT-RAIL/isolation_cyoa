@@ -34,8 +34,8 @@ class Command(BaseCommand):
         self.dbx = dropbox.Dropbox(settings.DROPBOX_OAUTH2_TOKEN)
 
     def add_arguments(self, parser):
-        # No special arguments to add here
-        pass
+        sm = StudyManagement.get_default()
+        parser.add_argument('--dropbox-folder', default=sm.data_directory, help="The data directory on dropbox to send the CSV files to")
 
     def _synchronize_dropbox(self, dbx_filename, local_filename):
         try:
@@ -46,8 +46,7 @@ class Command(BaseCommand):
             raise CommandError(f"Error uploading dropbox file: {e.user_message_text}")
 
     def handle(self, *args, **options):
-        sm = StudyManagement.get_default()
-        dbx_folder = os.path.join(settings.DROPBOX_ROOT_PATH, sm.resolved_data_directory)
+        dbx_folder = os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER, options['dropbox_folder'])
 
         # Create a dictionary of files to create (and associated settings)
         fixtures_to_upload = {
@@ -56,7 +55,7 @@ class Command(BaseCommand):
             },
             Command.MANAGEMENT_DETAILS_FILE: {
                 'model': 'dining_room.StudyManagement',
-                'kwargs': { 'pks': str(sm.pk) },
+                # 'kwargs': { 'pks': str(sm.pk) },
             },
         }
 

@@ -69,7 +69,7 @@ class StudyManagementAdmin(admin.ModelAdmin):
     """
     The admin class for the StudyManagement model
     """
-    list_display = ('__str__', 'data_directory', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
+    list_display = ('__str__', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
 
 
 csrf_protect_m = method_decorator(csrf_protect)
@@ -86,7 +86,7 @@ class UserAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('unique_key', 'amt_worker_id')}),
-        (_('Study Conditions'), {'fields': ('study_condition', 'start_condition', 'study_progress', 'scenario_completed', 'number_incorrect_knowledge_reviews', 'ignore_data_reason')}),
+        (_('Study Conditions'), {'fields': ('study_management', 'study_condition', 'start_condition', 'study_progress', 'scenario_completed', 'number_incorrect_knowledge_reviews', 'ignore_data_reason')}),
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),

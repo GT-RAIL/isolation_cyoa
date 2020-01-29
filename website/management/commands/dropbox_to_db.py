@@ -21,10 +21,11 @@ from dining_room.models import User, StudyManagement
 
 class Command(BaseCommand):
     """
-    Dump the users and the associated mangement object that was used
+    Dump the users and the associated mangement object that was used. Note that
+    this does NOT preserve the StudyManagement links
     """
 
-    help = "Load data from JSON files and put them in the DB"
+    help = "Load data from JSON files and put them in the DB. Does not preserve StudyManagement links"
 
     USER_DETAILS_FILE = 'user_details.json'
     MANAGEMENT_DETAILS_FILE = 'management.json'
@@ -50,21 +51,21 @@ class Command(BaseCommand):
         dbx_folder = os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER, options['data_directory'])
 
         # Create a dictionary of files to create (and associated settings)
-        fixtures_to_upload = {
-            Command.USER_DETAILS_FILE: {
+        fixtures_to_download = [
+            (Command.MANAGEMENT_DETAILS_FILE, {
+                'name': 'dining_room.StudyManagement',
+                'model': StudyManagement
+            }),
+            (Command.USER_DETAILS_FILE, {
                 'name': 'dining_room.User',
                 'model': User,
                 'ignore_fields': { 'groups', 'user_permissions' }
-            },
-            Command.MANAGEMENT_DETAILS_FILE: {
-                'name': 'dining_room.StudyManagement',
-                'model': StudyManagement
-            },
-        }
+            }),
+        ]
 
         # Loop through the fixtures to dump, and the settings to dump and
         # synchronize them with dropbox
-        for filename, model_details in fixtures_to_upload.items():
+        for filename, model_details in fixtures_to_download:
             # The user data is dumped and synchronized
             if options.get('verbosity') > 0:
                 self.stdout.write(self.style.HTTP_INFO(f"Downloading {model_details['name']}"))

@@ -15,6 +15,71 @@ from django.utils.translation import gettext_lazy as _
 from .domain import State, Transition, constants
 
 
+# Model for managing the study condition
+
+class StudyManagement(models.Model):
+    """
+    This model manages how new users are assigned to study conditions
+    """
+
+    enabled_study_conditions = models.PositiveIntegerField(default=0, help_text="A bit vector for the study conditions that are enabled")
+    enabled_start_conditions = models.TextField(default="none", help_text="\\n separated start conditions")
+    number_per_condition = models.PositiveIntegerField(default=0, help_text="Number of people per combination of the conditions")
+    max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
+    data_directory = models.CharField(max_length=20, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
+
+    _enabled_study_conditions = _enabled_start_conditions = None
+
+    class Meta:
+        verbose_name = _('study management')
+        verbose_name_plural = _('study management')
+
+    def __str__(self):
+        return self.data_directory
+
+    @property
+    def enabled_start_conditions_list(self):
+        if self._enabled_start_conditions is None:
+            self._enabled_start_conditions = []
+            for condition in self.enabled_start_conditions.split('\n'):
+                if condition.strip() in User.StartConditions:
+                    self._enabled_start_conditions.append(User.StartConditions(condition.strip()))
+
+        return self._enabled_start_conditions
+
+    @property
+    def enabled_study_conditions_list(self):
+        if self._enabled_study_conditions is None:
+            self._enabled_study_conditions = [x for x in User.StudyConditions if self.check_study_condition(x)]
+
+        return self._enabled_study_conditions
+
+    @property
+    def resolved_data_directory(self):
+        return os.path.join(settings.DROPBOX_DATA_FOLDER, self.data_directory)
+
+    @staticmethod
+    def get_default():
+        """Get the default study management object that we shall be using. I
+        think this should be a 'manager', but it doesn't really matter now"""
+        return StudyManagement.objects.order_by('-pk')[0]
+
+    @staticmethod
+    def get_default_pk():
+        try:
+            return StudyManagement.get_default().pk
+        except Exception as e:
+            return None
+
+    def check_study_condition(self, condition):
+        """Check that the condition, given by an int, is enabled"""
+        return (self.enabled_study_conditions & (1 << (condition-1))) > 0
+
+    def check_start_condition(self, condition):
+        """Check that the condition, given by a string, is enabled"""
+        return condition in self.enabled_start_conditions_list
+
+
 # Create the model for the user and the associated manager
 
 class UserManager(models.Manager):
@@ -160,6 +225,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     scenario_completed = models.BooleanField(_('scenario completed?'), blank=True, null=True, default=None)
     date_started = models.DateTimeField(_('date started'), blank=True, null=True)   # Starting the scenario
     date_finished = models.DateTimeField(_('date finished'), blank=True, null=True) # Not necessarily completed the scenario
+    study_management = models.ForeignKey(StudyManagement, on_delete=models.SET_NULL, default=StudyManagement.get_default_pk, null=True, blank=True)
 
     # Demographics
     class AgeGroups(models.IntegerChoices):
@@ -336,61 +402,3 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.ignore_data_reason = None
         self.save(*args, **kwargs)
         return self
-
-
-# Model for managing the study condition
-
-class StudyManagement(models.Model):
-    """
-    This model manages how new users are assigned to study conditions
-    """
-
-    enabled_study_conditions = models.PositiveIntegerField(default=0, help_text="A bit vector for the study conditions that are enabled")
-    enabled_start_conditions = models.TextField(default="none", help_text="\\n separated start conditions")
-    number_per_condition = models.PositiveIntegerField(default=0, help_text="Number of people per combination of the conditions")
-    max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
-    data_directory = models.CharField(max_length=20, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
-
-    _enabled_study_conditions = _enabled_start_conditions = None
-
-    class Meta:
-        verbose_name = _('study management')
-        verbose_name_plural = _('study management')
-
-    def __str__(self):
-        return f"Max {self.max_number_of_people} people with {self.number_per_condition} per condition"
-
-    @property
-    def enabled_start_conditions_list(self):
-        if self._enabled_start_conditions is None:
-            self._enabled_start_conditions = []
-            for condition in self.enabled_start_conditions.split('\n'):
-                if condition.strip() in User.StartConditions:
-                    self._enabled_start_conditions.append(User.StartConditions(condition.strip()))
-
-        return self._enabled_start_conditions
-
-    @property
-    def enabled_study_conditions_list(self):
-        if self._enabled_study_conditions is None:
-            self._enabled_study_conditions = [x for x in User.StudyConditions if self.check_study_condition(x)]
-
-        return self._enabled_study_conditions
-
-    @property
-    def resolved_data_directory(self):
-        return os.path.join(settings.DROPBOX_DATA_FOLDER, self.data_directory)
-
-    @staticmethod
-    def get_default():
-        """Get the default study management object that we shall be using. I
-        think this should be a 'manager', but it doesn't really matter now"""
-        return StudyManagement.objects.order_by('-pk')[0]
-
-    def check_study_condition(self, condition):
-        """Check that the condition, given by an int, is enabled"""
-        return (self.enabled_study_conditions & (1 << (condition-1))) > 0
-
-    def check_start_condition(self, condition):
-        """Check that the condition, given by a string, is enabled"""
-        return condition in self.enabled_start_conditions_list
