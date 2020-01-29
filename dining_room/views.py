@@ -95,6 +95,7 @@ class LoginView(AuthLoginView):
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context['create_form'] = CreateUserForm(self.request)
+        context['DEBUG'] = settings.DEBUG
         return context
 
     def get_form_kwargs(self):

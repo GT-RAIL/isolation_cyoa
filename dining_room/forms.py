@@ -152,7 +152,7 @@ class InstructionsTestForm(forms.ModelForm):
             if cleaned_data.get(key, 'Unknown') != self.acceptable_answers[key]:
                 self.instance.number_incorrect_knowledge_reviews += 1
                 self.instance.save()
-                raise forms.ValidationError("Atleast one of your answers is incorrect")
+                raise forms.ValidationError("At least one of your answers is incorrect")
 
         return cleaned_data
 

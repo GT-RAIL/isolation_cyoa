@@ -27,15 +27,6 @@
 
 <hr/>
 
-<div class="row">
-<h4 class="col text-center">
-    Your username is <b class="">{{ request.user.username }}</b><br/>
-    <small>Please note it down.</small>
-</h4>
-</div>
-
-<hr/>
-
 {% spaceless %}
 <div class="row justify-content-center">
     <form method="post" action="{% url 'dining_room:demographics' %}" class="col">

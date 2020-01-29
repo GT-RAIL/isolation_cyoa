@@ -16,10 +16,7 @@
 
     <blockquote class="blockquote">
     <div class="row align-items-center my-1">
-        <span class="col-3">Your username: </span><span class="col"><b>{{ request.user.username }}</b></span>
-    </div>
-    <div class="row align-items-center my-1">
-        <span class="col-3">Your unique code: </span><span class="col"><b>{{ request.user.unique_key }}</b></span>
+        <span class="col-2">Code: </span><span class="col"><b>{{ request.user.unique_key }}</b></span>
     </div>
     </blockquote>
 

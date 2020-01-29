@@ -26,9 +26,10 @@
 {% endspaceless %}
 {% endif %}
 
+{% if DEBUG %}
 <div id="loginForm" class="row mt-4">
 <div class="col">
-    <p><small class="text-center">Have you started or completed this study before? Enter the username that you were provided.</small></p>
+    <p><small class="text-center">Login as a previous user (DEBUG only).</small></p>
     {% if form.errors %}
     <div class="alert alert-danger">
         <span>Your username does not exist. If you think this is an error, please open a support ticket through Mechanical Turk.</span>
@@ -45,6 +46,7 @@
     </form>
 </div>
 </div>
+{% endif %}
 
 <div id="errorMessage" class="row justify-content-center d-none">
 <div class="col alert alert-danger">
@@ -82,7 +84,6 @@
         || browser.getPlatformType() !== bowser.PLATFORMS_MAP.desktop
         || !allowed_browsers.includes(browser.getBrowserName())
     ) {
-        $("#loginForm").addClass("d-none");
         $("#startStudy").addClass("d-none");
         $("#errorMessage").removeClass("d-none");
     }
