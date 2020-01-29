@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Dump the data as JSON to the dropbox folder specified by the StudyManagement
+# Fetch JSON data from dropbox and load into the database
 
 import os
 import sys
@@ -24,7 +24,7 @@ class Command(BaseCommand):
     Dump the users and the associated mangement object that was used
     """
 
-    help = "Load data from json files and put them in the DB"
+    help = "Load data from JSON files and put them in the DB"
 
     USER_DETAILS_FILE = 'user_details.json'
     MANAGEMENT_DETAILS_FILE = 'management.json'
