@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'website',
     'dining_room.apps.DiningRoomConfig',
     'corsheaders',
+    'db_mutex',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

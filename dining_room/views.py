@@ -19,6 +19,8 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 
+from db_mutex.db_mutex import db_mutex
+
 from .models import User
 from .models.domain import constants, State, Transition, display
 from .forms import DemographicsForm, InstructionsTestForm, SurveyForm, CreateUserForm
@@ -220,10 +222,14 @@ def create(request):
 
     # If the form is not valid (this is when we log the user in, if possible)
     # then include an error message
-    if not form.is_valid():
+    form_valid = False
+    with db_mutex('create_user_lock'):
+        form_valid = form.is_valid()
+
+    if not form_valid:
         messages.error(
             request,
-            "Thank you for your time, but it appears that all robots are being helped right now; please check back later if the HIT is still available on Mechanical Turk."
+            "Thank you for your time, but it appears that all robots are being helped right now; you can try again in a few moments if the HIT is still available on Mechanical Turk."
         )
 
     # Redirect to the login page. If the user is logged in, they'll get
