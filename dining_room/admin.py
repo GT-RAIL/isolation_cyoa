@@ -101,8 +101,8 @@ class UserAdmin(admin.ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
-    list_display = ('username', 'amt_worker_id', 'unique_key', 'study_condition', 'start_condition', 'study_progress', 'num_incorrect', 'valid_data')
-    list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, InvalidDataListFilter, 'is_superuser')
+    list_display = ('username', 'amt_worker_id', 'unique_key', 'study_management', 'study_condition', 'start_condition', 'study_progress', 'num_incorrect', 'valid_data')
+    list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management', 'is_superuser')
     search_fields = ('username', 'amt_worker_id', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'date_joined', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')

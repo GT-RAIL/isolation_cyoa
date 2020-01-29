@@ -1,6 +1,4 @@
 import os
-import csv
-import dropbox
 
 from django.conf import settings
 from django.db import models
