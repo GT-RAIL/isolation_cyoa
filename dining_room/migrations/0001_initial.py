@@ -10,8 +10,19 @@ from django.conf import settings
 
 def create_study_management(apps, schema_editor):
     """Create the single study management row"""
+    start_conditions = [
+        'kc.kc.occluding.above_mug.default.empty.dt',
+        'dt.kc.default.default.default.empty.kc',
+        'kc.dt.default.default.default.empty.dt',
+        'kc.dt.occluding.above_mug.default.empty.dt',
+        'kc.kc.default.above_mug.default.empty.dt',
+        'kc.dt.default.above_mug.default.empty.dt',
+        'kc.dt.occluding.default.default.empty.dt',
+        'kc.kc.occluding.default.default.empty.dt',
+    ]
+
     StudyManagement = apps.get_model('dining_room', 'StudyManagement')
-    sm = StudyManagement(data_directory='userdata_2020-01-20' if not settings.DEBUG else 'userdata_dev')
+    sm = StudyManagement(data_directory='userdata_dev', enabled_start_conditions="\n".join(start_conditions))
     sm.save()
 
 
