@@ -68,8 +68,8 @@
         </div>
         {% endif %}
         <div class="row">
-            <legend class="col-form-label col-3 py-0"><h5>{{ field.label }}</h5></legend>
-            <div class="col">
+            <legend class="col-form-label col-sm-3 py-0"><h5>{{ field.label }}</h5></legend>
+            <div class="col-sm">
                 {% for value, name in field.field.choices %}
                 {% if value != '' %}
                 <div class="form-check">
@@ -82,14 +82,16 @@
         </div>
         </fieldset>
     {% else %}
-        <div class="form-group">
-            {% if field.errors %}
-            <div class="row">
-            <div class="col alert alert-danger">{% for error in field.errors %}<p class="my-1">{{ error }}</p>{% endfor %}</div>
+        {% if field.errors %}
+        <div class="row">
+        <div class="col alert alert-danger">{% for error in field.errors %}<p class="my-1">{{ error }}</p>{% endfor %}</div>
+        </div>
+        {% endif %}
+        <div class="form-group row">
+            <label for="{{ field.id_for_label }}" class="col-sm-3 col-form-label"><h5>{{ field.label }}{% if field.name == 'amt_worker_id' %}<small> (<a href="https://blog.mturk.com/get-to-know-the-new-worker-site-4a69967d90c3" target="_blank">where is this?</a>)</small>{% endif %}</h5></label>
+            <div class="col-sm">
+                <input type="text" name="{{ field.name }}" id="{{ field.id_for_label }}" value="{{ field.value|default_if_none:'' }}">
             </div>
-            {% endif %}
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
         </div>
     {% endif %}
 

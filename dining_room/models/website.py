@@ -185,6 +185,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         WEEKLY = 3
         DAILY = 4
 
+    amt_worker_id = models.CharField(_("Worker ID"), max_length=30, null=True, blank=True)
     age_group = models.IntegerField(choices=AgeGroups.choices, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=Genders.choices, blank=True, null=True)
     robot_experience = models.IntegerField(_("how often do you interact with robots?"), choices=RobotExperienceGroups.choices, blank=True, null=True)

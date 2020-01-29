@@ -30,8 +30,16 @@ class CreateUserForm(forms.Form):
         super().__init__(*args, **kwargs)
 
     def _create_user(self, study_condition, start_condition):
-        username = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
-        unique_key = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
+        # Loop through to make sure that we never have duplicates
+        username = unique_key = None
+        while ((username is None or unique_key is None)):
+            username_candidate = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
+            unique_key_candidate = User.objects.make_random_password(allowed_chars='abcdefghjkmnpqrstuvwxyz23456789')
+            num_existing_users = User.objects.filter(Q(username=username_candidate) | Q(unique_key=unique_key_candidate)).count()
+            if num_existing_users == 0:
+                username, unique_key = username_candidate, unique_key_candidate
+
+        # Create the user
         user = User.objects.create_user(username, unique_key, study_condition=study_condition, start_condition=start_condition)
         return user
 
@@ -99,7 +107,7 @@ class DemographicsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ['age_group', 'gender', 'robot_experience']
+        fields = ['amt_worker_id', 'age_group', 'gender', 'robot_experience']
 
     def __init__(self, *args, **kwargs):
         # Initialize the form
