@@ -206,6 +206,8 @@ constants = objdict({
         # If the user has completed the study, and the survey, then redirect
         # to the completed page
         'SURVEYED': ['complete'],
+        # If the user has failed the knowledge test, then mark them as failed
+        'FAILED': ['fail'],
     }),
 })
 

@@ -10,7 +10,9 @@
 <div class="row">
     <div class="col mt-4">
     <h3>Knowledge Review</h3>
-    <p>Please answer the following questions to the best of your ability before proceeding; <b>you must answer all questions correctly in order to proceed</b>. You may return to the instructions to refresh anything you might've forgotten.</p>
+    <p>Please answer the following questions to the best of your ability before proceeding; <b>you must answer all questions correctly in order to proceed</b>.</p>
+    <p>You may return to the instructions to refresh anything you might've forgotten.</p>
+    <p>If you fail the Knowledge Review {{ request.user.study_management.max_test_attempts|default_if_none:5 }} times or more, your work will be rejected and you will not be compensated.</p>
     </div>
 </div>
 

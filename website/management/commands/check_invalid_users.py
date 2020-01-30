@@ -22,13 +22,10 @@ class Command(BaseCommand):
     a reason why
     """
 
-    DEFAULT_INCORRECT_REVIEWS = 10
-
     help = "Check users to see if the data is valid"
 
     def add_arguments(self, parser):
         parser.add_argument("--user-ids", nargs='*', default=[x.pk for x in User.objects.order_by('pk')], help="The user ids to get actions for")
-        parser.add_argument("--incorrect-reviews", default=Command.DEFAULT_INCORRECT_REVIEWS)
 
     def handle(self, *args, **options):
         verbosity = options.get('verbosity')
@@ -38,8 +35,7 @@ class Command(BaseCommand):
         checks = {
             'incorrect_reviews': {
                 'func': self._check_num_review_questions,
-                'msg': "too many incorrect reviews",
-                'incorrect_reviews': options['incorrect_reviews'],
+                'msg': "too many test attempts",
             },
             'did_not_finish': {
                 'func': self._check_finished,
@@ -78,9 +74,10 @@ class Command(BaseCommand):
 
     def _check_num_review_questions(self, user, **options):
         return message_if_true(
-            user.number_incorrect_knowledge_reviews > options['incorrect_reviews'],
+            user.number_incorrect_knowledge_reviews >= user.study_management.max_test_attempts,
             options['msg']
         )
+
     def _check_finished(self, user, **options):
         return message_if_true(user.study_progress != 'SURVEYED', options['msg'])
 

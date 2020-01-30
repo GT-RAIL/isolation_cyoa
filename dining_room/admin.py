@@ -69,7 +69,7 @@ class StudyManagementAdmin(admin.ModelAdmin):
     """
     The admin class for the StudyManagement model
     """
-    list_display = ('__str__', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
+    list_display = ('__str__', 'max_test_attempts', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
     save_as = True
 
 

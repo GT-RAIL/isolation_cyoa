@@ -13,6 +13,7 @@ urlpatterns = [
     path('study', views.StudyView.as_view(), name='study'),
     path('survey', views.SurveyView.as_view(), name='survey'),
     path('complete', views.CompleteView.as_view(), name='complete'),
+    path('fail', views.FailView.as_view(), name='fail'),
     path('logout', auth_views.logout_then_login, name='logout'),
 
     # XHR

@@ -24,6 +24,7 @@ class StudyManagement(models.Model):
     enabled_start_conditions = models.TextField(default="none", help_text="\\n separated start conditions")
     number_per_condition = models.PositiveIntegerField(default=0, help_text="Number of people per combination of the conditions")
     max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
+    max_test_attempts = models.IntegerField(default=5, help_text="Maximum number of times a user can fail the knowledge test")
     data_directory = models.CharField(max_length=20, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
 
     _enabled_study_conditions = _enabled_start_conditions = None
@@ -249,7 +250,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         WEEKLY = 3
         DAILY = 4
 
-    amt_worker_id = models.CharField(_("Worker ID"), max_length=30, null=True, blank=True)
+    amt_worker_id = models.CharField(_("Worker ID"), max_length=80, null=True, blank=True)
     age_group = models.IntegerField(choices=AgeGroups.choices, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=Genders.choices, blank=True, null=True)
     robot_experience = models.IntegerField(_("how often do you interact with robots?"), choices=RobotExperienceGroups.choices, blank=True, null=True)
@@ -362,6 +363,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         state = None
         if self.last_login is None:
             state = 'CREATED'
+        elif self.invalid_data:
+            state = 'FAILED'
         elif self.date_demographics_completed is None:
             state = 'LOGGED_IN'
         elif self.date_started is None:

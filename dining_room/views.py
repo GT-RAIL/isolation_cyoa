@@ -210,6 +210,13 @@ class CompleteView(TemplateView):
     template_name = 'dining_room/complete.html'
 
 
+class FailView(TemplateView):
+    """
+    Show the failure page to the user
+    """
+    template_name = 'dining_room/fail.html'
+
+
 @require_POST
 @never_cache
 def create(request):

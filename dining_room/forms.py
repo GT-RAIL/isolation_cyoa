@@ -51,7 +51,11 @@ class CreateUserForm(forms.Form):
         sm = StudyManagement.get_default()
 
         # First check that we haven't exceeded the max number of users
-        number_of_users = User.objects.filter(is_staff=False).count()
+        users_not_staff = Q(is_staff=False)
+        users_valid_condition = Q(ignore_data_reason__isnull=True)
+        # date_joined_condition = Q(date_joined__gte=(timezone.now()-CreateUserForm.DATE_JOINED_TIMEDELTA))
+        # date_finished_condition = Q(date_finished__isnull=False)
+        number_of_users = User.objects.filter(users_not_staff & users_valid_condition).count()
         if sm.max_number_of_people <= number_of_users:
             raise forms.ValidationError("Cannot create user")
 
@@ -61,14 +65,13 @@ class CreateUserForm(forms.Form):
         for num_users in range(1, sm.number_per_condition+1):
             for study_condition in sm.enabled_study_conditions_list:
                 for start_condition in sm.enabled_start_conditions_list:
-                    users_in_condition = Q(is_staff=False, start_condition=start_condition, study_condition=study_condition)
-                    # date_joined_condition = Q(date_joined__gte=(timezone.now()-CreateUserForm.DATE_JOINED_TIMEDELTA))
-                    # date_finished_condition = Q(date_finished__isnull=False)
-
                     # Check the number of active users, if less add a user, else
                     # continue
+                    users_in_condition = Q(start_condition=start_condition, study_condition=study_condition)
                     number_users_in_condition = User.objects.filter(
                         users_in_condition
+                        & users_not_staff
+                        & users_valid_condition
                         # & (date_joined_condition | date_finished_condition)
                     ).count()
                     if number_users_in_condition < num_users:
@@ -117,6 +120,16 @@ class DemographicsForm(forms.ModelForm):
         for key in self.fields:
             self.fields[key].required = True
 
+    def clean(self):
+        """Check to see if a known failed AMT worker has tried this again"""
+        cleaned_data = super().clean()
+
+        # Get workers with the same ID
+        num_failed_workers = User.objects.filter(amt_worker_id=cleaned_data['amt_worker_id'], ignore_data_reason__isnull=False).count()
+        if num_failed_workers > 0:
+            self.instance.ignore_data_reason = f"failed worker ID of {cleaned_data['amt_worker_id']} is repeated"
+            self.instance.save()
+
     def save(self, *args, **kwargs):
         """Update the date that demographics information was completed"""
         self.instance.date_demographics_completed = timezone.now()
@@ -152,6 +165,8 @@ class InstructionsTestForm(forms.ModelForm):
                 errors.append(forms.ValidationError("The question '%(question)s' must be answered", params={'question': self.fields[key].label}))
 
         if len(errors) > 0:
+            self.instance.number_incorrect_knowledge_reviews += 1
+            self.instance.save()
             raise forms.ValidationError(errors)
 
         # Then check to see the knowledge review answers, and update the
@@ -160,7 +175,13 @@ class InstructionsTestForm(forms.ModelForm):
             if cleaned_data.get(key, 'Unknown') != self.acceptable_answers[key]:
                 self.instance.number_incorrect_knowledge_reviews += 1
                 self.instance.save()
-                raise forms.ValidationError("At least one of your answers is incorrect")
+
+                # Check to see if this user must be booted out of the system
+                if self.instance.number_incorrect_knowledge_reviews < self.instance.study_management.max_test_attempts:
+                    raise forms.ValidationError("At least one of your answers is incorrect")
+                else:
+                    self.instance.ignore_data_reason = f"failed knowledge review {self.instance.number_incorrect_knowledge_reviews} times"
+                    self.instance.save()
 
         return cleaned_data
 
