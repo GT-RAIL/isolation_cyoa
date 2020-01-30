@@ -39,15 +39,36 @@ class StudyAction(models.Model):
     dx_confirmed_time = models.DateTimeField()
     ax_selected_time = models.DateTimeField()
 
+    # Cached property
+    _action_idx = None
+
     NOT_CSV_HEADER_FIELDS = ['id', 'user', 'start_timestamp', 'end_timestamp']
 
     class Meta:
-        verbose_name = _('action')
-        verbose_name_plural = _('actions')
+        verbose_name = _('study action')
+        verbose_name_plural = _('study actions')
 
     def __str__(self):
-        return f"{self.user.username}@{self.start_timestamp}"
+        return f"{self.user.username}, {self.action_idx}"
 
     @staticmethod
-    def csv_headers():
-        return []
+    def get_csv_headers():
+        """
+        Headers corresponding to the fields that should be present in the CSV.
+        The returned value is used by the `utils` code to figure out how to
+        structure the CSV
+        """
+        return [x for x in StudyAction._meta.get_fields() if x not in StudyAction.NOT_CSV_HEADER_FIELDS]
+
+    @property
+    def diagnoses_list(self):
+        """The diagnoses as a list instead of a comma separated string"""
+        return [x.strip() for x in self.diagnoses.split(',')]
+
+    @property
+    def action_idx(self):
+        """Get the action index for the given user"""
+        if self._action_idx is None:
+            self._action_idx = StudyAction.objects.filter(user=self.user, start_timestamp__lt=self.start_timestamp).count()
+
+        return self._action_idx

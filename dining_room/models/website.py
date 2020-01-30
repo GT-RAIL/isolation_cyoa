@@ -383,6 +383,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         """
         return (self.ignore_data_reason is not None)
 
+    @property
+    def num_actions(self):
+        """
+        Get the number of actions for this user in the study
+        """
+        return self.studyaction_set.count()
+
     # Custom methods
     def reset_progress(self, *args, **kwargs):
         """

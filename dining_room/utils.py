@@ -18,7 +18,7 @@ from django.core.files.base import File, ContentFile
 from django.utils import timezone
 from storages.backends.dropbox import DropBoxStorage, DropBoxStorageException
 
-from .models import StudyManagement
+from .models import StudyManagement, StudyAction
 
 
 logger = logging.getLogger(__name__)
@@ -85,10 +85,7 @@ class DropboxConnection:
     VIDEO_LINKS_FILE = os.path.join(settings.DROPBOX_DATA_FOLDER, 'video_links.csv')
 
     # The fields in the user data
-    USERDATA_CSV_HEADERS = [
-        'timestamp', 'start_state', 'diagnoses', 'diagnosis_certainty', 'action', 'next_state',
-        'video_loaded_time', 'video_stop_time', 'dx_selected_time', 'dx_confirmed_time', 'ax_selected_time'
-    ]
+    USERDATA_CSV_HEADERS = ['timestamp'] + StudyAction.get_csv_headers()
 
     def __init__(self):
         # Create the storage system

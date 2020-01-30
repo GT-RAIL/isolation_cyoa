@@ -17,7 +17,7 @@ from django.utils.translation import gettext, gettext_lazy as _
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 
-from .models import User, StudyManagement
+from .models import User, StudyManagement, StudyAction
 from .models.domain import constants
 
 
@@ -72,6 +72,22 @@ class StudyManagementAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
 
 
+@admin.register(StudyAction)
+class StudyActionAdmin(admin.ModelAdmin):
+    """
+    The admin class for the StudyAction model
+    """
+    list_display = (
+        '__str__', 'start_timestamp', 'start_state', 'diagnoses', 'certainty', 'action'
+    )
+
+    def certainty(self, obj):
+        return obj.diagnosis_certainty
+    certainty.admin_order_field = 'diagnosis_certainty'
+
+
+# Special requirements for the redefined auth models
+
 csrf_protect_m = method_decorator(csrf_protect)
 sensitive_post_parameters_m = method_decorator(sensitive_post_parameters())
 
@@ -103,6 +119,7 @@ class UserAdmin(admin.ModelAdmin):
     change_password_form = AdminPasswordChangeForm
     list_display = ('username', 'amt_worker_id', 'unique_key', 'study_management', 'study_condition', 'start_condition', 'study_progress', 'num_incorrect', 'valid_data')
     list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management', 'is_superuser')
+    list_editable = ('study_management',)
     search_fields = ('username', 'amt_worker_id', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'date_joined', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')
@@ -318,6 +335,69 @@ class DemographicsAdmin(admin.ModelAdmin):
     num_incorrect.admin_order_field = 'number_incorrect_knowledge_reviews'
 
 create_modeladmin(DemographicsAdmin, User, name='Demographics', verbose_name_plural='Demographics')
+
+
+class StudyActionInline(admin.TabularInline):
+    """Inline object for the study actions"""
+    model = StudyAction
+    fields = (
+        'action_idx',
+        'start_timestamp',
+        'end_timestamp',
+        'start_state',
+        'diagnoses',
+        'diagnosis_certainty',
+        'action',
+        'next_state',
+        'video_loaded_time',
+        'video_stop_time',
+        'dx_selected_time',
+        'dx_confirmed_time',
+        'ax_selected_time',
+    )
+    readonly_fields = (
+        'action_idx',
+        'start_timestamp',
+        'end_timestamp',
+        'start_state',
+        'diagnoses',
+        'diagnosis_certainty',
+        'action',
+        'next_state',
+        'video_loaded_time',
+        'video_stop_time',
+        'dx_selected_time',
+        'dx_confirmed_time',
+        'ax_selected_time',
+    )
+
+
+class ActionsAdmin(admin.ModelAdmin):
+    """
+    The view into the actions taken by the user
+    """
+
+    fieldsets = (
+        (None, {
+            'fields': (('username', 'amt_worker_id', 'study_condition', 'start_condition', 'study_progress', 'valid_data'), ('date_started', 'date_finished'))
+        }),
+    )
+    inlines = [ StudyActionInline ]
+    list_display = ('username', 'amt_worker_id', 'study_condition', 'num_incorrect', 'valid_data', 'date_started', 'date_finished', 'num_actions')
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'age_group', 'gender', 'robot_experience')
+    ordering = ('date_started', 'username', 'study_condition')
+    search_fields = ('username', 'study_condition', 'amt_worker_id')
+    readonly_fields = ('username', 'amt_worker_id', 'study_condition', 'start_condition', 'date_started', 'date_finished', 'study_progress', 'valid_data', 'num_actions')
+
+    def valid_data(self, obj):
+        return not obj.invalid_data
+    valid_data.boolean = True
+
+    def num_incorrect(self, obj):
+        return obj.number_incorrect_knowledge_reviews
+    num_incorrect.admin_order_field = 'number_incorrect_knowledge_reviews'
+
+create_modeladmin(ActionsAdmin, User, name='Actions', verbose_name_plural='Actions')
 
 
 class SurveysAdmin(admin.ModelAdmin):
