@@ -65,11 +65,14 @@ class RobotBeliefs extends React.Component {
         if (!video_status || !video_status.video_loaded) {
             return false;
         }
+        // else {
+        //     return (
+        //         (!!video_status.video_playing && this.SHOW_IN_VIDEO_ATTRS.includes(attr))
+        //         || (!video_status.video_playing && !this.SHOW_IN_VIDEO_ATTRS.includes(attr))
+        //     );
+        // }
         else {
-            return (
-                (!!video_status.video_playing && this.SHOW_IN_VIDEO_ATTRS.includes(attr))
-                || (!video_status.video_playing && !this.SHOW_IN_VIDEO_ATTRS.includes(attr))
-            );
+            return (!!video_status.video_playing && this.SHOW_IN_VIDEO_ATTRS.includes(attr));
         }
     }
 
@@ -83,9 +86,12 @@ class RobotBeliefs extends React.Component {
 
         return (
             <div className="row">
+            {/*
             <p className="col">
                 <OverlayTrigger placement="right" overlay={<Tooltip>The robot's knowledge, which may be incorrect</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>Robot Beliefs</b>
             </p>
+            */}
+            <div className="col"></div>
             <div className="col-9">
                 <table className="table-sm table table-borderless table-hover">
                     <colgroup>

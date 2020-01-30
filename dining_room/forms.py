@@ -167,7 +167,10 @@ class InstructionsTestForm(forms.ModelForm):
         if len(errors) > 0:
             self.instance.number_incorrect_knowledge_reviews += 1
             self.instance.save()
-            raise forms.ValidationError(errors)
+
+            # Only surface the error if the user should not be booted out
+            if self.instance.number_incorrect_knowledge_reviews < self.instance.study_management.max_test_attempts:
+                raise forms.ValidationError(errors)
 
         # Then check to see the knowledge review answers, and update the
         # instance if the review is incorrect
@@ -176,12 +179,14 @@ class InstructionsTestForm(forms.ModelForm):
                 self.instance.number_incorrect_knowledge_reviews += 1
                 self.instance.save()
 
-                # Check to see if this user must be booted out of the system
+                # Only surface the error if the user should not be booted out
                 if self.instance.number_incorrect_knowledge_reviews < self.instance.study_management.max_test_attempts:
                     raise forms.ValidationError("At least one of your answers is incorrect")
-                else:
-                    self.instance.ignore_data_reason = f"failed knowledge review {self.instance.number_incorrect_knowledge_reviews} times"
-                    self.instance.save()
+
+        # Check to see if we must fail this user out of the study
+        if self.instance.number_incorrect_knowledge_reviews >= self.instance.study_management.max_test_attempts:
+            self.instance.ignore_data_reason = f"failed knowledge review {self.instance.number_incorrect_knowledge_reviews} times"
+            self.instance.save()
 
         return cleaned_data
 

@@ -62,7 +62,7 @@
 <div class="row mx-n5">
 <div class="col px-0">
     <figure class="figure text-center">
-        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}six{% else %}five{% endif %} sections. The screenshot includes brief descriptions of the sections in red.</figcaption>
+        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}five{% else %}four{% endif %} sections. The screenshot includes brief descriptions of the sections in red.</figcaption>
         {% if request.user.show_dx_suggestions and request.user.show_ax_suggestions %}
         <img src="https://dl.dropboxusercontent.com/s/h4yrxgpw23jghzk/ui_dx_ax.png" class="figure-img img-fluid rounded border p-1">
         {% elif request.user.show_ax_suggestions %}
@@ -90,14 +90,14 @@
     <p class="col">The following is a brief explanation of the types of actions the robot can execute:</p>
 </div>
 <dl class="row">
+    <dt class="col-sm-3 alert alert-info">Update robot's location belief to <span class="font-weight-normal">[location]</span></dt>
+    <dd class="col-sm-9">The robot updates where in the room it thinks it is. For example, if the robot thinks it is at the Kitchen Counter when in reality it is at the Couch, this action can update that mistaken knowledge (called a <i>belief</i>).</dd>
+
     <dt class="col-sm-3 alert alert-info">Navigate to <span class="font-weight-normal">[location]</span></dt>
     <dd class="col-sm-9">The robot moves to the desired location (among the three available) in the room.</dd>
 
     <dt class="col-sm-3 alert alert-info">Look at <span class="font-weight-normal">[location]</span></dt>
     <dd class="col-sm-9">The robot moves away from its current location to point its camera at the desired location. After viewing that location for a few seconds, the robot returns to looking at its original location.</dd>
-
-    <dt class="col-sm-3 alert alert-info">Update robot's location belief to <span class="font-weight-normal">[location]</span></dt>
-    <dd class="col-sm-9">The robot updates where in the room it thinks it is. For example, if the robot thinks it is at the Kitchen Counter when in reality it is at the Couch, this action can update that mistaken belief.</dd>
 
     <dt class="col-sm-3 alert alert-info">Pick up <span class="font-weight-normal">[object]</span></dt>
     <dd class="col-sm-9">The robot picks up the object in question if it is unblocked and its hand is empty.</dd>

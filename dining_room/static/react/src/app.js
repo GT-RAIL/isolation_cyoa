@@ -42,7 +42,7 @@ let App = (props) => {
         <div className="row mt-3">
         <div className="col">
             <RobotState />
-            <hr />
+            <hr className={(!!props.condition.show_dx_suggestions || !!props.condition.show_ax_suggestions) ? "" : "d-none"} />
             <Suggestions {...props.condition} />
         </div>
         <div className="col">
