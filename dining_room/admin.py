@@ -321,7 +321,7 @@ class DemographicsAdmin(admin.ModelAdmin):
         ('Demographics', { 'fields': ('age_group', 'gender', 'robot_experience') }),
     )
     list_display = ('username', 'amt_worker_id', 'study_condition', 'num_incorrect', 'valid_data', 'date_finished', 'age_group', 'gender', 'robot_experience')
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'age_group', 'gender', 'robot_experience')
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'age_group', 'gender', 'robot_experience')
     ordering = ('date_finished', 'username', 'study_condition')
     search_fields = ('username', 'study_condition', 'amt_worker_id')
     readonly_fields = ('username', 'amt_worker_id', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress', 'valid_data')
@@ -370,6 +370,7 @@ class StudyActionInline(admin.TabularInline):
         'dx_confirmed_time',
         'ax_selected_time',
     )
+    ordering = ('start_timestamp',)
 
 
 class ActionsAdmin(admin.ModelAdmin):
@@ -383,11 +384,32 @@ class ActionsAdmin(admin.ModelAdmin):
         }),
     )
     inlines = [ StudyActionInline ]
-    list_display = ('username', 'amt_worker_id', 'study_condition', 'num_incorrect', 'valid_data', 'date_started', 'date_finished', 'num_actions')
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'date_finished', 'age_group', 'gender', 'robot_experience')
+    list_display = (
+        'username',
+        'amt_worker_id',
+        'study_condition',
+        'num_incorrect',
+        'valid_data',
+        'date_started',
+        'date_finished',
+        'num_actions',
+        'confidences',
+    )
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter)
     ordering = ('date_started', 'username', 'study_condition')
     search_fields = ('username', 'study_condition', 'amt_worker_id')
-    readonly_fields = ('username', 'amt_worker_id', 'study_condition', 'start_condition', 'date_started', 'date_finished', 'study_progress', 'valid_data', 'num_actions')
+    readonly_fields = (
+        'username',
+        'amt_worker_id',
+        'study_condition',
+        'start_condition',
+        'date_started',
+        'date_finished',
+        'study_progress',
+        'valid_data',
+        'num_actions',
+        'confidences',
+    )
 
     def valid_data(self, obj):
         return not obj.invalid_data
@@ -396,6 +418,9 @@ class ActionsAdmin(admin.ModelAdmin):
     def num_incorrect(self, obj):
         return obj.number_incorrect_knowledge_reviews
     num_incorrect.admin_order_field = 'number_incorrect_knowledge_reviews'
+
+    def confidences(self, obj):
+        return [x.diagnosis_certainty for x in obj.studyaction_set.all().order_by('start_timestamp')]
 
 create_modeladmin(ActionsAdmin, User, name='Actions', verbose_name_plural='Actions')
 
