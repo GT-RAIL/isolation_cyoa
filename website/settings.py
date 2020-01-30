@@ -93,19 +93,19 @@ DATABASES = {
 
 
 # Setup Caches
-if DEBUG:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-        }
-    }
-else:
-    CACHES = {
-        'default': {
-            'BACKEND': 'redis_cache.RedisCache',
-            'LOCATION': os.getenv('REDIS_URL', ''),
-        },
-    }
+# if DEBUG:
+#     CACHES = {
+#         'default': {
+#             'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+#         }
+#     }
+# else:
+#     CACHES = {
+#         'default': {
+#             'BACKEND': 'redis_cache.RedisCache',
+#             'LOCATION': os.getenv('REDIS_URL', ''),
+#         },
+#     }
 
 
 # Password validation
@@ -132,10 +132,10 @@ LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/demographics'
 
 # Caches are disabled in development, so change the session engine too
-if DEBUG:
-    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-else:
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+# if DEBUG:
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# else:
+#     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
