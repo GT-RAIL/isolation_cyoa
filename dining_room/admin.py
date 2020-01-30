@@ -70,6 +70,7 @@ class StudyManagementAdmin(admin.ModelAdmin):
     The admin class for the StudyManagement model
     """
     list_display = ('__str__', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
+    save_as = True
 
 
 @admin.register(StudyAction)
@@ -388,10 +389,11 @@ class ActionsAdmin(admin.ModelAdmin):
         'username',
         'amt_worker_id',
         'study_condition',
+        'start_condition',
         'num_incorrect',
         'valid_data',
         'date_started',
-        'date_finished',
+        'duration',
         'num_actions',
         'confidences',
     )
@@ -404,7 +406,7 @@ class ActionsAdmin(admin.ModelAdmin):
         'study_condition',
         'start_condition',
         'date_started',
-        'date_finished',
+        'duration',
         'study_progress',
         'valid_data',
         'num_actions',
@@ -421,6 +423,9 @@ class ActionsAdmin(admin.ModelAdmin):
 
     def confidences(self, obj):
         return [x.diagnosis_certainty for x in obj.studyaction_set.all().order_by('start_timestamp')]
+
+    def duration(self, obj):
+        return (obj.date_finished - obj.date_started) if obj.date_finished is not None and obj.date_started is not None else None
 
 create_modeladmin(ActionsAdmin, User, name='Actions', verbose_name_plural='Actions')
 
