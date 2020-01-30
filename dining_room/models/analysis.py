@@ -63,7 +63,7 @@ class StudyAction(models.Model):
     @property
     def diagnoses_list(self):
         """The diagnoses as a list instead of a comma separated string"""
-        return [x.strip() for x in self.diagnoses.split(',')]
+        return [x.strip() for x in self.diagnoses.split(',')] if self.diagnoses is not None else None
 
     @property
     def action_idx(self):
@@ -72,3 +72,19 @@ class StudyAction(models.Model):
             self._action_idx = StudyAction.objects.filter(user=self.user, start_timestamp__lt=self.start_timestamp).count()
 
         return self._action_idx
+
+    @property
+    def duration(self):
+        return (self.end_timestamp - self.start_timestamp) if self.start_timestamp is not None else None
+
+    @property
+    def dx_decision_duration(self):
+        return (self.dx_selected_time - self.video_stop_time) if self.video_stop_time is not None else None
+
+    @property
+    def ax_decision_duration(self):
+        return (self.ax_selected_time - self.dx_confirmed_time) if self.dx_confirmed_time is not None else None
+
+    @property
+    def decision_duration(self):
+        return (self.ax_selected_time - self.video_stop_time) if self.video_stop_time is not None else None

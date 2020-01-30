@@ -79,8 +79,20 @@ class StudyActionAdmin(admin.ModelAdmin):
     The admin class for the StudyAction model
     """
     list_display = (
-        '__str__', 'start_timestamp', 'start_state', 'diagnoses', 'certainty', 'action'
+        '__str__',
+        'start_timestamp',
+        'duration',
+        'decision_duration',
+        'start_state',
+        'diagnoses',
+        'certainty',
+        'action',
     )
+    readonly_fields = (
+        'duration',
+        'decision_duration',
+    )
+    ordering = ('user', 'start_timestamp')
 
     def certainty(self, obj):
         return obj.diagnosis_certainty
@@ -344,34 +356,31 @@ class StudyActionInline(admin.TabularInline):
     fields = (
         'action_idx',
         'start_timestamp',
-        'end_timestamp',
+        'duration',
         'start_state',
         'diagnoses',
         'diagnosis_certainty',
         'action',
         'next_state',
-        'video_loaded_time',
-        'video_stop_time',
-        'dx_selected_time',
-        'dx_confirmed_time',
-        'ax_selected_time',
+        'decision_duration',
+        'dx_decision_duration',
+        'ax_decision_duration',
     )
     readonly_fields = (
         'action_idx',
         'start_timestamp',
-        'end_timestamp',
+        'duration',
         'start_state',
         'diagnoses',
         'diagnosis_certainty',
         'action',
         'next_state',
-        'video_loaded_time',
-        'video_stop_time',
-        'dx_selected_time',
-        'dx_confirmed_time',
-        'ax_selected_time',
+        'decision_duration',
+        'dx_decision_duration',
+        'ax_decision_duration',
     )
     ordering = ('start_timestamp',)
+    extra = 0
 
 
 class ActionsAdmin(admin.ModelAdmin):

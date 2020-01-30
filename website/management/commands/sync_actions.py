@@ -130,7 +130,7 @@ class Command(BaseCommand):
             # Iterate and add actions to the model
             actions_added = []
             for idx, data in enumerate(reversed(csv_data)):
-                prev_idx = csv_len-idx-1
+                prev_idx = (csv_len-idx-1) - 1
                 action = self._get_action_from_rows(data, (csv_data[prev_idx] if prev_idx >= 0 else None))
 
                 if action is None:
