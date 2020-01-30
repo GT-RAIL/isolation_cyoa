@@ -136,7 +136,7 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ('username', 'amt_worker_id', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'date_joined', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')
-    readonly_fields = ('study_progress', 'valid_data', 'num_incorrect', 'number_incorrect_knowledge_reviews')
+    readonly_fields = ('study_progress', 'valid_data', 'num_incorrect')
     actions = ['reset_study_progress', 'reset_invalid_data']
 
     def valid_data(self, obj):
