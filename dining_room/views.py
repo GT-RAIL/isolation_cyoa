@@ -276,11 +276,11 @@ def get_next_state_json(current_state, action):
     """
     current_state = State(current_state)
 
-    # First check the cache for the answer
-    cache_key = f"{'.'.join(current_state.tuple)}:{action}"
-    cache_value = cache.get(cache_key)
-    if cache_value is not None:
-        return cache_value
+    # # First check the cache for the answer
+    # cache_key = f"{'.'.join(current_state.tuple)}:{action}"
+    # cache_value = cache.get(cache_key)
+    # if cache_value is not None:
+    #     return cache_value
 
     # Generate the JSON data
     action_result = True
@@ -321,8 +321,8 @@ def get_next_state_json(current_state, action):
         "scenario_completed": next_state.is_end_state,
     }
 
-    # Save the data to the cache
-    cache.set(cache_key, next_state_json)
+    # # Save the data to the cache
+    # cache.set(cache_key, next_state_json)
 
     # Return the dictionary
     return next_state_json
