@@ -48,10 +48,13 @@ class Command(BaseCommand):
         }
 
         # Iterate through the users and get their data
+        invalid_worker_ids = set()
         for user in users:
             if user.invalid_data:
                 if verbosity > 1:
                     self.stdout.write(f"Skipping {user}: invalid")
+                if user.amt_worker_id is not None:
+                    invalid_worker_ids.add(user.amt_worker_id)
                 continue
 
             for check_name, check_options in checks.items():
@@ -68,6 +71,10 @@ class Command(BaseCommand):
             # Print a status message
             if verbosity > 1:
                 self.stdout.write(f"Check complete for {user}")
+
+        # Print out the code to paste into the data migration for invalid users
+        self.stdout.write("Worker IDs to blacklist:")
+        self.stdout.write(",\n".join([f"'{x}'" for x in invalid_worker_ids]))
 
         # Print a completion message
         self.stdout.write(self.style.SUCCESS("Users checked!"))

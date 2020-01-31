@@ -64,6 +64,51 @@ class InvalidDataListFilter(admin.SimpleListFilter):
 
 # Register your models here.
 
+
+class UserInline(admin.TabularInline):
+    model = User
+    fields = (
+        'username',
+        'unique_key',
+        'amt_worker_id',
+        'study_condition',
+        'start_condition',
+        'study_progress',
+        'num_incorrect',
+        'valid_data',
+        'num_actions',
+        'date_demographics_completed',
+        'date_started',
+        'date_finished',
+        'date_survey_completed',
+    )
+    readonly_fields = (
+        'username',
+        'unique_key',
+        'amt_worker_id',
+        'study_condition',
+        'start_condition',
+        'study_progress',
+        'num_incorrect',
+        'valid_data',
+        'num_actions',
+        'date_demographics_completed',
+        'date_started',
+        'date_finished',
+        'date_survey_completed',
+    )
+    show_change_link = True
+    extra = 0
+
+    def valid_data(self, obj):
+        return not obj.invalid_data
+    valid_data.boolean = True
+
+    def num_incorrect(self, obj):
+        return obj.number_incorrect_knowledge_reviews
+    num_incorrect.admin_order_field = 'number_incorrect_knowledge_reviews'
+
+
 @admin.register(StudyManagement)
 class StudyManagementAdmin(admin.ModelAdmin):
     """
@@ -71,6 +116,7 @@ class StudyManagementAdmin(admin.ModelAdmin):
     """
     list_display = ('__str__', 'max_test_attempts', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
     save_as = True
+    inlines = [ UserInline ]
 
 
 @admin.register(StudyAction)
@@ -116,10 +162,10 @@ class UserAdmin(admin.ModelAdmin):
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('unique_key', 'amt_worker_id')}),
         (_('Study Conditions'), {'fields': ('study_management', 'study_condition', 'start_condition', 'study_progress', 'scenario_completed', 'number_incorrect_knowledge_reviews', 'ignore_data_reason')}),
+        (_('Important dates'), {'fields': ('last_login', 'date_modified', 'date_demographics_completed', 'date_started', 'date_finished', 'date_survey_completed')}),
         (_('Permissions'), {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'fields': ('is_active', 'is_staff', 'is_superuser')#, 'groups', 'user_permissions'),
         }),
-        (_('Important dates'), {'fields': ('last_login', 'date_demographics_completed', 'date_started', 'date_finished', 'date_survey_completed')}),
     )
     add_fieldsets = (
         (None, {
@@ -136,7 +182,7 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ('username', 'amt_worker_id', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'date_joined', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')
-    readonly_fields = ('study_progress', 'valid_data', 'num_incorrect')
+    readonly_fields = ('study_progress', 'valid_data', 'num_incorrect', 'last_login', 'date_modified')
     actions = ['reset_study_progress', 'reset_invalid_data']
 
     def valid_data(self, obj):
@@ -380,6 +426,7 @@ class StudyActionInline(admin.TabularInline):
         'ax_decision_duration',
     )
     ordering = ('start_timestamp',)
+    show_change_link = True
     extra = 0
 
 
