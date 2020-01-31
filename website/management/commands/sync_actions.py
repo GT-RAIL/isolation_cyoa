@@ -53,7 +53,7 @@ class Command(BaseCommand):
                     data.append(row)
 
         except dropbox.exceptions.ApiError as e:
-            raise CommandError(f"Error downloading dropbox file: {e.user_message_text}")
+            raise CommandError(f"Error downloading dropbox file: {e}")
 
         return data
 

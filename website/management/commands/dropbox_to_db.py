@@ -45,7 +45,7 @@ class Command(BaseCommand):
         try:
             self.dbx.files_download_to_file(local_filename, dbx_filename)
         except dropbox.exceptions.ApiError as e:
-            raise CommandError(f"Error downloading dropbox file: {e.user_message_text}")
+            raise CommandError(f"Error downloading dropbox file: {e}")
 
     def handle(self, *args, **options):
         dbx_folder = os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER, options['data_directory'])

@@ -43,7 +43,7 @@ class Command(BaseCommand):
                 data = fd.read()
                 self.dbx.files_upload(data, dbx_filename, dropbox.files.WriteMode.overwrite, mute=True)
         except dropbox.exceptions.ApiError as e:
-            raise CommandError(f"Error uploading dropbox file: {e.user_message_text}")
+            raise CommandError(f"Error uploading dropbox file: {e}")
 
     def handle(self, *args, **options):
         dbx_folder = os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER, options['dropbox_folder'])
