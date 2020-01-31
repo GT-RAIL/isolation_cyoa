@@ -25,7 +25,7 @@ class StudyManagement(models.Model):
     number_per_condition = models.PositiveIntegerField(default=0, help_text="Number of people per combination of the conditions")
     max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
     max_test_attempts = models.IntegerField(default=5, help_text="Maximum number of times a user can fail the knowledge test")
-    data_directory = models.CharField(max_length=20, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
+    data_directory = models.CharField(max_length=50, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
 
     _enabled_study_conditions = _enabled_start_conditions = None
 

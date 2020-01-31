@@ -58,7 +58,7 @@ class StudyAction(models.Model):
         The returned value is used by the `utils` code to figure out how to
         structure the CSV
         """
-        return [x for x in StudyAction._meta.get_fields() if x not in StudyAction.NOT_CSV_HEADER_FIELDS]
+        return [x.name for x in StudyAction._meta.get_fields() if x.name not in StudyAction.NOT_CSV_HEADER_FIELDS]
 
     @property
     def diagnoses_list(self):

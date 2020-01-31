@@ -59,7 +59,7 @@ class Command(BaseCommand):
             (Command.USER_DETAILS_FILE, {
                 'name': 'dining_room.User',
                 'model': User,
-                'ignore_fields': { 'groups', 'user_permissions' }
+                'ignore_fields': { 'groups', 'user_permissions', 'study_management' }
             }),
         ]
 
