@@ -74,7 +74,7 @@ class Command(BaseCommand):
 
         # Print out the code to paste into the data migration for invalid users
         self.stdout.write("Worker IDs to blacklist:")
-        self.stdout.write(",\n".join([f"'{x}'" for x in invalid_worker_ids]))
+        self.stdout.write(",\n".join([f"'{x}'" for x in sorted(invalid_worker_ids)]))
 
         # Print a completion message
         self.stdout.write(self.style.SUCCESS("Users checked!"))
