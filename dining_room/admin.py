@@ -176,13 +176,37 @@ class UserAdmin(admin.ModelAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
-    list_display = ('username', 'amt_worker_id', 'unique_key', 'study_management', 'study_condition', 'start_condition', 'study_progress', 'num_incorrect', 'valid_data')
+    list_display = (
+        'username',
+        'amt_worker_id',
+        'unique_key',
+        'study_management',
+        'study_condition',
+        'start_condition',
+        'study_progress',
+        'num_incorrect',
+        'valid_data',
+        'demographics_duration',
+        'instructions_duration',
+        'study_duration',
+        'survey_duration',
+    )
     list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management', 'is_superuser')
     list_editable = ('study_management',)
     search_fields = ('username', 'amt_worker_id', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'date_joined', 'last_login')
     filter_horizontal = ('groups', 'user_permissions')
-    readonly_fields = ('study_progress', 'valid_data', 'num_incorrect', 'last_login', 'date_modified')
+    readonly_fields = (
+        'study_progress',
+        'valid_data',
+        'num_incorrect',
+        'last_login',
+        'date_modified',
+        'demographics_duration',
+        'instructions_duration',
+        'study_duration',
+        'survey_duration',
+    )
     actions = ['reset_study_progress', 'reset_invalid_data']
 
     def valid_data(self, obj):
@@ -192,6 +216,34 @@ class UserAdmin(admin.ModelAdmin):
     def num_incorrect(self, obj):
         return obj.number_incorrect_knowledge_reviews
     num_incorrect.admin_order_field = 'number_incorrect_knowledge_reviews'
+
+    def demographics_duration(self, obj):
+        return (
+            (obj.date_demographics_completed - obj.last_login)
+            if obj.date_demographics_completed is not None and obj.last_login is not None
+            else None
+        )
+
+    def instructions_duration(self, obj):
+        return (
+            (obj.date_started - obj.date_demographics_completed)
+            if obj.date_started is not None and obj.date_demographics_completed is not None
+            else None
+        )
+
+    def study_duration(self, obj):
+        return (
+            (obj.date_finished - obj.date_started)
+            if obj.date_finished is not None and obj.date_started is not None
+            else None
+        )
+
+    def survey_duration(self, obj):
+        return (
+            (obj.date_survey_completed - obj.date_finished)
+            if obj.date_survey_completed is not None and obj.date_finished is not None
+            else None
+        )
 
     def reset_study_progress(self, request, queryset):
         """Reset the study progress of the selected users"""
@@ -380,7 +432,7 @@ class DemographicsAdmin(admin.ModelAdmin):
         ('Demographics', { 'fields': ('age_group', 'gender', 'robot_experience') }),
     )
     list_display = ('username', 'amt_worker_id', 'study_condition', 'num_incorrect', 'valid_data', 'date_finished', 'age_group', 'gender', 'robot_experience')
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'age_group', 'gender', 'robot_experience')
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management')
     ordering = ('date_finished', 'username', 'study_condition')
     search_fields = ('username', 'study_condition', 'amt_worker_id')
     readonly_fields = ('username', 'amt_worker_id', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress', 'valid_data')
@@ -453,7 +505,7 @@ class ActionsAdmin(admin.ModelAdmin):
         'num_actions',
         'confidences',
     )
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter)
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management')
     ordering = ('date_started', 'username', 'study_condition')
     search_fields = ('username', 'study_condition', 'amt_worker_id')
     readonly_fields = (
@@ -510,17 +562,26 @@ class SurveysAdmin(admin.ModelAdmin):
         'valid_data',
         'start_condition',
         'study_condition',
-        'certain_of_actions_list_display',
-        'not_sure_how_to_help_list_display',
-        'system_helped_understand_list_display',
-        'could_not_identify_problems_list_display',
-        'information_was_enough_list_display',
-        'identify_problems_in_future_list_display',
-        'system_was_responsible_list_display',
-        'rely_on_system_in_future_list_display',
-        'user_was_competent_list_display',
+        'certain_of_actions',
+        'not_sure_how_to_help',
+        'system_helped_understand',
+        'could_not_identify_problems',
+        'information_was_enough',
+        'identify_problems_in_future',
+        'system_was_responsible',
+        'rely_on_system_in_future',
+        'user_was_competent',
+        # 'certain_of_actions_list_display',
+        # 'not_sure_how_to_help_list_display',
+        # 'system_helped_understand_list_display',
+        # 'could_not_identify_problems_list_display',
+        # 'information_was_enough_list_display',
+        # 'identify_problems_in_future_list_display',
+        # 'system_was_responsible_list_display',
+        # 'rely_on_system_in_future_list_display',
+        # 'user_was_competent_list_display',
     )
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter)
+    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management')
     ordering = ('date_survey_completed', 'username', 'study_condition')
     search_fields = ('username', 'amt_worker_id', 'study_condition')
     readonly_fields = (
@@ -547,50 +608,50 @@ class SurveysAdmin(admin.ModelAdmin):
         return obj.number_incorrect_knowledge_reviews
     num_incorrect.admin_order_field = 'number_incorrect_knowledge_reviews'
 
-    def certain_of_actions_list_display(self, obj):
-        return obj.certain_of_actions
-    certain_of_actions_list_display.short_description = 'certain_of_actions'
-    certain_of_actions_list_display.admin_order_field = 'certain_of_actions'
+    # def certain_of_actions_list_display(self, obj):
+    #     return obj.certain_of_actions
+    # certain_of_actions_list_display.short_description = 'certain_of_actions'
+    # certain_of_actions_list_display.admin_order_field = 'certain_of_actions'
 
-    def not_sure_how_to_help_list_display(self, obj):
-        return obj.not_sure_how_to_help
-    not_sure_how_to_help_list_display.short_description = 'not_sure_how_to_help'
-    not_sure_how_to_help_list_display.admin_order_field = 'not_sure_how_to_help'
+    # def not_sure_how_to_help_list_display(self, obj):
+    #     return obj.not_sure_how_to_help
+    # not_sure_how_to_help_list_display.short_description = 'not_sure_how_to_help'
+    # not_sure_how_to_help_list_display.admin_order_field = 'not_sure_how_to_help'
 
-    def system_helped_understand_list_display(self, obj):
-        return obj.system_helped_understand
-    system_helped_understand_list_display.short_description = 'system_helped_understand'
-    system_helped_understand_list_display.admin_order_field = 'system_helped_understand'
+    # def system_helped_understand_list_display(self, obj):
+    #     return obj.system_helped_understand
+    # system_helped_understand_list_display.short_description = 'system_helped_understand'
+    # system_helped_understand_list_display.admin_order_field = 'system_helped_understand'
 
-    def could_not_identify_problems_list_display(self, obj):
-        return obj.could_not_identify_problems
-    could_not_identify_problems_list_display.short_description = 'could_not_identify_problems'
-    could_not_identify_problems_list_display.admin_order_field = 'could_not_identify_problems'
+    # def could_not_identify_problems_list_display(self, obj):
+    #     return obj.could_not_identify_problems
+    # could_not_identify_problems_list_display.short_description = 'could_not_identify_problems'
+    # could_not_identify_problems_list_display.admin_order_field = 'could_not_identify_problems'
 
-    def information_was_enough_list_display(self, obj):
-        return obj.information_was_enough
-    information_was_enough_list_display.short_description = 'information_was_enough'
-    information_was_enough_list_display.admin_order_field = 'information_was_enough'
+    # def information_was_enough_list_display(self, obj):
+    #     return obj.information_was_enough
+    # information_was_enough_list_display.short_description = 'information_was_enough'
+    # information_was_enough_list_display.admin_order_field = 'information_was_enough'
 
-    def identify_problems_in_future_list_display(self, obj):
-        return obj.identify_problems_in_future
-    identify_problems_in_future_list_display.short_description = 'identify_problems_in_future'
-    identify_problems_in_future_list_display.admin_order_field = 'identify_problems_in_future'
+    # def identify_problems_in_future_list_display(self, obj):
+    #     return obj.identify_problems_in_future
+    # identify_problems_in_future_list_display.short_description = 'identify_problems_in_future'
+    # identify_problems_in_future_list_display.admin_order_field = 'identify_problems_in_future'
 
-    def system_was_responsible_list_display(self, obj):
-        return obj.system_was_responsible
-    system_was_responsible_list_display.short_description = 'system_was_responsible'
-    system_was_responsible_list_display.admin_order_field = 'system_was_responsible'
+    # def system_was_responsible_list_display(self, obj):
+    #     return obj.system_was_responsible
+    # system_was_responsible_list_display.short_description = 'system_was_responsible'
+    # system_was_responsible_list_display.admin_order_field = 'system_was_responsible'
 
-    def rely_on_system_in_future_list_display(self, obj):
-        return obj.rely_on_system_in_future
-    rely_on_system_in_future_list_display.short_description = 'rely_on_system_in_future'
-    rely_on_system_in_future_list_display.admin_order_field = 'rely_on_system_in_future'
+    # def rely_on_system_in_future_list_display(self, obj):
+    #     return obj.rely_on_system_in_future
+    # rely_on_system_in_future_list_display.short_description = 'rely_on_system_in_future'
+    # rely_on_system_in_future_list_display.admin_order_field = 'rely_on_system_in_future'
 
-    def user_was_competent_list_display(self, obj):
-        return obj.user_was_competent
-    user_was_competent_list_display.short_description = 'user_was_competent'
-    user_was_competent_list_display.admin_order_field = 'user_was_competent'
+    # def user_was_competent_list_display(self, obj):
+    #     return obj.user_was_competent
+    # user_was_competent_list_display.short_description = 'user_was_competent'
+    # user_was_competent_list_display.admin_order_field = 'user_was_competent'
 
 
 create_modeladmin(SurveysAdmin, User, name='Survey', verbose_name_plural='Surveys')
