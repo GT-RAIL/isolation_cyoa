@@ -3,7 +3,11 @@
 
 import os
 import sys
+import csv
 import json
+import re
+import tempfile
+import codecs
 
 import dropbox
 
@@ -29,6 +33,7 @@ class Command(BaseCommand):
     help = "Parse MTurk CSV files to approve work and to update worker qualifications"
 
     BATCH_RESULTS_FILE_FORMAT = 'Batch_{batch_number}_batch_results.csv'
+    BATCH_RESULTS_FILE_RE = re.compile(r'Batch_(?P<batch_number>\d+)_batch_results\.csv')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -38,19 +43,34 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         sm = StudyManagement.get_default()
-
-        parser.add_argument('batch_number', type=int, help="The batch number for the job on AMT")
         parser.add_argument('--output-folder', default=os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')), help="Folder to output generated CSV to")
         parser.add_argument('--dropbox-folder', default=sm.data_directory, help="The data directory on dropbox to get the CSV files from")
 
-    def _download_dropbox(self, dbx_filename, local_filename):
+    def _find_batch_results_file(self, dbx_folder):
         try:
-            self.dbx.files_download_to_file(local_filename, dbx_filename)
+            results = self.dbx.files_list_folder(dx_folder)
+            for entry in results.entries:
+                if
+
+    def _get_csv_data(self, dbx_filename):
+        try:
+            metadata, response = self.dbx.files_download(dbx_filename)
+
+            data = []
+            with tempfile.NamedTemporaryFile(suffix='.csv') as fd:
+                fd.write(response.content)
+                fd.seek(0)
+                reader = csv.DictReader(codecs.iterdecode(fd, 'utf-8'))
+                for row in reader:
+                    data.append(row)
+
         except dropbox.exceptions.ApiError as e:
             raise CommandError(f"Error downloading dropbox file: {e.user_message_text}")
 
+        return data
+
     def handle(self, *args, **options):
-        raise CommandError("This command remains incomplete")
+        # raise CommandError("This command remains incomplete")
 
         dbx_folder = os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER, options['dropbox_folder'])
         local_folder = '/tmp'
