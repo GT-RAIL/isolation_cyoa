@@ -53,11 +53,11 @@ RUN cd /home/banerjs && \
          scipy \
          seaborn \
          sphinx && \
+    pip install \
+        visdom && \
     sudo -H conda update -n base -c defaults conda && \
     conda install pytorch torchvision cudatoolkit=10.1 -c pytorch && \
-    pip install -r requirements.txt && \
-    pip install \
-        visdom
+    pip install -r requirements.txt
 
 # Small setup for QoL
 RUN mkdir /home/banerjs/.saves && \
@@ -65,4 +65,6 @@ RUN mkdir /home/banerjs/.saves && \
 
 # Then run the expose settings for the django dev server
 WORKDIR /notebooks
-CMD ["python" "manage.py", "runserver", "0:8000"]
+COPY docker/entrypoint.sh /venv_entrypoint.sh
+ENTRYPOINT ["/venv_entrypoint.sh"]
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8000"]
