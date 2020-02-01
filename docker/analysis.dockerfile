@@ -22,7 +22,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl -O https://repo.anaconda.com/archive/Anaconda3-2019.03-Linux-x86_64.sh && \
          sha256sum Anaconda3-2019.03-Linux-x86_64.sh && \
     bash Anaconda3-2019.03-Linux-x86_64.sh -b -p /opt/anaconda && \
-    rm -rf /var/lib/apt/lists/* \
     cd / && \
         echo 'Defaults !secure_path' >> /etc/sudoers && \
         groupadd -g ${UID} banerjs && \
@@ -33,10 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Set the user, copy the code into the container
 USER banerjs
-ADD --chown=banerjs . /home/banerjs/website
-ENV WEBSITE_WORKSPACE=/home/banerjs/website NOTEBOOKS_WORKSPACE=/notebooks
 
-# Install the basics for data science followed by the website requirements
+# Install the basics for data science
 RUN cd /home/banerjs && \
     . /opt/anaconda/etc/profile.d/conda.sh && \
     conda init && \
@@ -56,10 +53,17 @@ RUN cd /home/banerjs && \
     pip install \
         visdom && \
     sudo -H conda update -n base -c defaults conda && \
-    conda install pytorch torchvision cudatoolkit=10.1 -c pytorch && \
+    conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
+
+# Install the basics for the website; Django, etc.
+ADD --chown=banerjs . /home/banerjs/website
+ENV WEBSITE_WORKSPACE=/home/banerjs/website NOTEBOOKS_WORKSPACE=/notebooks
+RUN cd /home/banerjs/website && \
+    . /opt/anaconda/etc/profile.d/conda.sh && \
+    conda activate venv && \
     pip install -r requirements.txt
 
-# Small setup for QoL
+# Small updates for QoL
 RUN mkdir /home/banerjs/.saves && \
     ln -sf /home/banerjs/website/docker/.emacs /home/banerjs/
 

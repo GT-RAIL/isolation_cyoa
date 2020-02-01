@@ -3,6 +3,6 @@ set -e
 
 echo "Source conda"
 source /opt/anaconda/etc/profile.d/conda.sh && conda activate venv
-(ls venv/data && pip install -e .) || (ls venv/data && sudo -H pip install -e .) || echo "Unexpected virtualenv"
-export PATH=/home/banerjs/.local/bin:$PATH
+(cd $NOTEBOOKS_WORKSPACE && pip install -e .) || (cd $NOTEBOOKS_WORKSPACE && sudo -H pip install -e .) || echo "Unexpected virtualenv"
+export PATH=$HOME/.local/bin:$PATH
 exec "$@"
