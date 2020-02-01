@@ -19,6 +19,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
+if not os.getenv('ENVIRONMENT'):
+    load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), '../.env')))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
