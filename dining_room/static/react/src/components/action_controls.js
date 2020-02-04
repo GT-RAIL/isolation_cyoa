@@ -24,11 +24,18 @@ class ActionControlButton extends React.Component {
     }
 
     render() {
+        // return (
+        //     <button className={"col btn " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
+        //             style={{height: "100%", minHeight: "4rem"}}
+        //             onClick={this.select_action}
+        //             disabled={this.props.disabled}>
+        //         {window.constants.ACTIONS[this.props.value]}
+        //     </button>
+        // );
         return (
-            <button className={"col btn " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
+            <button className="col btn btn-outline-info"
                     style={{height: "100%", minHeight: "4rem"}}
-                    onClick={this.select_action}
-                    disabled={this.props.disabled}>
+                    onClick={this.select_action}>
                 {window.constants.ACTIONS[this.props.value]}
             </button>
         );
