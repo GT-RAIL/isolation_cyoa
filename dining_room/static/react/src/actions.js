@@ -17,31 +17,6 @@ export const SELECT_ACTION = 'SELECT_ACTION';
 
 // Other constants
 
-// The order in which to present diagnoses and actions
-export const DIAGNOSIS_ORDER = [
-    'lost',
-    'cannot_pick',
-    'cannot_see',
-    'different_location',
-    'none'
-];
-
-export const ACTIONS_ORDER = [
-    'at_c',
-    'at_dt',
-    'at_kc',
-    'go_to_c',
-    'go_to_dt',
-    'go_to_kc',
-    'look_at_c',
-    'look_at_dt',
-    'look_at_kc',
-    'pick_bowl',
-    'pick_jug',
-    'pick_mug',
-    'place'
-];
-
 
 // Action Creators
 

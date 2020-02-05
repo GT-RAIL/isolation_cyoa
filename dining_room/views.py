@@ -156,7 +156,9 @@ class StudyView(TemplateView):
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context['actions_constant'] = json.dumps(constants.ACTIONS)
+        context['actions_order_constant'] = json.dumps(list(constants.ACTIONS.keys()))
         context['diagnoses_constant'] = json.dumps(constants.DIAGNOSES)
+        context['diagnoses_order_constant'] = json.dumps(list(constants.DIAGNOSES.keys()))
 
         # Get the state json
         start_state_tuple = self.request.user.start_condition.split('.')

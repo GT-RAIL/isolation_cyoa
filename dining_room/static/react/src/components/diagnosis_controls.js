@@ -6,8 +6,24 @@ import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
-import { DIAGNOSIS_ORDER } from '../actions';
 import { selectDiagnoses } from '../actions';
+
+
+/** The button for diagnoses */
+const DiagnosisControlButton = (props) => {
+    return (
+        <button className={"mx-1 col btn btn-outline-info" + (!!props.selected ? " active font-weight-bold" : "")}
+                type="button"
+                style={{
+                    minHeight: "4rem",
+                    pointerEvents: (!!props.disabled ? "none" : "auto")
+                }}
+                value={props.value}
+                onClick={props.select_diagnosis}>
+            {window.constants.DIAGNOSES[props.value]}
+        </button>
+    );
+}
 
 
 /** Function to get the props from the global store */
@@ -30,6 +46,30 @@ class DiagnosisControls extends React.Component {
         // follow them for this component without creating an unnecessary
         // wrapper component.
         this.state = { selected_diagnoses: [] };
+
+        // Constants
+        this.BUTTONS_LAYOUT = [
+            {
+                name: 'Location faults',
+                diagnoses: window.constants.DIAGNOSES_ORDER.slice(0, 4),
+            },
+            {
+                name: 'Object faults',
+                diagnoses: window.constants.DIAGNOSES_ORDER.slice(4, 8),
+            },
+            {
+                name: 'Miscellaneous & None',
+                diagnoses: window.constants.DIAGNOSES_ORDER.slice(8, 11),
+            },
+        ];
+
+        // Inferred property
+        this.MAX_BUTTONS_PER_ROW = 0;
+        for (const [idx, display_object] of this.BUTTONS_LAYOUT.entries()) {
+            if (display_object.diagnoses.length > this.MAX_BUTTONS_PER_ROW) {
+                this.MAX_BUTTONS_PER_ROW = display_object.diagnoses.length;
+            }
+        }
 
         // Bind the functions
         this.select_diagnosis = this.select_diagnosis.bind(this);
@@ -67,35 +107,40 @@ class DiagnosisControls extends React.Component {
             return "";
         }
 
-        let controls_display = DIAGNOSIS_ORDER.map((diagnosis) => {
-            return (
-                <button className={"btn btn-outline-info" + (this.state.selected_diagnoses.includes(diagnosis) ? " active" : "")}
-                        type="button"
-                        style={{
-                            width: (100/DIAGNOSIS_ORDER.length) + "%",
-                            pointerEvents: (this.props.confirmed_dx.length > 0 ? "none" : "auto")
-                        }}
-                        key={diagnosis}
-                        value={diagnosis}
-                        onClick={this.select_diagnosis}>
-                    {window.constants.DIAGNOSES[diagnosis]}
-                </button>
+        // Calculate how to display the controls
+        let diagnoses_buttons = [];
+        for (const [didx, display_object] of this.BUTTONS_LAYOUT.entries()) {
+
+            // Create buttons according to the data
+            let sublayout = [];
+            for (const [sidx, diagnosis] of display_object.diagnoses.entries()) {
+                sublayout.push(
+                    <DiagnosisControlButton key={diagnosis} value={diagnosis} disabled={this.props.confirmed_dx.length > 0} selected={this.state.selected_diagnoses.includes(diagnosis)} select_diagnosis={this.select_diagnosis} />
+                );
+            }
+
+            // Pad the sublayout
+            for (let idx = sublayout.length; idx < this.MAX_BUTTONS_PER_ROW; idx++) {
+                sublayout.push(<div className="mx-1 btn col invisible" key={idx}></div>);
+            }
+
+            // Add the row of buttons
+            diagnoses_buttons.push(
+                <div className="row my-1" key={display_object.name}>
+                    {sublayout}
+                </div>
             );
-        });
+        }
 
         return (
             <div className="row">
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the problems in the current situation you observe or are trying to resolve</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What do you think is interfering with the robot's ability to achieve its goal?</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the problem(s) in the current situation you observe or are trying to resolve</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What do you think is interfering with the robot's ability to achieve its goal?</b>
                 </p>
                 </div>
-                <div className="row">
-                <div className="col btn-group btn-group-toggle">
-                    {controls_display}
-                </div>
-                </div>
+                    {diagnoses_buttons}
                 <div className="row mt-2">
                 <div className="offset-8 col">
                     <button className="btn btn-block btn-success"

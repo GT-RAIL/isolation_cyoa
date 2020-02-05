@@ -6,7 +6,6 @@ import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
-import { ACTIONS_ORDER } from '../actions';
 import { fetchNextState } from '../actions';
 
 
@@ -62,25 +61,58 @@ class ActionControls extends React.Component {
         // Constants
         this.BUTTONS_LAYOUT = [
             {
-                name: "Update location beliefs",
-                actions: ['at_c', 'at_dt', 'at_kc']
+                name: "Update location belief",
+                actions: window.constants.ACTIONS_ORDER.slice(0, 3),
             },
             {
                 name: "Navigate",
-                actions: ['go_to_c', 'go_to_kc', 'go_to_dt']
+                actions: window.constants.ACTIONS_ORDER.slice(3, 6),
+            },
+            {
+                name: "",
+                actions: window.constants.ACTIONS_ORDER.slice(6, 8),
             },
             {
                 name: "Look at",
-                actions: ['look_at_c', 'look_at_kc', 'look_at_dt']
+                actions: window.constants.ACTIONS_ORDER.slice(8, 11),
             },
             {
                 name: "Pick",
-                actions: ['pick_jug', 'pick_bowl', 'pick_mug']
+                actions: window.constants.ACTIONS_ORDER.slice(11, 14),
             },
             {
-                name: "Put away",
-                actions: ['place']
+                name: "Place",
+                actions: window.constants.ACTIONS_ORDER.slice(14, 15),
+            },
+            {
+                name: "Hardware & Drivers",
+                actions: window.constants.ACTIONS_ORDER.slice(15, 17)
             }
+
+            // {
+            //     name: "Update location beliefs",
+            //     actions: window.constants.ACTIONS_ORDER.slice(0, 3),
+            // },
+            // {
+            //     name: "Navigate",
+            //     actions: window.constants.ACTIONS_ORDER.slice(3, 6),
+            // },
+            // {
+            //     name: "Nav Distractor",
+            //     actions: window.constants.ACTIONS_ORDER.slice(6, 9),
+            // },
+            // {
+            //     name: "Look at",
+            //     actions: window.constants.ACTIONS_ORDER.slice(9, 12),
+            // },
+            // {
+            //     name: "Pick",
+            //     actions: window.constants.ACTIONS_ORDER.slice(12, 15),
+            // },
+            // {
+            //     name: "Place",
+            //     actions: window.constants.ACTIONS_ORDER.slice(15, 17),
+            // },
         ];
 
         // Inferred property
@@ -102,7 +134,7 @@ class ActionControls extends React.Component {
         let action_buttons = [];
         for (const [didx, display_object] of this.BUTTONS_LAYOUT.entries()) {
 
-            // Create the buttons and set disabled according to the data
+            // Create the buttons according to the data
             let sublayout = [];
             for (const [sidx, action_name] of display_object.actions.entries()) {
                 sublayout.push(
@@ -113,12 +145,19 @@ class ActionControls extends React.Component {
                 sublayout.push(<div className="btn col invisible" key={idx}></div>);
             }
 
-            // Add the buttons in a row
+            // Add row of buttons
             action_buttons.push(
                 <div className="row my-1" key={display_object.name}>
-                    <div className="col btn-group">
-                    {sublayout}
+                <div className="col">
+                    <div className="row">
+                    <p className="col my-0"><small>{display_object.name}</small></p>
                     </div>
+                    <div className="row">
+                    <div className="col btn-group">
+                        {sublayout}
+                    </div>
+                    </div>
+                </div>
                 </div>
             );
         }

@@ -5,8 +5,13 @@
 import os
 import sys
 import copy
+import logging
+import collections
 
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 # Helper functions and classes
@@ -109,13 +114,15 @@ def get_object_from_action_name(action):
 # Constants for the domain
 constants = objdict({
     # The actions that we can handle at any given state
-    'ACTIONS': {
+    'ACTIONS': collections.OrderedDict({
         'at_c': "Update robot's location belief to: Couch",
         'at_dt': "Update robot's location belief to:  Dining Table",
         'at_kc': "Update robot's location belief to:  Kitchen Counter",
         'go_to_c': "Navigate to Couch",
         'go_to_dt': "Navigate to Dining Table",
         'go_to_kc': "Navigate to Kitchen Counter",
+        'remove_obstacle': "Remove the obstacle blocking navigation",
+        'out_of_collision': "Move away from a collision",
         'look_at_c': "Look at Couch",
         'look_at_dt': "Look at Dining Table",
         'look_at_kc': "Look at Kitchen Counter",
@@ -123,7 +130,9 @@ constants = objdict({
         'pick_jug': "Pick up the Jug",
         'pick_mug': "Pick up the Cup",
         'place': "Put away held object",
-    },
+        'restart_video': "Restart the camera",
+        'find_charger': "Find the charger and navigate to it",
+    }),
 
     # The objects in this scenario
     'OBJECTS': ['jug', 'bowl', 'mug'],
@@ -174,13 +183,19 @@ constants = objdict({
     'ARM_STATUS': ['not_moving', 'in_motion'],
 
     # The diagnosis options. These are keys corresponding to display values
-    'DIAGNOSES': {
+    'DIAGNOSES': collections.OrderedDict({
         'lost': 'The robot is lost',
+        'cannot_move': 'The robot is stuck and cannot move to a location',
+        'base_collision': 'The robot has collided with an object',
+        'path_blocked': "The robot's path is blocked",
         'cannot_pick': 'The cup cannot be picked up',
         'cannot_see': 'The cup is not visible',
         'different_location': 'The cup is not where it should be',
+        'object_fell': "The object fell out of the robot's hand",
+        'battery_low': 'The battery is low',
+        'video_problem': 'There is a problem with the camera',
         'none': 'There is no problem',
-    },
+    }),
 
     # The maximum number of actions that we allow
     'MAX_NUMBER_OF_ACTIONS': 20,
@@ -579,18 +594,18 @@ class Transition:
         """The name of the video file to use"""
         # If this is the start, then we should be using the end state to
         # determine the video name. Else use the start state
+        action = self.action
         if self.start_state is None and self.action is None:
             state = self.end_state
-            action = 'noop'
         else:
             state = self.start_state
-            action = self.action
 
-        # First simply get the noop vs. video action
-        if action.startswith('at_'):
+        # Test the equality of the state to the end state; if equal, this is a
+        # no-op
+        if state == self.end_state or action.startswith('at_'):
             video_action = 'noop'
         else:
-            video_action = action
+            video_action = self.action
 
         # Then update look_at_ and go_to_ action definitions based on the
         # localization params
@@ -684,11 +699,6 @@ class Transition:
         # Get some attributes about the action
         location_name, object_name = get_location_from_action_name(action), get_object_from_action_name(action)
 
-        # Do not allow AT(X), GOTO(X), LOOK_AT(X) if we are at X (according
-        # to the localization)
-        if location_name is not None and constants.LOCATION_NAMES[location_name] == relocalized_base_location:
-            return end_state
-
         # Do not allow a place if the gripper is empty or if the mug is in there
         if (state.gripper_empty or state.gripper_state == 'mug') and action == 'place':
             return end_state
@@ -708,7 +718,14 @@ class Transition:
 
         # Then we use custom rules to update the state according to the action
         end_state = State(state)
-        if action.startswith('at_'):
+
+        # Idempotent mappings of AT(X), GOTO(X), LOOK_AT(X) if we are at X
+        # (according to the localization) are allowed
+        if location_name is not None and constants.LOCATION_NAMES[location_name] == relocalized_base_location:
+            return end_state
+
+        # Update the localization
+        elif action.startswith('at_'):
             base_location = constants.LOCATION_NAMES[state.base_location]
             location_name = constants.LOCATION_NAMES[location_name]
 
@@ -718,6 +735,7 @@ class Transition:
                     end_state.current_dt_label = constants.LOCATION_NAMES[mapping['dining_table']]
                     break
 
+        # Update the robot's position
         elif action.startswith('go_to_'):
             dt_mapping = constants.LOCATION_MAPPINGS['dining_table_to_' + constants.LOCATION_NAMES[state.current_dt_label]]
             location_name = constants.LOCATION_NAMES[location_name]
@@ -725,19 +743,27 @@ class Transition:
             desired_location = constants.LOCATION_NAMES[desired_location]
             end_state.base_location = desired_location
 
+        # Look at does nothing to the state itself
         elif action.startswith('look_at_'):
-            # This is a no-op in terms of the state change
             pass
 
+        # Update the object states based on the objects that are picked
         elif action.startswith('pick_'):
             end_state.gripper_state = object_name
             setattr(end_state, object_name + '_state', 'gripper')
 
+        # Update the object states based on the object that was picked
         elif action == 'place':
             end_state.gripper_state = constants.EMPTY_GRIPPER
 
+        # If this is a restart of the camera, pretend as if that has happened
+        elif action == 'restart_video':
+            pass
+
+        # Something has gone wrong; fail the action
         else:
-            raise NotImplementedError("Unknown action: {}".format(action))
+            logger.debug(f"Unknown action: {action}. Failed")
+            end_state = None
 
         # Return the result
         return end_state

@@ -81,6 +81,8 @@ class Command(BaseCommand):
         for key, value in current_row.items():
             if '_time' in key:
                 setattr(action, key, datetime.datetime.fromtimestamp(float(value), pytz.utc))
+            elif key == 'diagnoses':
+                setattr(action, key, eval(value))
             else:
                 setattr(action, key, value)
 

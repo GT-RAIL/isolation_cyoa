@@ -6,8 +6,6 @@ import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
 
-import { DIAGNOSIS_ORDER } from '../actions';
-
 
 /** Function to get the props from the global store */
 const mapStateToProps = (state, ownProps) => {
@@ -29,15 +27,6 @@ const DiagnosisSuggestions = (props) => {
     let suggestions_display = props.suggestions.map((diagnosis) => {
         return <li key={diagnosis}>{window.constants.DIAGNOSES[diagnosis]}</li>;
     });
-    // let suggestions_display = DIAGNOSIS_ORDER.map((diagnosis) => {
-    //     return (
-    //         <button className={"btn btn-outline-dark" + (props.suggestions.includes(diagnosis) ? " active" : "")}
-    //                 style={{ width: (100/DIAGNOSIS_ORDER.length) + "%", pointerEvents: "none" }}
-    //                 key={diagnosis}>
-    //             {window.constants.DIAGNOSES[diagnosis]}
-    //         </button>
-    //     );
-    // });
 
     return (
         <div className="row">

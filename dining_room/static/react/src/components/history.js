@@ -15,8 +15,8 @@ class HistoryItem extends React.Component {
                             ? this.props.error.map((err) => <span key={err}>{window.constants.DIAGNOSES[err]}<br/></span>)
                             : window.constants.DIAGNOSES[this.props.error];
         let result_display = !!this.props.result
-                             ? <h5 className="text-success"><FontAwesomeIcon icon={faCheckCircle} /></h5>
-                             : <h5 className="text-danger"><FontAwesomeIcon icon={faTimesCircle} /></h5>;
+                             ? <h3 className="text-success"><FontAwesomeIcon icon={faCheckCircle} /></h3>
+                             : <h3 className="text-danger"><FontAwesomeIcon icon={faTimesCircle} /></h3>;
 
         return (
             <tr>
@@ -59,7 +59,7 @@ class History extends React.Component {
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="right" overlay={<Tooltip>The history of actions you have taken with the most-recent first</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>History</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>The history of actions you have taken with the most-recent first. A red 'X' indicates that the action failed</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>History</b>
                 </p>
                 </div>
                 <div className="row">

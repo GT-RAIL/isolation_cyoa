@@ -6,6 +6,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+import multiselectfield
+
 from .domain import State, Transition, constants
 from .website import User, StudyManagement
 
@@ -28,9 +30,9 @@ class StudyAction(models.Model):
     end_timestamp = models.DateTimeField()       # This is the timestamp on the same row
 
     start_state = models.CharField(max_length=80)
-    diagnoses = models.CharField(max_length=60)  # Comma separated list of chosen constants.DIAGNOSES
+    diagnoses = multiselectfield.MultiSelectField(choices=tuple(constants.DIAGNOSES.items()))
     diagnosis_certainty = models.IntegerField()
-    action = models.CharField(max_length=15, choices=tuple(constants.ACTIONS.items()))
+    action = models.CharField(max_length=20, choices=tuple(constants.ACTIONS.items()))
     next_state = models.CharField(max_length=80, null=True, blank=True)
 
     video_loaded_time = models.DateTimeField()
@@ -59,11 +61,6 @@ class StudyAction(models.Model):
         structure the CSV
         """
         return [x.name for x in StudyAction._meta.get_fields() if x.name not in StudyAction.NOT_CSV_HEADER_FIELDS]
-
-    @property
-    def diagnoses_list(self):
-        """The diagnoses as a list instead of a comma separated string"""
-        return [x.strip() for x in self.diagnoses.split(',')] if self.diagnoses is not None else None
 
     @property
     def action_idx(self):
