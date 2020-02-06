@@ -632,6 +632,7 @@ class Transition:
         # Then reuse the singular videos that don't look at the objects
         object_location = state.object_location
         jug_state, bowl_state, mug_state = state.jug_state, state.bowl_state, state.mug_state
+        gripper_state = state.gripper_state
 
         # The robot is at the couch and is looking at the couch with nothing in
         # its hand
@@ -680,7 +681,12 @@ class Transition:
         elif state.object_location == 'dt' and (state.jug_state == state.bowl_state == state.mug_state == 'gripper'):
             object_location = 'kc'
 
-        return "{state.base_location}.{object_location}.{jug_state}.{bowl_state}.{mug_state}.{video_action}.mp4".format(**locals())
+        # Convert the video name to assume an empty gripper unless the gripper
+        # is not empty, it is not the mug, and the action is not noop
+        if not (mug_state != 'gripper' and video_action == 'noop' and not state.gripper_empty):
+            gripper_state = constants.EMPTY_GRIPPER
+
+        return "{state.base_location}.{object_location}.{jug_state}.{bowl_state}.{mug_state}.{video_action}.{gripper_state}.mp4".format(**locals())
 
     # Methods
     @staticmethod

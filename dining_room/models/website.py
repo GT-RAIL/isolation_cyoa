@@ -384,7 +384,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         The data for this user is invalid if there is a reason to ignore
         their data
         """
-        return (self.ignore_data_reason is not None)
+        return bool(self.ignore_data_reason)
 
     @property
     def num_actions(self):
