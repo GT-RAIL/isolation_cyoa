@@ -123,6 +123,8 @@ class DemographicsForm(forms.ModelForm):
     def clean(self):
         """Check to see if a known failed AMT worker has tried this again"""
         cleaned_data = super().clean()
+        if not cleaned_data.get('amt_worker_id'):
+            raise forms.ValidationError("Worker ID needs to be filled in.")
 
         # Get workers with the same ID
         num_failed_workers = User.objects.filter(amt_worker_id=cleaned_data['amt_worker_id'], ignore_data_reason__isnull=False).count()
