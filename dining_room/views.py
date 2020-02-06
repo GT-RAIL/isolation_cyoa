@@ -317,8 +317,8 @@ def get_next_state_json(current_state, action):
             { "attr": "Arm status", "value": display(transition.arm_status) },
         ],
         "valid_actions": next_state.get_valid_actions(),
-        "dx_suggestions": ["cannot_see"],
-        "ax_suggestions": ["pick_jug", "look_at_dt"],
+        "dx_suggestions": [],
+        "ax_suggestions": [],
         "action_result": action_result,
         "scenario_completed": next_state.is_end_state,
     }

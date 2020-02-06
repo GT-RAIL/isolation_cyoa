@@ -199,18 +199,11 @@ class SurveyForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = [
-            'certain_of_actions',
-            'not_sure_how_to_help',
-            'system_helped_understand',
-            'could_not_identify_problems',
-            'information_was_enough',
-            'identify_problems_in_future',
-            'system_was_responsible',
-            'rely_on_system_in_future',
-            'user_was_competent',
-            'comments',
-        ]
+        fields = (
+            User.CUSTOM_SURVEY_FIELD_NAMES +
+            User.SUS_SURVEY_FIELD_NAMES +
+            ['comments']
+        )
 
     def __init__(self, *args, **kwargs):
         # Initialize the form

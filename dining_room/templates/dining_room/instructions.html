@@ -79,8 +79,8 @@
 <div class="col">
     <p>Here are the details of the three questions you will be asked when controlling the robot:</p>
     <ul class="list-group mt-2">
-        <li class="list-group-item">You will first be asked what <b>problems</b> you think might be preventing the robot from achieving its goal. You <b class="text-info">may select multiple problems, but you must select atleast one</b>. If you think that there is no problem, you may select that as an option.</li>
-        <li class="list-group-item">You will then be asked how <b>confident</b> you are of the problems that you may identified. Simply <b class="text-info">move the slider</b> based on your level of confidence.</li>
+        <li class="list-group-item">You will first be asked what <b>problem(s)</b> you think might be preventing the robot from achieving its goal. You <b class="text-info">may select multiple problems, but you must select atleast one</b>. If you think that there is no problem, you may select that as an option.</li>
+        <li class="list-group-item">You will then be asked how <b>confident</b> you are of the problems that you may have identified. Simply <b class="text-info">move the slider</b> based on your level of confidence.</li>
         <li class="list-group-item">Finally, you will be asked to take an <b>action</b> to help the robot move towards its goal. After you <b class="text-info">select an action</b>, there will be a momentary delay as communications with the robot are reestablished and the robot is prepared to execute your command.</li>
     </ul>
 </div>
@@ -94,7 +94,7 @@
     <dd class="col-sm-9">The robot updates where in the room it thinks it is. For example, if the robot thinks it is at the Kitchen Counter when in reality it is at the Couch, this action can update that mistaken knowledge (called a <i>belief</i>).</dd>
 
     <dt class="col-sm-3 alert alert-info">Navigate to <span class="font-weight-normal">[location]</span></dt>
-    <dd class="col-sm-9">The robot moves to the desired location (among the three available) in the room.</dd>
+    <dd class="col-sm-9">The robot moves to the desired location (among the three available) in the room. The robot cannot navigate if it is holding a large object such as the Jug or the Bowl.</dd>
 
     <dt class="col-sm-3 alert alert-info">Remove the obstacle blocking navigation</dt>
     <dd class="col-sm-9">The robot moves an obstacle blocking its path to a location. The action succeeds only if it is able to detect such an obstacle.</dd>
@@ -103,7 +103,7 @@
     <dd class="col-sm-9">The robot tries to get out of a collision during navigation. The action succeeds only if the robot can sense such a collision.</dd>
 
     <dt class="col-sm-3 alert alert-info">Look at <span class="font-weight-normal">[location]</span></dt>
-    <dd class="col-sm-9">The robot moves away from its current location to point its camera at the desired location. After viewing that location for a few seconds, the robot returns to look at its original location.</dd>
+    <dd class="col-sm-9">The robot navigates away from its current location to point its camera at the desired location. After viewing that location for a few seconds, the robot returns to look at its original location.</dd>
 
     <dt class="col-sm-3 alert alert-info">Pick up <span class="font-weight-normal">[object]</span></dt>
     <dd class="col-sm-9">The robot picks up the object in question. The action succeeds only if the object is unblocked and the robot's hand is empty.</dd>
@@ -115,7 +115,7 @@
     <dd class="col-sm-9">The robot's camera software is restarted.</dd>
 
     <dt class="col-sm-3 alert alert-info">Find the charger and navigate to it</dt>
-    <dd class="col-sm-9">The robot moves away from its current location to find the charger and then move towards it. The action succeeds only if the robot is low on battery.</dd>
+    <dd class="col-sm-9">The robot navigates away from its current location to find the charger and then move towards it. The action succeeds only if the robot is low on battery.</dd>
 </dl>
 
 <div class="row">

@@ -550,55 +550,27 @@ class SurveysAdmin(admin.ModelAdmin):
         ('Survey', {
             'fields': (
                 ('date_survey_completed',),
-                ('certain_of_actions', 'not_sure_how_to_help', 'system_helped_understand', 'could_not_identify_problems', 'information_was_enough', 'identify_problems_in_future', 'system_was_responsible', 'rely_on_system_in_future', 'user_was_competent'),
+                tuple(User.CUSTOM_SURVEY_FIELD_NAMES + User.SUS_SURVEY_FIELD_NAMES),
                 ('comments',)
             )
         }),
     )
-    list_display = (
+    list_display = [
         'username',
         'amt_worker_id',
         'num_incorrect',
         'valid_data',
         'start_condition',
         'study_condition',
-        'certain_of_actions',
-        'not_sure_how_to_help',
-        'system_helped_understand',
-        'could_not_identify_problems',
-        'information_was_enough',
-        'identify_problems_in_future',
-        'system_was_responsible',
-        'rely_on_system_in_future',
-        'user_was_competent',
-        # 'certain_of_actions_list_display',
-        # 'not_sure_how_to_help_list_display',
-        # 'system_helped_understand_list_display',
-        # 'could_not_identify_problems_list_display',
-        # 'information_was_enough_list_display',
-        # 'identify_problems_in_future_list_display',
-        # 'system_was_responsible_list_display',
-        # 'rely_on_system_in_future_list_display',
-        # 'user_was_competent_list_display',
-    )
+    ] + User.CUSTOM_SURVEY_FIELD_NAMES + User.SUS_SURVEY_FIELD_NAMES
     list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management')
     ordering = ('date_survey_completed', 'username', 'study_condition')
     search_fields = ('username', 'amt_worker_id', 'study_condition')
-    readonly_fields = (
+    readonly_fields = [
         'username',
         'amt_worker_id',
         'valid_data',
-        'certain_of_actions',
-        'not_sure_how_to_help',
-        'system_helped_understand',
-        'could_not_identify_problems',
-        'information_was_enough',
-        'identify_problems_in_future',
-        'system_was_responsible',
-        'rely_on_system_in_future',
-        'user_was_competent',
-        'comments',
-    )
+    ]
 
     def valid_data(self, obj):
         return not obj.invalid_data
@@ -607,51 +579,5 @@ class SurveysAdmin(admin.ModelAdmin):
     def num_incorrect(self, obj):
         return obj.number_incorrect_knowledge_reviews
     num_incorrect.admin_order_field = 'number_incorrect_knowledge_reviews'
-
-    # def certain_of_actions_list_display(self, obj):
-    #     return obj.certain_of_actions
-    # certain_of_actions_list_display.short_description = 'certain_of_actions'
-    # certain_of_actions_list_display.admin_order_field = 'certain_of_actions'
-
-    # def not_sure_how_to_help_list_display(self, obj):
-    #     return obj.not_sure_how_to_help
-    # not_sure_how_to_help_list_display.short_description = 'not_sure_how_to_help'
-    # not_sure_how_to_help_list_display.admin_order_field = 'not_sure_how_to_help'
-
-    # def system_helped_understand_list_display(self, obj):
-    #     return obj.system_helped_understand
-    # system_helped_understand_list_display.short_description = 'system_helped_understand'
-    # system_helped_understand_list_display.admin_order_field = 'system_helped_understand'
-
-    # def could_not_identify_problems_list_display(self, obj):
-    #     return obj.could_not_identify_problems
-    # could_not_identify_problems_list_display.short_description = 'could_not_identify_problems'
-    # could_not_identify_problems_list_display.admin_order_field = 'could_not_identify_problems'
-
-    # def information_was_enough_list_display(self, obj):
-    #     return obj.information_was_enough
-    # information_was_enough_list_display.short_description = 'information_was_enough'
-    # information_was_enough_list_display.admin_order_field = 'information_was_enough'
-
-    # def identify_problems_in_future_list_display(self, obj):
-    #     return obj.identify_problems_in_future
-    # identify_problems_in_future_list_display.short_description = 'identify_problems_in_future'
-    # identify_problems_in_future_list_display.admin_order_field = 'identify_problems_in_future'
-
-    # def system_was_responsible_list_display(self, obj):
-    #     return obj.system_was_responsible
-    # system_was_responsible_list_display.short_description = 'system_was_responsible'
-    # system_was_responsible_list_display.admin_order_field = 'system_was_responsible'
-
-    # def rely_on_system_in_future_list_display(self, obj):
-    #     return obj.rely_on_system_in_future
-    # rely_on_system_in_future_list_display.short_description = 'rely_on_system_in_future'
-    # rely_on_system_in_future_list_display.admin_order_field = 'rely_on_system_in_future'
-
-    # def user_was_competent_list_display(self, obj):
-    #     return obj.user_was_competent
-    # user_was_competent_list_display.short_description = 'user_was_competent'
-    # user_was_competent_list_display.admin_order_field = 'user_was_competent'
-
 
 create_modeladmin(SurveysAdmin, User, name='Survey', verbose_name_plural='Surveys')

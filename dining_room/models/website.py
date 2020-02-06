@@ -280,44 +280,83 @@ class User(AbstractBaseUser, PermissionsMixin):
         AGREE = 3
         STRONGLY_AGREE = 4
 
-    certain_of_actions = models.IntegerField(
-        _("I was always certain of the actions that I was taking."),
+    could_identify_problems = models.IntegerField(
+        _("I could always identify the problem(s) affecting the robot's ability to achieve its goal."),
         blank=True, null=True, choices=LikertResponses.choices
     )
     not_sure_how_to_help = models.IntegerField(
-        _("I was not always sure how to help the robot with the problems that I identified."),
-        blank=True, null=True, choices=LikertResponses.choices
-    )
-    system_helped_understand = models.IntegerField(
-        _("The system helped me understand what went wrong with the robot."),
-        blank=True, null=True, choices=LikertResponses.choices
-    )
-    could_not_identify_problems = models.IntegerField(
-        _("I could not always identify the problems affecting the robot's ability to achieve its goal."),
+        _("I was not always sure how to help the robot with the problem(s) that I identified."),
         blank=True, null=True, choices=LikertResponses.choices
     )
     information_was_enough = models.IntegerField(
-        _("The amount of information presented to me was sufficient to easily diagnose problems."),
+        _("I had access to sufficient information in order to help the robot."),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    identify_problems_in_future = models.IntegerField(
-        _("I am certain that in the future I will be able to easily identify problems using this system, and help the robot overcome them."),
+    actions_were_not_enough = models.IntegerField(
+        _("I did not have access to all the actions that I needed in order to help the robot."),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    system_was_responsible = models.IntegerField(
-        _("The system was largely responsible in helping me identify and address problems with the robot's tasks."),
+    sus_like_to_use_frequently = models.IntegerField(
+        _("I think that I would like to use this system frequently."),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    rely_on_system_in_future = models.IntegerField(
-        _("I would rely on this system to assist the robot in the event of future problems with its tasks."),
+    sus_unnecessarily_complex = models.IntegerField(
+        _("I found the system unnecessarily complex."),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    user_was_competent = models.IntegerField(
-        _("I think that I was a competent user of the system during the study."),
+    sus_easy_to_use = models.IntegerField(
+        _("I thought the system was easy to use."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    sus_technical = models.IntegerField(
+        _("I think that I would need the support of a technical person to be able to use this system."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    # sus_well_integrated = models.IntegerField(
+    #     _("I found the various functions in this system were well integrated."),
+    #     blank=True, null=True, choices=LikertResponses.choices
+    # )
+    # sus_inconsistency = models.IntegerField(
+    #     _("I thought there was too much inconsistency in the system."),
+    #     blank=True, null=True, choices=LikertResponses.choices
+    # )
+    sus_most_people_can_learn = models.IntegerField(
+        _("I would imagine that most people would learn to use this system very quickly."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    sus_awkward = models.IntegerField(
+        _("I found the system awkward to use."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    sus_confident = models.IntegerField(
+        _("I felt very confident using the system."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    sus_learn_a_lot = models.IntegerField(
+        _("I needed to learn a lot of things before I could get going with this system."),
         blank=True, null=True, choices=LikertResponses.choices
     )
 
-    comments = models.TextField(_("Comments and Feedback"), blank=True, null=True)
+    CUSTOM_SURVEY_FIELD_NAMES = [
+        'could_identify_problems',
+        'not_sure_how_to_help',
+        'information_was_enough',
+        'actions_were_not_enough',
+    ]
+    SUS_SURVEY_FIELD_NAMES = [
+        'sus_like_to_use_frequently',
+        'sus_unnecessarily_complex',
+        'sus_easy_to_use',
+        'sus_technical',
+        # 'sus_well_integrated',
+        # 'sus_inconsistency',
+        'sus_most_people_can_learn',
+        'sus_awkward',
+        'sus_confident',
+        'sus_learn_a_lot',
+    ]
+
+    comments = models.TextField(_("Additional comments or feedback about the system"), blank=True, null=True)
     date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
 
     # Field to ignore the user's data in the event of an error
