@@ -273,7 +273,6 @@ def get_next_state_json(current_state, action):
         action (None / str) : the action to take
 
     Returns:
-        next_state: The next state object
         next_state_json: JSON dictionary of the next state
     """
     current_state = State(current_state)

@@ -635,7 +635,6 @@ class Transition:
         # Create another variable to manipulate now based on the videos that we
         # did collect
         video_action = action
-        print(video_action)
 
         # Then, reuse the look_at_ actions if they are the reusable type
         if state.base_location == 'kc' and video_action == 'look_at_c':
@@ -647,8 +646,6 @@ class Transition:
         object_location = state.object_location
         jug_state, bowl_state, mug_state = state.jug_state, state.bowl_state, state.mug_state
         gripper_state = state.gripper_state
-
-        print(object_location, gripper_state, jug_state, bowl_state, mug_state)
 
         # The robot is at the couch and is looking at the couch with nothing in
         # its hand
@@ -701,8 +698,6 @@ class Transition:
         # is not empty, it is not the mug, and the action is not noop
         if mug_state == 'gripper' or video_action != 'noop' or state.gripper_empty:
             gripper_state = constants.EMPTY_GRIPPER
-
-        print(object_location, gripper_state, jug_state, bowl_state, mug_state)
 
         return "{state.base_location}.{object_location}.{jug_state}.{bowl_state}.{mug_state}.{video_action}.{gripper_state}.mp4".format(**locals())
 
