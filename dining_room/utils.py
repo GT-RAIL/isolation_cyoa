@@ -133,7 +133,7 @@ class DropboxConnection:
         dictionary is added automatically as a restart marker with a timestamp
         of now()
 
-        Returns the data (bytes) that was written to dropbox
+        Returns the rows of data that are in the CSV
         """
         sm = user.study_management or StudyManagement.get_default()
         csv_filename = os.path.join(sm.resolved_data_directory, user.csv_file)
@@ -167,4 +167,4 @@ class DropboxConnection:
             logger.error(f"Error writing to Dropbox: {e}")
             write_data = None
 
-        return write_data
+        return experiment_data

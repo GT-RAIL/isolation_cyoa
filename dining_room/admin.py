@@ -8,6 +8,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.forms import (UserChangeForm, UserCreationForm,
                                        AdminPasswordChangeForm)
 from django.db import router, transaction
+from django.db.models import Q
 from django.http import Http404, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -58,7 +59,7 @@ class InvalidDataListFilter(admin.SimpleListFilter):
         """Filter the objects"""
         if self.value() is not None:
             value = (self.value() == 'True')
-            return queryset.filter(ignore_data_reason__isnull=not value)
+            return queryset.filter(Q(ignore_data_reason__isnull=not value) | Q(ignore_data_reason=''))
         return queryset
 
 

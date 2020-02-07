@@ -153,6 +153,10 @@ class StudyView(TemplateView):
     """
     template_name = 'dining_room/study.html'
 
+    # Number of actions that must have been taken before the run is marked as
+    # valid
+    MARK_RUN_INVALID_THRESHOLD = 4
+
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context['actions_constant'] = json.dumps(constants.ACTIONS)
@@ -174,7 +178,17 @@ class StudyView(TemplateView):
 
         # Create a dropbox file for the user, or mark that the user has
         # restarted the scenarios
-        dbx.write_to_csv(request.user)
+        rows_in_csv = dbx.write_to_csv(request.user)
+        if not request.user.is_staff:
+            # If the participant has taken too few steps, then fail them
+            if len(rows_in_csv) > 2 and len(rows_in_csv) < (2 + StudyView.MARK_RUN_INVALID_THRESHOLD):
+                request.user.ignore_data_reason = f'refreshed after {len(rows_in_csv)-2} actions'
+                request.user.save()
+                return redirect(reverse('dining_room:fail'))
+
+            # Otherwise redirect them to the survey
+            elif len(rows_in_csv) > 2:
+                return redirect(reverse('dining_room:survey'))
 
         # Update the time the user started the study
         request.user.date_started = timezone.now()
