@@ -883,8 +883,14 @@ class Suggestions:
             suggestions.append('cannot_see')
 
         # Check to see if the problem is that we cannot grasp the mug (and that
-        # we're not actually holding it)
-        if ac_check(suggestions) and 'mug' not in state.graspable_objects and state.gripper_state != 'mug':
+        # we're not actually holding it). We need to recreate the logic for
+        # graspable_objects here in order the bypass the empty gripper test that
+        # is there
+        if (
+            ac_check(suggestions) and
+            ('mug' not in state.visible_objects or state.bowl_state == 'above_mug') and
+            state.gripper_state != 'mug'
+        ):
             suggestions.append('cannot_pick')
 
         # If there is no other suggestion, then we don't think anything is wrong
