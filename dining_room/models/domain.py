@@ -837,7 +837,7 @@ class Suggestions:
             suggestions.append('pick_mug')
 
         # Check to see if we can pick up the bowl
-        elif 'bowl' in state.graspable_objects:
+        elif 'bowl' in state.graspable_objects and 'mug' in state.visible_objects:
             suggestions.append('pick_bowl')
 
         # Check to see if we can pick up the jug
