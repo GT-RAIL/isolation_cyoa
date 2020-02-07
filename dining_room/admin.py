@@ -44,22 +44,26 @@ class StudyProgressListFilter(admin.SimpleListFilter):
             return queryset
 
 
-class InvalidDataListFilter(admin.SimpleListFilter):
+class ValidDataListFilter(admin.SimpleListFilter):
     """
     Filter by an inferred boolean property in Python
     """
-    title = _('invalid data')
-    parameter_name = 'invalid_data'
+    title = _('valid data')
+    parameter_name = 'valid_data'
 
     def lookups(self, request, model_admin):
         """Return the list of values to show"""
-        return ((True, 'Yes'), (False, 'No'))
+        return (('True', 'Yes'), ('False', 'No'), ('no_blacklist', 'Without Blacklist'))
 
     def queryset(self, request, queryset):
         """Filter the objects"""
         if self.value() is not None:
             value = (self.value() == 'True')
-            return queryset.filter(Q(ignore_data_reason__isnull=not value) | Q(ignore_data_reason=''))
+            filters = Q(ignore_data_reason__isnull=value)
+            if not value:
+                filters = filters | Q(ignore_data_reason='')
+
+            return queryset.filter(filters)
         return queryset
 
 
@@ -115,9 +119,13 @@ class StudyManagementAdmin(admin.ModelAdmin):
     """
     The admin class for the StudyManagement model
     """
-    list_display = ('__str__', 'max_test_attempts', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
+    list_display = ('__str__', 'number_of_people', 'max_test_attempts', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
     save_as = True
     inlines = [ UserInline ]
+    readonly_fields = ('number_of_people',)
+
+    def number_of_people(self, obj):
+        return obj.user_set.count()
 
 
 @admin.register(StudyAction)
@@ -192,7 +200,7 @@ class UserAdmin(admin.ModelAdmin):
         'study_duration',
         'survey_duration',
     )
-    list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management', 'is_superuser')
+    list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, ValidDataListFilter, 'study_management', 'is_superuser')
     list_editable = ('study_management',)
     search_fields = ('username', 'amt_worker_id', 'unique_key', 'study_condition', 'start_condition')
     ordering = ('username', 'date_joined', 'last_login')
@@ -433,7 +441,7 @@ class DemographicsAdmin(admin.ModelAdmin):
         ('Demographics', { 'fields': ('age_group', 'gender', 'robot_experience') }),
     )
     list_display = ('username', 'amt_worker_id', 'study_condition', 'num_incorrect', 'valid_data', 'date_finished', 'age_group', 'gender', 'robot_experience')
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management')
+    list_filter = ('study_condition', StudyProgressListFilter, ValidDataListFilter, 'study_management')
     ordering = ('date_finished', 'username', 'study_condition')
     search_fields = ('username', 'study_condition', 'amt_worker_id')
     readonly_fields = ('username', 'amt_worker_id', 'study_condition', 'start_condition', 'date_finished', 'date_demographics_completed', 'study_progress', 'valid_data')
@@ -506,7 +514,7 @@ class ActionsAdmin(admin.ModelAdmin):
         'num_actions',
         'confidences',
     )
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management')
+    list_filter = ('study_condition', StudyProgressListFilter, ValidDataListFilter, 'study_management')
     ordering = ('date_started', 'username', 'study_condition')
     search_fields = ('username', 'study_condition', 'amt_worker_id')
     readonly_fields = (
@@ -564,7 +572,7 @@ class SurveysAdmin(admin.ModelAdmin):
         'start_condition',
         'study_condition',
     ] + User.CUSTOM_SURVEY_FIELD_NAMES + User.SUS_SURVEY_FIELD_NAMES
-    list_filter = ('study_condition', StudyProgressListFilter, InvalidDataListFilter, 'study_management')
+    list_filter = ('study_condition', StudyProgressListFilter, ValidDataListFilter, 'study_management')
     ordering = ('date_survey_completed', 'username', 'study_condition')
     search_fields = ('username', 'amt_worker_id', 'study_condition')
     readonly_fields = [
