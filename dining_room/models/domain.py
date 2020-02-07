@@ -407,6 +407,11 @@ class State:
         return relocalized_base_location
 
     @property
+    def mislocalized(self):
+        """Is the robot mislocalized?"""
+        return (self.current_dt_label != 'dt')
+
+    @property
     def gripper_empty(self):
         """Is the robot's gripper empty?"""
         return self.gripper_state == constants.EMPTY_GRIPPER
@@ -788,4 +793,56 @@ class Transition:
         return end_state
 
 
-# TODO: Create helper methods for suggesting diagnoses and actions to take
+class Suggestions:
+    """
+    A class to provide suggestions given the state the user is in. These are
+    simply static methods within a class
+
+    For all the following functions:
+    Args:
+      state (State) : the state that the user is in; never None
+      action (str)  : the action the user took; None if no action yet
+
+    Returns:
+      suggestions (list of str) : the suggestions appropriate to the condition
+          represented by the function
+    """
+
+
+    def optimal_actions(state, action):
+        """
+        Suggest the optimal action to take given the state of the system. This
+        is done based on heuristics
+        """
+        suggestions = []
+
+        # Check to see if we are mislocalized; if so, fix that
+        if state.mislocalized:
+            suggestions.append(f'at_{state.base_location}')
+
+        # Check to see if we have the mug in our hand, if so, go to the couch
+        elif state.gripper_state == 'mug':
+            suggestions.append('go_to_c')
+
+        # Check to see if the gripper is not empty
+        elif not state.gripper_empty:
+            suggestions.append('place')
+
+        # Check to see if we can see the mug and it is pickup-able
+        elif 'mug' in state.graspable_objects:
+            suggestions.append('pick_mug')
+
+        # Check to see if we can pick up the bowl
+        elif 'bowl' in state.graspable_objects:
+            suggestions.append('pick_bowl')
+
+        # Check to see if we can pick up the jug
+        elif 'jug' in state.graspable_objects:
+            suggestions.append('pick_jug')
+
+        # Check to see if we're in the same location as the objects
+        elif state.base_location != state.object_location:
+            suggestions.append(f'go_to_{state.object_location}')
+
+        # Return the suggestions
+        return suggestions

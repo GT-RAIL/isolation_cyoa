@@ -22,8 +22,9 @@ from django.utils.decorators import method_decorator
 from db_mutex.db_mutex import db_mutex
 
 from .models import User
-from .models.domain import constants, State, Transition, display
-from .forms import DemographicsForm, InstructionsTestForm, SurveyForm, CreateUserForm
+from .models.domain import constants, display, State, Transition, Suggestions
+from .forms import (DemographicsForm, InstructionsTestForm, SurveyForm,
+                    CreateUserForm)
 from .utils import DropboxConnection
 
 
@@ -166,7 +167,7 @@ class StudyView(TemplateView):
 
         # Get the state json
         start_state_tuple = self.request.user.start_condition.split('.')
-        start_state_json = get_next_state_json(start_state_tuple, None)
+        start_state_json = get_next_state_json(start_state_tuple, None, self.request.user)
         context['scenario_state'] = json.dumps(start_state_json)
 
         return context
@@ -276,7 +277,38 @@ def convert_empty_gripper(value):
     return value
 
 
-def get_next_state_json(current_state, action):
+def get_suggestions_json(transition, user=None):
+    """
+    Given the user and the next state JSON, update with suggestions based on the
+    study condition that user is in
+
+    Args:
+        transition (Transition) : the transition that the user will encounter
+        user (User) : the user
+
+    Returns:
+        suggestions_json : A JSON dictionary of suggestions that is designed to
+            be added to the next_state_json
+    """
+    suggestions_json = {}
+
+    # Unpack the transition
+    start_state, action, end_state = transition.start_state, transition.action, transition.end_state
+
+    # If we should show diagnosis suggestions, then add those
+    suggestions_json['dx_suggestions'] = []
+
+    # If we should show optimal action suggestions, then add those
+    if user is None or user.show_ax_suggestions:
+        suggestions_json['ax_suggestions'] = Suggestions.optimal_actions(end_state, action)
+    else:
+        suggestions_json['ax_suggestions'] = []
+
+    # Return the dictionary
+    return suggestions_json
+
+
+def get_next_state_json(current_state, action, user=None):
     """
     Return the next state information given the current state and the action.
     If action is None, then simply return the current state as a JSON. We
@@ -285,17 +317,12 @@ def get_next_state_json(current_state, action):
     Args:
         current_state (tuple/list) : the current state object as a tuple
         action (None / str) : the action to take
+        user (User) : the user that is in the given state
 
     Returns:
         next_state_json: JSON dictionary of the next state
     """
     current_state = State(current_state)
-
-    # # First check the cache for the answer
-    # cache_key = f"{'.'.join(current_state.tuple)}:{action}"
-    # cache_value = cache.get(cache_key)
-    # if cache_value is not None:
-    #     return cache_value
 
     # Generate the JSON data
     action_result = True
@@ -330,14 +357,12 @@ def get_next_state_json(current_state, action):
             { "attr": "Arm status", "value": display(transition.arm_status) },
         ],
         "valid_actions": next_state.get_valid_actions(),
-        "dx_suggestions": [],
-        "ax_suggestions": [],
         "action_result": action_result,
         "scenario_completed": next_state.is_end_state,
     }
 
-    # # Save the data to the cache
-    # cache.set(cache_key, next_state_json)
+    # Update the dictionary with suggestions
+    next_state_json.update(get_suggestions_json(transition, user))
 
     # Return the dictionary
     return next_state_json
@@ -353,7 +378,7 @@ def get_next_state(request):
         # Get the next state
         current_state_tuple = post_data.get('server_state_tuple')
         action = post_data.get('action')
-        next_state_json = get_next_state_json(current_state_tuple, action)
+        next_state_json = get_next_state_json(current_state_tuple, action, request.user)
 
         # Update the CSV with the incoming data (only if this is on django)
         if request.user.is_authenticated:
