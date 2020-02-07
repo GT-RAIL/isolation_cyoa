@@ -39,6 +39,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('data_directory', help=f"The data directory in {os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)} to get the json files from")
         parser.add_argument('-i', '--ignore-duplicates', action="store_true")
+        parser.add_argument('-u', '--update-duplicates', action="store_true")
         parser.add_argument('-c', '--confirm-duplicates', action='store_true', help="Confirm duplicates with human")
 
     def _download_dropbox(self, dbx_filename, local_filename):
@@ -90,9 +91,9 @@ class Command(BaseCommand):
                     item.save()
                     continue
                 except Exception as e:
-                    if not options.get('ignore_duplicates') and not options.get('confirm_duplicates'):
+                    if not options.get('ignore_duplicates') and not options.get('confirm_duplicates') and not options.get('update_duplicates'):
                         raise CommandError(f"Failure saving model: {e}\n{traceback.format_exc()}")
-                    else:
+                    elif not options.get('update_duplicates'):
                         self.stdout.write(f"Not writing row for model {row['model']} with pk {row['pk']}: {e}")
                         if options.get('confirm_duplicates'):
                             self.stdout.write('Should we update model (u), ignore (i), or error (e) out?')
