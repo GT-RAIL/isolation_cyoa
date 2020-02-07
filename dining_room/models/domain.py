@@ -808,7 +808,7 @@ class Suggestions:
           represented by the function
     """
 
-
+    @staticmethod
     def optimal_actions(state, action):
         """
         Suggest the optimal action to take given the state of the system. This
@@ -816,12 +816,16 @@ class Suggestions:
         """
         suggestions = []
 
+        # If we've completed the scenario, then don't suggest anything
+        if state.is_end_state:
+            pass
+
         # Check to see if we are mislocalized; if so, fix that
-        if state.mislocalized:
+        elif state.mislocalized:
             suggestions.append(f'at_{state.base_location}')
 
         # Check to see if we have the mug in our hand, if so, go to the couch
-        elif state.gripper_state == 'mug':
+        elif state.gripper_state == 'mug' and state.base_location != 'c':
             suggestions.append('go_to_c')
 
         # Check to see if the gripper is not empty
@@ -843,6 +847,49 @@ class Suggestions:
         # Check to see if we're in the same location as the objects
         elif state.base_location != state.object_location:
             suggestions.append(f'go_to_{state.object_location}')
+
+        # Return the suggestions
+        return suggestions
+
+    @staticmethod
+    def ordered_diagnoses(state, action, accumulate=False):
+        """
+        Suggest diagnoses based on the following priority order:
+        - lost (mislocalized)
+        - different_location
+        - cannot_see
+        - cannot_pick
+        - none
+
+        If accumulate is set to True, then multiple suggestions of diagnoses are
+        returned
+        """
+        suggestions = []
+
+        # An expression to check if we should return multiple diagnoses
+        ac_check = lambda x: (len(x) == 0 or accumulate)
+
+        # Check to see if the state is mislocalized
+        if ac_check(suggestions) and state.mislocalized:
+            suggestions.append('lost')
+
+        # Check to see if we might need to go to a different location
+        if ac_check(suggestions) and state.object_location == 'dt' and state.base_location == 'kc':
+            suggestions.append('different_location')
+
+        # Check to see if the problem is that we cannot see the mug (and that
+        # we're not actually holding it)
+        if ac_check(suggestions) and 'mug' not in state.visible_objects and state.gripper_state != 'mug':
+            suggestions.append('cannot_see')
+
+        # Check to see if the problem is that we cannot grasp the mug (and that
+        # we're not actually holding it)
+        if ac_check(suggestions) and 'mug' not in state.graspable_objects and state.gripper_state != 'mug':
+            suggestions.append('cannot_pick')
+
+        # If there is no other suggestion, then we don't think anything is wrong
+        if len(suggestions) == 0:
+            suggestions.append('none')
 
         # Return the suggestions
         return suggestions
