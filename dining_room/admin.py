@@ -58,10 +58,15 @@ class ValidDataListFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         """Filter the objects"""
         if self.value() is not None:
-            value = (self.value() == 'True')
-            filters = Q(ignore_data_reason__isnull=value)
-            if not value:
-                filters = filters | Q(ignore_data_reason='')
+            get_valid = (self.value() == 'True')
+            no_blacklist = (self.value() == 'no_blacklist')
+
+            if no_blacklist:
+                filters = ~Q(username__istartswith='blacklist')
+            else:
+                filters = Q(ignore_data_reason__isnull=get_valid)
+                if not get_valid:
+                    filters = filters | Q(ignore_data_reason='')
 
             return queryset.filter(filters)
         return queryset
