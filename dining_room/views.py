@@ -167,19 +167,23 @@ class StudyView(TemplateView):
 
         # Get the state json
         start_state_tuple = self.request.user.start_condition.split('.')
+        print(timezone.now(), "Getting the next state")
         start_state_json = get_next_state_json(start_state_tuple, None, self.request.user)
+        print(timezone.now(), "Next state received")
         context['scenario_state'] = json.dumps(start_state_json)
 
         return context
 
     def dispatch(self, request, *args, **kwargs):
-        response = super().dispatch(request, *args, **kwargs)
-        if isinstance(response, HttpResponseRedirect):
-            return response
+        print(timezone.now(), "In dispatch")
 
         # Create a dropbox file for the user, or mark that the user has
         # restarted the scenarios
+        print(timezone.now(), "Starting write")
         rows_in_csv = dbx.write_to_csv(request.user)
+        print(timezone.now(), "Completed write")
+
+        print(timezone.now(), "Started check")
         if not request.user.is_staff:
             # If the participant has taken too few steps, then fail them
             if len(rows_in_csv) > 2 and len(rows_in_csv) < (2 + StudyView.MARK_RUN_INVALID_THRESHOLD):
@@ -190,10 +194,15 @@ class StudyView(TemplateView):
             # Otherwise redirect them to the survey
             elif len(rows_in_csv) > 2:
                 return redirect(reverse('dining_room:survey'))
+        print(timezone.now(), "Completed check")
 
         # Update the time the user started the study
         request.user.date_started = timezone.now()
         request.user.save()
+        print(timezone.now(), "User updated")
+
+        # Return a response
+        response = super().dispatch(request, *args, **kwargs)
         return response
 
 
@@ -370,8 +379,6 @@ def get_next_state_json(current_state, action, user=None):
     # Return the dictionary
     return next_state_json
 
-# FIXME
-import time
 
 @require_POST
 @csrf_exempt
@@ -428,5 +435,4 @@ def get_next_state(request):
         }
 
     # Return
-    time.sleep(10)
     return JsonResponse(next_state_json)
