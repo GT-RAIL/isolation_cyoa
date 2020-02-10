@@ -124,13 +124,24 @@ class StudyManagementAdmin(admin.ModelAdmin):
     """
     The admin class for the StudyManagement model
     """
-    list_display = ('__str__', 'number_of_people', 'max_test_attempts', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
+    list_display = ('__str__', 'number_people_assigned', 'number_people_qualified', 'max_test_attempts', 'max_number_of_people', 'number_per_condition', 'enabled_study_conditions_list', 'enabled_start_conditions_list')
     save_as = True
     inlines = [ UserInline ]
-    readonly_fields = ('number_of_people',)
+    readonly_fields = ('number_people_assigned', 'number_people_qualified')
 
-    def number_of_people(self, obj):
+    def number_people_assigned(self, obj):
+        """The number of people explicitly assigned to the SM"""
         return obj.user_set.count()
+
+    def number_people_qualified(self, obj):
+        """The number of people that satisfy the conditions; regardless of
+        whether they've been assigned to the SM"""
+        return User.objects.filter(
+            Q(is_staff=False) &
+            (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')) &
+            Q(study_condition__in=obj.enabled_study_conditions_list) &
+            Q(start_condition__in=obj.enabled_start_conditions_list)
+        ).count()
 
 
 @admin.register(StudyAction)
