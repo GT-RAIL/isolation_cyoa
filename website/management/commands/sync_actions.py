@@ -129,23 +129,23 @@ class Command(BaseCommand):
             csv_len = len(csv_data)
 
             # Iterate and add actions to the model
-            next_action = None
+            browser_refreshed = False
             for idx, data in enumerate(reversed(csv_data)):
                 prev_idx = (csv_len-idx-1) - 1
                 action = self._get_action_from_rows(data, (csv_data[prev_idx] if prev_idx >= 0 else None))
 
                 if action is None:
                     # This is an indication of a browser refresh, update the
-                    # flag in the next action
-                    if next_action is not None:
-                        next_action.browser_refreshed = True
-                        next_action.save()
+                    # flag in preparation for annotating the action as such
+                    browser_refreshed = True
                 else:
+                    # Set the refreshed flag and the FK to the user
+                    action.browser_refreshed = browser_refreshed
                     action.user = user
                     action.save()
 
-                # Save a pointer to this action
-                next_action = action
+                    # Reset the flag
+                    browser_refreshed = False
 
             # Print a status message
             if verbosity > 0:
