@@ -38,7 +38,6 @@ class Command(BaseCommand):
         parser.add_argument("--user-ids", nargs='*', default=[x.pk for x in User.objects.order_by('pk')], help="The user ids to get actions for")
         parser.add_argument("--raise-on-missing", action="store_true", help="Raise an error if the actions CSV file is missing")
         parser.add_argument("--raise-on-delete", action="store_true", help="Raise an error if there already exist actions for the user")
-        parser.add_argument("--raise-no-actions", action="store_true", help="Raise an error if there are no actions in the CSV file")
 
     def _get_csv_data(self, dbx_filename):
         try:
@@ -130,28 +129,23 @@ class Command(BaseCommand):
             csv_len = len(csv_data)
 
             # Iterate and add actions to the model
-            actions_added = []
+            next_action = None
             for idx, data in enumerate(reversed(csv_data)):
                 prev_idx = (csv_len-idx-1) - 1
                 action = self._get_action_from_rows(data, (csv_data[prev_idx] if prev_idx >= 0 else None))
 
                 if action is None:
-                    # Check to see if the last row was empty, and we should
-                    # error on that. Else, just notify
-                    if len(actions_added) == 0:
-                        msg = f"There are no actions on file for {user}"
-                        if options['raise_no_actions']:
-                            raise CommandError(msg)
-                        else:
-                            if verbosity > 1:
-                                self.stdout.write(f"{msg}; skipping")
-
-                    # This is the last action we care about; we ignore
-                    # everything before this
-                    break
+                    # This is an indication of a browser refresh, update the
+                    # flag in the next action
+                    if next_action is not None:
+                        next_action.browser_refreshed = True
+                        next_action.save()
                 else:
                     action.user = user
                     action.save()
+
+                # Save a pointer to this action
+                next_action = action
 
             # Print a status message
             if verbosity > 0:

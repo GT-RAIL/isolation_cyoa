@@ -41,10 +41,20 @@ class StudyAction(models.Model):
     dx_confirmed_time = models.DateTimeField()
     ax_selected_time = models.DateTimeField()
 
+    # Other data not part of the JSON action information
+    browser_refreshed = models.BooleanField(default=False)
+
     # Cached property
     _action_idx = None
 
-    NOT_CSV_HEADER_FIELDS = ['id', 'user', 'start_timestamp', 'end_timestamp']
+    # Fields that should not be part of the JSON action information
+    NOT_CSV_HEADER_FIELDS = [
+        'id',
+        'user',
+        'start_timestamp',
+        'end_timestamp',
+        'browser_refreshed',
+    ]
 
     class Meta:
         verbose_name = _('study action')

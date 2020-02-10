@@ -158,6 +158,7 @@ class StudyActionAdmin(admin.ModelAdmin):
         'diagnoses',
         'certainty',
         'action',
+        'browser_refreshed',
     )
     readonly_fields = (
         'duration',
@@ -488,6 +489,7 @@ class StudyActionInline(admin.TabularInline):
         'decision_duration',
         'dx_decision_duration',
         'ax_decision_duration',
+        'browser_refreshed',
     )
     readonly_fields = (
         'action_idx',
@@ -501,6 +503,7 @@ class StudyActionInline(admin.TabularInline):
         'decision_duration',
         'dx_decision_duration',
         'ax_decision_duration',
+        'browser_refreshed',
     )
     ordering = ('start_timestamp',)
     show_change_link = True
@@ -528,6 +531,7 @@ class ActionsAdmin(admin.ModelAdmin):
         'date_started',
         'duration',
         'num_actions',
+        'num_refreshes',
         'confidences',
     )
     list_filter = ('study_condition', StudyProgressListFilter, ValidDataListFilter, 'study_management')
@@ -543,6 +547,7 @@ class ActionsAdmin(admin.ModelAdmin):
         'study_progress',
         'valid_data',
         'num_actions',
+        'num_refreshes',
         'confidences',
     )
 
@@ -559,6 +564,9 @@ class ActionsAdmin(admin.ModelAdmin):
 
     def duration(self, obj):
         return (obj.date_finished - obj.date_started) if obj.date_finished is not None and obj.date_started is not None else None
+
+    def num_refreshes(self, obj):
+        return obj.studyaction_set.filter(browser_refreshed=True).count()
 
 create_modeladmin(ActionsAdmin, User, name='Actions', verbose_name_plural='Actions')
 
