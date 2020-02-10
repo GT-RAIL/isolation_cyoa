@@ -139,12 +139,9 @@ class DropboxConnection:
         csv_filename = os.path.join(sm.resolved_data_directory, user.csv_file)
 
         try:
-            print(timezone.now(), "Reading CSV")
             read_file = self.storage.open(csv_filename)
             experiment_data = self._get_csv_rows(read_file)
-            print(timezone.now(), "Read CSV")
         except (dropbox.exceptions.ApiError, DropBoxStorageException) as e:
-            print(timezone.now(), "Creating CSV")
             experiment_data = [DropboxConnection.USERDATA_CSV_HEADERS]
 
         # If there is no incoming data (the user has restarted), then
@@ -163,7 +160,6 @@ class DropboxConnection:
         experiment_data.append(row)
 
         # Write the data to dropbox
-        print(timezone.now(), "Writing CSV")
         write_data = self._set_csv_bytes(experiment_data)
         try:
             self.storage.save(csv_filename, write_data)
@@ -171,5 +167,4 @@ class DropboxConnection:
             logger.error(f"Error writing to Dropbox: {e}")
             write_data = None
 
-        print(timezone.now(), "CSV written")
         return experiment_data
