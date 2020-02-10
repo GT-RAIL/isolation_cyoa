@@ -24,7 +24,7 @@ const ActionSuggestions = (props) => {
     }
 
     let suggestions_display = props.suggestions.map((action) => {
-        return <li key={action}>{window.constants.ACTIONS[action]}</li>;
+        return <li key={action}><h5>{window.constants.ACTIONS[action]}</h5></li>;
     });
 
     return (

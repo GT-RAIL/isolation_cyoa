@@ -296,13 +296,13 @@ def get_suggestions_json(transition, user=None):
     start_state, action, end_state = transition.start_state, transition.action, transition.end_state
 
     # If we should show ordered diagnosis suggestions, then add those
-    if user is None or user.show_dx_suggestions:
+    if user is None or not user.is_authenticated or user.show_dx_suggestions:
         suggestions_json['dx_suggestions'] = Suggestions.ordered_diagnoses(end_state, action, accumulate=False)
     else:
         suggestions_json['dx_suggestions'] = []
 
     # If we should show optimal action suggestions, then add those
-    if user is None or user.show_ax_suggestions:
+    if user is None or not user.is_authenticated or user.show_ax_suggestions:
         suggestions_json['ax_suggestions'] = Suggestions.optimal_actions(end_state, action)
     else:
         suggestions_json['ax_suggestions'] = []
@@ -370,6 +370,8 @@ def get_next_state_json(current_state, action, user=None):
     # Return the dictionary
     return next_state_json
 
+# FIXME
+import time
 
 @require_POST
 @csrf_exempt
@@ -426,4 +428,5 @@ def get_next_state(request):
         }
 
     # Return
+    time.sleep(10)
     return JsonResponse(next_state_json)

@@ -23,18 +23,11 @@ class ActionControlButton extends React.Component {
     }
 
     render() {
-        // return (
-        //     <button className={"col btn " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
-        //             style={{height: "100%", minHeight: "4rem"}}
-        //             onClick={this.select_action}
-        //             disabled={this.props.disabled}>
-        //         {window.constants.ACTIONS[this.props.value]}
-        //     </button>
-        // );
         return (
-            <button className="col btn btn-outline-info"
+            <button className={"col btn " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
                     style={{height: "100%", minHeight: "4rem"}}
-                    onClick={this.select_action}>
+                    onClick={this.select_action}
+                    disabled={this.props.disabled}>
                 {window.constants.ACTIONS[this.props.value]}
             </button>
         );
@@ -49,7 +42,8 @@ const mapStateToProps = (state, ownProps) => {
         video_playing: state.ui_status.video_playing,
         valid_actions: state.scenario_state.valid_actions,
         dx_confirmed: state.ui_status.confirmed_dx.length > 0,
-        dx_certainty: state.ui_status.dx_certainty
+        dx_certainty: state.ui_status.dx_certainty,
+        selected_action: state.ui_status.selected_action,
     };
 }
 
@@ -138,7 +132,7 @@ class ActionControls extends React.Component {
             let sublayout = [];
             for (const [sidx, action_name] of display_object.actions.entries()) {
                 sublayout.push(
-                    <ActionControlButton key={action_name} dispatch={this.props.dispatch} value={action_name} disabled={!this.props.valid_actions[action_name]} />
+                    <ActionControlButton key={action_name} dispatch={this.props.dispatch} value={action_name} disabled={!!this.props.selected_action} />
                 );
             }
             for (let idx = sublayout.length; idx < this.MAX_BUTTONS_PER_ROW; idx++) {

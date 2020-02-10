@@ -33,19 +33,19 @@
           ax_selected_time: null
         },
         scenario_state: {
-          "server_state_tuple": ["kc", "kc", "default", "above_mug", "default", "empty", "dt"],
-          "video_link": "https://dl.dropboxusercontent.com/s/fjfpvpwfnc23yuo/kc.kc.default.above_mug.default.noop.mp4",
+          "server_state_tuple": ["kc", "kc", "occluding", "above_mug", "default", "empty", "dt"],
+          "video_link": "https://dl.dropboxusercontent.com/s/hqaouaoizrwmcqm/kc.kc.occluding.above_mug.default.noop.empty.mp4",
           "robot_beliefs": [
             {"attr": "Location", "value": "Kitchen Counter"},
             {"attr": "Object in hand", "value": "Nothing"},
-            {"attr": "Objects in view", "value": ["Jug", "Bowl", "Cup"]},
+            {"attr": "Objects in view", "value": ["Jug", "Bowl"]},
             {"attr": "Arm status", "value": "Not Moving"}
           ],
           "valid_actions": {
-            "at_c": true, "at_dt": true, "at_kc": false, "go_to_c": true, "go_to_dt": true, "go_to_kc": false, "look_at_c": true, "look_at_dt": true, "look_at_kc": false, "pick_bowl": true, "pick_jug": true, "pick_mug": true, "place": false
+            "at_c": true, "at_dt": true, "at_kc": true, "go_to_c": true, "go_to_dt": true, "go_to_kc": true, "remove_obstacle": false, "out_of_collision": false, "look_at_c": true, "look_at_dt": true, "look_at_kc": true, "pick_bowl": true, "pick_jug": true, "pick_mug": false, "place": false, "restart_video": true, "find_charger": false
           },
-          "dx_suggestions": [],
-          "ax_suggestions": [],
+          "dx_suggestions": ["cannot_see", "cannot_pick"],
+          "ax_suggestions": ["pick_jug"],
           "action_result": true,
           "scenario_completed": false
         },

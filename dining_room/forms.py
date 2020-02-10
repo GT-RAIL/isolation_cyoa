@@ -52,7 +52,7 @@ class CreateUserForm(forms.Form):
 
         # First check that we haven't exceeded the max number of users
         users_not_staff = Q(is_staff=False)
-        users_valid_condition = Q(ignore_data_reason__isnull=True)
+        users_valid_condition = Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')
         # date_joined_condition = Q(date_joined__gte=(timezone.now()-CreateUserForm.DATE_JOINED_TIMEDELTA))
         # date_finished_condition = Q(date_finished__isnull=False)
         number_of_users = User.objects.filter(users_not_staff & users_valid_condition).count()

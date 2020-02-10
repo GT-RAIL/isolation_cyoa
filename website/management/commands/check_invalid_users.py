@@ -81,7 +81,8 @@ class Command(BaseCommand):
 
     def _check_num_review_questions(self, user, **options):
         return message_if_true(
-            user.number_incorrect_knowledge_reviews >= user.study_management.max_test_attempts,
+            (user.study_management is not None and
+             user.number_incorrect_knowledge_reviews >= user.study_management.max_test_attempts),
             options['msg']
         )
 

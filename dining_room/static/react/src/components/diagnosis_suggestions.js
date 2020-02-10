@@ -25,7 +25,7 @@ const DiagnosisSuggestions = (props) => {
     }
 
     let suggestions_display = props.suggestions.map((diagnosis) => {
-        return <li key={diagnosis}>{window.constants.DIAGNOSES[diagnosis]}</li>;
+        return <li key={diagnosis}><h5>{window.constants.DIAGNOSES[diagnosis]}</h5></li>;
     });
 
     return (

@@ -65,7 +65,7 @@ class ValidDataListFilter(admin.SimpleListFilter):
                 filters = ~Q(username__istartswith='blacklist')
             else:
                 filters = Q(ignore_data_reason__isnull=get_valid)
-                if not get_valid:
+                if get_valid:
                     filters = filters | Q(ignore_data_reason='')
 
             return queryset.filter(filters)
