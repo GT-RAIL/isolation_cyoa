@@ -528,13 +528,14 @@ class ActionsAdmin(admin.ModelAdmin):
         'start_condition',
         'num_incorrect',
         'valid_data',
+        'scenario_completed',
         'date_started',
         'duration',
         'num_actions',
         'num_refreshes',
         'confidences',
     )
-    list_filter = ('study_condition', StudyProgressListFilter, ValidDataListFilter, 'study_management')
+    list_filter = ('study_condition', 'start_condition', StudyProgressListFilter, ValidDataListFilter, 'study_management', 'scenario_completed')
     ordering = ('date_started', 'username', 'study_condition')
     search_fields = ('username', 'study_condition', 'amt_worker_id')
     readonly_fields = (
@@ -546,6 +547,7 @@ class ActionsAdmin(admin.ModelAdmin):
         'duration',
         'study_progress',
         'valid_data',
+        'scenario_completed',
         'num_actions',
         'num_refreshes',
         'confidences',
