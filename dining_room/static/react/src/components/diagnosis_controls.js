@@ -11,11 +11,19 @@ import { selectDiagnoses } from '../actions';
 
 /** The button for diagnoses */
 const DiagnosisControlButton = (props) => {
+    // This breaks the nice flow of information, but for now, we'll allow it
+    let suggest = (!!window.constants.EXPERIMENT_CONDITION.show_dx_suggestions && !!props.suggested) && !props.disabled;
+    let button_colour = (!!suggest || !window.constants.EXPERIMENT_CONDITION.show_dx_suggestions)
+                        ? " btn-outline-info"
+                        : " btn-outline-secondary";
+    // let button_colour = " btn-outline-info";
+
     return (
-        <button className={"mx-1 col btn btn-outline-info" + (!!props.selected ? " active font-weight-bold" : "")}
+        <button className={"mx-1 col btn" + button_colour + (!!props.selected ? " active font-weight-bold" : "")}
                 type="button"
                 style={{
                     minHeight: "4rem",
+                    // textDecoration: (!!suggest) ? "underline" : "",
                     pointerEvents: (!!props.disabled ? "none" : "auto")
                 }}
                 value={props.value}
@@ -31,7 +39,8 @@ const mapStateToProps = (state, ownProps) => {
     return {
         video_loaded: state.ui_status.video_loaded,
         video_playing: state.ui_status.video_playing,
-        confirmed_dx: state.ui_status.confirmed_dx
+        confirmed_dx: state.ui_status.confirmed_dx,
+        suggestions: state.scenario_state.dx_suggestions,
     };
 }
 
@@ -115,7 +124,12 @@ class DiagnosisControls extends React.Component {
             let sublayout = [];
             for (const [sidx, diagnosis] of display_object.diagnoses.entries()) {
                 sublayout.push(
-                    <DiagnosisControlButton key={diagnosis} value={diagnosis} disabled={this.props.confirmed_dx.length > 0} selected={this.state.selected_diagnoses.includes(diagnosis)} select_diagnosis={this.select_diagnosis} />
+                    <DiagnosisControlButton key={diagnosis}
+                                            value={diagnosis}
+                                            disabled={this.props.confirmed_dx.length > 0}
+                                            selected={this.state.selected_diagnoses.includes(diagnosis)}
+                                            select_diagnosis={this.select_diagnosis}
+                                            suggested={this.props.suggestions.includes(diagnosis)} />
                 );
             }
 

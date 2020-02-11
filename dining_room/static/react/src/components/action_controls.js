@@ -23,9 +23,21 @@ class ActionControlButton extends React.Component {
     }
 
     render() {
+        let suggest = (!!window.constants.EXPERIMENT_CONDITION.show_ax_suggestions && !!this.props.suggested) && !this.props.disabled;
+        let button_colour = (!!suggest || !window.constants.EXPERIMENT_CONDITION.show_ax_suggestions)
+                            ? " btn-outline-info"
+                            : " btn-outline-secondary";
+        // let button_colour = " btn-outline-info";
+
+        button_colour = (!!this.props.disabled ? " btn-outline-secondary" : button_colour);
+
         return (
-            <button className={"col btn " + (!!this.props.disabled ? "btn-outline-secondary" : "btn-outline-info")}
-                    style={{height: "100%", minHeight: "4rem"}}
+            <button className={"col btn" + button_colour}
+                    style={{
+                        height: "100%",
+                        minHeight: "4rem",
+                        // textDecoration: (!!suggest) ? "underline" : "",
+                    }}
                     onClick={this.select_action}
                     disabled={this.props.disabled}>
                 {window.constants.ACTIONS[this.props.value]}
@@ -44,6 +56,7 @@ const mapStateToProps = (state, ownProps) => {
         dx_confirmed: state.ui_status.confirmed_dx.length > 0,
         dx_certainty: state.ui_status.dx_certainty,
         selected_action: state.ui_status.selected_action,
+        suggestions: state.scenario_state.ax_suggestions,
     };
 }
 
@@ -132,7 +145,11 @@ class ActionControls extends React.Component {
             let sublayout = [];
             for (const [sidx, action_name] of display_object.actions.entries()) {
                 sublayout.push(
-                    <ActionControlButton key={action_name} dispatch={this.props.dispatch} value={action_name} disabled={!!this.props.selected_action} />
+                    <ActionControlButton key={action_name}
+                                         dispatch={this.props.dispatch}
+                                         value={action_name}
+                                         disabled={!!this.props.selected_action}
+                                         suggested={this.props.suggestions.includes(action_name)} />
                 );
             }
             for (let idx = sublayout.length; idx < this.MAX_BUTTONS_PER_ROW; idx++) {
