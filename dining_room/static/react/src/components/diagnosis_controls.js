@@ -23,7 +23,7 @@ const DiagnosisControlButton = (props) => {
                 type="button"
                 style={{
                     minHeight: "4rem",
-                    // textDecoration: (!!suggest) ? "underline" : "",
+                    borderWidth: (!!suggest) ? "3px" : "",
                     pointerEvents: (!!props.disabled ? "none" : "auto")
                 }}
                 value={props.value}

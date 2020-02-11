@@ -36,7 +36,7 @@ class ActionControlButton extends React.Component {
                     style={{
                         height: "100%",
                         minHeight: "4rem",
-                        // textDecoration: (!!suggest) ? "underline" : "",
+                        borderWidth: (!!suggest) ? "3px" : "",
                     }}
                     onClick={this.select_action}
                     disabled={this.props.disabled}>
