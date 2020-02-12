@@ -618,15 +618,44 @@ class Transition:
 
 class Suggestions:
     """
-    A class to provide suggestions given the state the user is in. It is
-    initialized with the user object, so that we can cater suggestions depending
-    on the condition the user is in
+    A class to provide suggestions. It can be initialized with a maximum number
+    of suggestions, and whether to pad the suggestions on output. On the website
+    these configs can be obtained from the user / study management object
     """
 
-    def __init__(self, user):
-        self.user = user
+    DEFAULT_MAX_DX_SUGGESTIONS = 1
+    DEFAULT_MAX_AX_SUGGESTIONS = 1
+    DEFAULT_PAD_SUGGESTIONS = False
+    DEFAULT_NOISE_LEVEL = 0
 
-    def optimal_actions(self, state, action):
+    def __init__(self,
+        user=None,
+        max_dx_suggestions=DEFAULT_MAX_DX_SUGGESTIONS,
+        max_ax_suggestions=DEFAULT_MAX_AX_SUGGESTIONS,
+        pad_suggestions=DEFAULT_PAD_SUGGESTIONS,
+        noise_level=DEFAULT_NOISE_LEVEL,
+        show_dx_suggestions=True,
+        show_ax_suggestions=True,
+        *args, **kwargs
+    ):
+        """
+        Create this suggestions provider object. If instantiated with a user,
+        then we infer the properties of the suggestions to provide from the user
+        object; else we use parameters passed explicitly to the __init__ method.
+        The initialization from the user object takes precedence.
+        """
+        self.user = user
+        use_defaults = (self.user is None or not self.user.is_authenticated)
+
+        self.max_dx_suggestions = max_dx_suggestions if use_defaults else user.study_management.max_dx_suggestions
+        self.max_ax_suggestions = max_ax_suggestions if use_defaults else user.study_management.max_ax_suggestions
+        self.pad_suggestions = pad_suggestions if use_defaults else user.study_management.pad_suggestions
+        self.noise_level = noise_level if use_defaults else user.noise_level
+
+        self.show_dx_suggestions = True if use_defaults else user.show_dx_suggestions
+        self.show_ax_suggestions = True if use_defaults else user.show_ax_suggestions
+
+    def optimal_action(self, state, action):
         """
         Suggest the optimal action to take given the state of the system. This
         is done based on heuristics
@@ -732,8 +761,58 @@ class Suggestions:
         # Return the suggestions
         return suggestions
 
-    def pad_action_suggestions(self, suggestions):
+    def suggest_dx(self, state, action):
         """
-        Given a set of action suggestions, pad them
+        Given the state and action, return diagnosis suggestions. This function
+        calls the appropriate methods in this class depending on how the class
+        has been configured.
+
+        Args:
+          state (State) : the state that the user is in; never None
+          action (str)  : the action the user took; None if no action yet
+
+        Returns:
+          suggestions (list of str) : the suggestions
         """
-        pass
+        if self.show_dx_suggestions:
+            suggestions = self.ordered_diagnoses(state, action, accumulate=True)
+        else:
+            suggestions = []
+
+        # Limit the number to the maximum number of diagnoses
+        suggestions = suggestions[:self.max_dx_suggestions]
+
+        # TODO: Add noise
+
+        # TODO: Pad
+
+        # Return the diagnoses
+        return suggestions
+
+    def suggest_ax(self, state, action):
+        """
+        Given the state and action, return diagnosis suggestions. This function
+        calls the appropriate methods in this class depending on how the class
+        has been configured.
+
+        Args:
+          state (State) : the state that the user is in; never None
+          action (str)  : the action the user took; None if no action yet
+
+        Returns:
+          suggestions (list of str) : the suggestions
+        """
+        if self.show_ax_suggestions:
+            suggestions = self.optimal_action(state, action)
+        else:
+            suggestions = []
+
+        # Limit the number to the maximum number of actions
+        suggestions = suggestions[:self.max_ax_suggestions]
+
+        # TODO: Add noise
+
+        # TODO: Pad
+
+        # Return the actions
+        return suggestions

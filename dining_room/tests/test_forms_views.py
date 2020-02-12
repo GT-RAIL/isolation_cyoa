@@ -19,15 +19,19 @@ class LoginTestCase(TestCase):
     A simple test case to test whether logins work
     """
     def test_login(self):
+        sm = StudyManagement.get_default()
+
         # Create a user. Password should be the same as their username
         user = User.objects.create_user('test_user', 'test_user')
         user.study_condition = User.StudyConditions.DXAX_100
         user.start_condition = User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG
         user.save()
 
-        # Log the user in and test
+        # Log the user in and test the log in as well as the user's association
+        # to the manager object in the DB
         logged_in = self.client.login(username='test_user', password='test_user')
         self.assertTrue(logged_in)
+        self.assertEqual(sm, user.study_management)
 
 
 class CreateUserTestCase(TestCase):

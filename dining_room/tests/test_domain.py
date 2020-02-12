@@ -4,12 +4,12 @@ import collections
 from django.test import SimpleTestCase, TestCase, Client
 
 from dining_room import constants
-from dining_room.models import User
+from dining_room.models import User, StudyManagement
 from dining_room.models.domain import State, Transition, Suggestions
 from dining_room.views import get_next_state_json, get_suggestions_json
 
 
-# The actual test is here.
+# The tests for various aspects of the Dining Room domain
 
 class TransitionTestCase(SimpleTestCase):
     """
@@ -66,51 +66,72 @@ class SuggestionsTestCase(TestCase):
     """
 
     def setUp(self):
+        self.sm = StudyManagement.get_default()
+
         # Create a user and log them in
-        user = User.objects.create_user('test_user', 'test_user')
-        user.study_condition = User.StudyConditions.DXAX_100
-        user.start_condition = User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG
-        user.save()
+        self.user = User.objects.create_user('test_user', 'test_user')
+        self.user.study_condition = User.StudyConditions.DXAX_100
+        self.user.start_condition = User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG
+        self.user.save()
 
         # # Log the user in on the client
         self.client.login(username='test_user', password='test_user')
 
-        self.suggestions_provider = Suggestions(user)
+        self.suggestions_provider = Suggestions(self.user)
+
+    def _check_suggestions(self, expected_suggestions, actual_suggestions, context={}):
+        try:
+            self.assertListEqual(expected_suggestions, actual_suggestions)
+        except AssertionError as e:
+            print(f"Error in {context.get('start_state_str')}, step {context.get('idx', 0) + 1}/{len(context.get('action_sequence', []))}: {e}")
+            raise
 
     def test_ordered_diagnoses(self):
         """Test the ordered diagnosis method from the Suggestions"""
         for start_state_str, action_sequence in constants.OPTIMAL_ACTION_SEQUENCES.items():
             for idx, (action, expected_values) in enumerate(action_sequence):
-                try:
-                    state = State(expected_values['server_state_tuple'])
+                state = State(expected_values['server_state_tuple'])
 
-                    # Get the suggestions & test them
-                    suggestions = self.suggestions_provider.ordered_diagnoses(state, action, accumulate=True)
-                    self.assertListEqual(expected_values['dx_suggestions'], suggestions)
+                # Get the suggestions & test them
+                suggestions = self.suggestions_provider.ordered_diagnoses(state, action, accumulate=True)
+                self._check_suggestions(expected_values['dx_suggestions'], suggestions, locals())
 
-                    suggestions = self.suggestions_provider.ordered_diagnoses(state, action)
-                    self.assertListEqual([expected_values['dx_suggestions'][0]], suggestions)
+                suggestions = self.suggestions_provider.ordered_diagnoses(state, action)
+                self._check_suggestions([expected_values['dx_suggestions'][0]], suggestions, locals())
 
-                except AssertionError as e:
-                    print(f"Error in {start_state_str} step {idx+1}/{len(action_sequence)}: {e}")
-                    raise
-
-    def test_optimal_actions(self):
+    def test_optimal_action(self):
         """Test the optimal actions method from the Suggestions"""
         for start_state_str, action_sequence in constants.OPTIMAL_ACTION_SEQUENCES.items():
             for idx, (action, expected_values) in enumerate(action_sequence):
-                try:
-                    state = State(expected_values['server_state_tuple'])
+                state = State(expected_values['server_state_tuple'])
 
-                    # Get the suggestions
-                    suggestions = self.suggestions_provider.optimal_actions(state, action)
+                # Get the suggestions
+                suggestions = self.suggestions_provider.optimal_action(state, action)
 
-                    # Test the suggestions
-                    if idx == len(action_sequence)-1:
-                        self.assertListEqual([], suggestions)
-                    else:
-                        self.assertListEqual([action_sequence[idx+1][0]], suggestions)
+                # Test the suggestions
+                if idx == len(action_sequence)-1:
+                    self._check_suggestions([], suggestions, locals())
+                else:
+                    self._check_suggestions([action_sequence[idx+1][0]], suggestions, locals())
 
-                except AssertionError as e:
-                    print(f"Error in {start_state_str} step {idx+1}/{len(action_sequence)}: {e}")
-                    raise
+    def test_multiple_suggestions_without_padding(self):
+        """Test that updating the settings on the number of users changes the
+        number of suggestions that are returned"""
+        self.sm.max_dx_suggestions = 2
+        self.sm.max_ax_suggestions = 2
+        self.sm.save()
+        self.user.refresh_from_db()
+        self.suggestions_provider = Suggestions(self.user)
+
+        for start_state, action_sequence in constants.OPTIMAL_ACTION_SEQUENCES.items():
+            for idx, (action, expected_values) in enumerate(action_sequence):
+                state = State(expected_values['server_state_tuple'])
+
+                suggestions = self.suggestions_provider.suggest_dx(state, action)
+                self._check_suggestions(expected_values['dx_suggestions'][:self.sm.max_dx_suggestions], suggestions, locals())
+
+                suggestions = self.suggestions_provider.suggest_ax(state, action)
+                if idx == len(action_sequence)-1:
+                    self._check_suggestions([], suggestions, locals())
+                else:
+                    self._check_suggestions([action_sequence[idx+1][0]], suggestions, locals())

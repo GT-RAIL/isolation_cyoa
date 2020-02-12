@@ -12,7 +12,7 @@ from django.utils.crypto import get_random_string, salted_hmac
 from django.utils.translation import gettext_lazy as _
 
 from .. import constants
-from .domain import State, Transition
+from .domain import State, Transition, Suggestions
 
 
 # Model for managing the study condition
@@ -29,9 +29,9 @@ class StudyManagement(models.Model):
     max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
     max_test_attempts = models.IntegerField(default=5, help_text="Maximum number of times a user can fail the knowledge test")
     data_directory = models.CharField(max_length=50, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
-    max_dx_suggestions = models.IntegerField(default=1, help_text="Max number of diagnosis suggestions to display", validators=[MinValueValidator(1)])
-    max_ax_suggestions = models.IntegerField(default=1, help_text="Max number of action suggestions to display", validators=[MinValueValidator(1)])
-    pad_suggestions = models.BooleanField(default=False, help_text="Pad the suggestions if we don't have enough")
+    max_dx_suggestions = models.IntegerField(default=Suggestions.DEFAULT_MAX_DX_SUGGESTIONS, help_text="Max number of diagnosis suggestions to display", validators=[MinValueValidator(1)])
+    max_ax_suggestions = models.IntegerField(default=Suggestions.DEFAULT_MAX_AX_SUGGESTIONS, help_text="Max number of action suggestions to display", validators=[MinValueValidator(1)])
+    pad_suggestions = models.BooleanField(default=Suggestions.DEFAULT_PAD_SUGGESTIONS, help_text="Pad the suggestions if we don't have enough")
 
     _enabled_study_conditions = _enabled_start_conditions = None
 
@@ -258,7 +258,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         StudyConditions.DXAX_60,
     ]
 
-    STUDY_CONDITIONS_NOISE_VALUES = {
+    STUDY_CONDITIONS_NOISE_LEVELS = {
         StudyConditions.DX_100: 0,
         StudyConditions.AX_100: 0,
         StudyConditions.DXAX_100: 0,
@@ -466,7 +466,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def noise_level(self):
         """Get the noise value associated with the participants' condition"""
-        return User.STUDY_CONDITIONS_NOISE_VALUES.get(self.study_condition, 0)
+        return User.STUDY_CONDITIONS_NOISE_LEVELS.get(self.study_condition, Suggestions.DEFAULT_NOISE_LEVEL)
 
     @property
     def study_progress(self):
