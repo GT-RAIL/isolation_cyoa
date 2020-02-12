@@ -22,7 +22,7 @@ class CreateUserForm(forms.Form):
     nothing as input
     """
 
-    ALLOWED_TIME_SINCE_LOGIN = datetime.timedelta(minutes=45)
+    ALLOWED_TIME_SINCE_LOGIN = datetime.timedelta(minutes=46)
 
     def __init__(self, request=None, *args, **kwargs):
         """Initialize the same way as an AuthenticationForm"""
@@ -56,7 +56,7 @@ class CreateUserForm(forms.Form):
         User.objects.filter(
             Q(date_survey_completed__isnull=True) &
             (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')) &
-            Q(last_login__lt=(timezone.now() - CreateUserForm.ALLOWED_TIME_SINCE_LOGIN))
+            Q(last_login__lte=(timezone.now() - CreateUserForm.ALLOWED_TIME_SINCE_LOGIN))
         ).update(
             ignore_data_reason = f'marked as abandoned at {timezone.now()}'
         )
@@ -89,7 +89,7 @@ class CreateUserForm(forms.Form):
         # First check that we haven't exceeded the max number of users
         number_of_users = qs.count()
         if sm.max_number_of_people <= number_of_users:
-            raise forms.ValidationError("Cannot create user")
+            raise forms.ValidationError("Exceeded max number; cannot create user")
 
         # Get the number of users per condition
         counts_per_condition = qs.aggregate(**self._conditions_aggregate)
@@ -104,7 +104,7 @@ class CreateUserForm(forms.Form):
 
         # If a condition exists, then pick the user, otherwise return a fail
         if assigned_condition is None:
-            raise forms.ValidationError("Cannot create user")
+            raise forms.ValidationError("Exceeded number per condition; cannot create user")
 
         user = self._create_user(*assigned_condition)
         logger.info(f"{user} created for {assigned_condition[0]}, {assigned_condition[1]}")
