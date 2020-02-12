@@ -8,7 +8,8 @@ from django.utils.translation import gettext_lazy as _
 
 import multiselectfield
 
-from .domain import State, Transition, constants
+from .. import constants
+from .domain import State, Transition
 from .website import User, StudyManagement
 
 

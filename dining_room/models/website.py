@@ -11,7 +11,8 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string, salted_hmac
 from django.utils.translation import gettext_lazy as _
 
-from .domain import State, Transition, constants
+from .. import constants
+from .domain import State, Transition
 
 
 # Model for managing the study condition

@@ -97,10 +97,6 @@ class CreateUserTestCase(TestCase):
         self.assertTrue(user.invalid_data)
 
     def test_expected_number_of_users(self):
-        sm = StudyManagement.get_default()
-        sm.max_number_of_people = 10
-        sm.save()
-
         base_user_qs = User.objects.filter(Q(is_staff=False) & (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')))
 
         for study_condition in User.StudyConditions:

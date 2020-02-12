@@ -21,8 +21,9 @@ from django.utils.decorators import method_decorator
 
 from db_mutex.db_mutex import db_mutex
 
+from . import constants
 from .models import User
-from .models.domain import constants, display, State, Transition, Suggestions
+from .models.domain import display, State, Transition, Suggestions
 from .forms import (DemographicsForm, InstructionsTestForm, SurveyForm,
                     CreateUserForm)
 from .utils import DropboxConnection

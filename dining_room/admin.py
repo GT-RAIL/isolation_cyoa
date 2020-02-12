@@ -18,8 +18,8 @@ from django.utils.translation import gettext, gettext_lazy as _
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 
+from . import constants
 from .models import User, StudyManagement, StudyAction
-from .models.domain import constants
 
 
 # Helper classes such as list filters, etc

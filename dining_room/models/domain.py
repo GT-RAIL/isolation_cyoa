@@ -10,6 +10,8 @@ import collections
 
 import numpy as np
 
+from .. import constants
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,69 +20,6 @@ logger = logging.getLogger(__name__)
 
 # Included here because we might need to use this module as a standalone in a
 # docker container on the webserver
-
-class objdict(dict):
-    """Provides class-like access to a dictionary"""
-    def __getattr__(self, name):
-        if name in self:
-            return self[name]
-        else:
-            raise AttributeError("No such attribute: " + name)
-
-    def __setattr__(self, name, value):
-        self[name] = value
-
-    def __delattr__(self, name):
-        if name in self:
-            del self[name]
-        else:
-            raise AttributeError("No such attribute: " + name)
-
-
-class bijectivedict:
-    """Provides a bijective dictionary for lookup by keys and values"""
-    MISSING_VALUE = '__MISSING__'
-
-    def __init__(self, *args, **kwargs):
-        self.forward = dict(*args, **kwargs)
-        self.backward = { v: k for k, v in self.forward.items() }
-
-    def __str__(self):
-        return str(self.forward) + str(self.backward)
-
-    def __repr__(self):
-        return str(self)
-
-    def __getitem__(self, name):
-        if (
-            (name not in self.forward or self.forward[name] == bijectivedict.MISSING_VALUE)
-            and (name not in self.backward or self.backward[name] == bijectivedict.MISSING_VALUE)
-        ):
-            raise AttributeError("No such attribute: " + name)
-
-        return self.forward.get(name) or self.backward.get(name)
-
-    def __setitem__(self, name, value):
-        assert name != bijectivedict.MISSING_VALUE and value != bijectivedict.MISSING_VALUE, \
-            "Cannot add key {}".format(bijectivedict.MISSING_VALUE)
-
-        if name in self.forward:
-            if self.forward[name] != bijectivedict.MISSING_VALUE:
-                self.backward[self.forward[name]] = bijectivedict.MISSING_VALUE
-        if value in self.backward:
-            if self.backward[value] != bijectivedict.MISSING_VALUE:
-                self.forward[self.backward[value]] = bijectivedict.MISSING_VALUE
-
-        self.forward[name] = value
-        self.backward[value] = name
-
-    def __delitem__(self, name):
-        if name in self.forward:
-            if self.forward[name] != bijectivedict.MISSING_VALUE:
-                value = self.forward[name]
-                del self.backward[value]
-            del self.forward[name]
-
 
 def display(string):
     """Given a location or object or action string, get the display name"""
@@ -109,122 +48,6 @@ def get_object_from_action_name(action):
         object_name = None
 
     return object_name
-
-
-# Constants for the domain
-constants = objdict({
-    # The actions that we can handle at any given state
-    'ACTIONS': collections.OrderedDict({
-        'at_c': "Update robot's location belief to: Couch",
-        'at_dt': "Update robot's location belief to:  Dining Table",
-        'at_kc': "Update robot's location belief to:  Kitchen Counter",
-        'go_to_c': "Navigate to Couch",
-        'go_to_dt': "Navigate to Dining Table",
-        'go_to_kc': "Navigate to Kitchen Counter",
-        'remove_obstacle': "Remove the obstacle blocking navigation",
-        'out_of_collision': "Move away from a collision",
-        'look_at_c': "Look at Couch",
-        'look_at_dt': "Look at Dining Table",
-        'look_at_kc': "Look at Kitchen Counter",
-        'pick_bowl': "Pick up the Bowl",
-        'pick_jug': "Pick up the Jug",
-        'pick_mug': "Pick up the Cup",
-        'place': "Put away held object",
-        'restart_video': "Restart the camera",
-        'find_charger': "Find the charger and navigate to it",
-    }),
-
-    # The objects in this scenario
-    'OBJECTS': ['jug', 'bowl', 'mug'],
-
-    # The locations in this scenario
-    'LOCATIONS': ['kc', 'dt', 'c'],
-
-    # The mapping of locations to their expanded name
-    'LOCATION_NAMES': bijectivedict({
-        'kc': 'kitchen_counter',
-        'dt': 'dining_table',
-        'c': 'couch',
-    }),
-
-    # The mappings of locations based on the mapping of the table
-    'LOCATION_MAPPINGS': {
-        'dining_table_to_dining_table': objdict({
-            'dining_table': 'dining_table',
-            'kitchen_counter': 'kitchen_counter',
-            'couch': 'couch',
-        }),
-
-        'dining_table_to_kitchen_counter': objdict({
-            'dining_table': 'kitchen_counter',
-            'kitchen_counter': 'couch',
-            'couch': 'dining_table',
-        }),
-
-        'dining_table_to_couch': objdict({
-            'dining_table': 'couch',
-            'kitchen_counter': 'dining_table',
-            'couch': 'kitchen_counter',
-        }),
-    },
-
-    # Empty gripper
-    'EMPTY_GRIPPER': 'empty',
-    'EMPTY_GRIPPER_DISPLAY': 'nothing',
-
-    # Object states
-    'OBJECT_STATES': {
-        'jug': ['default', 'occluding', 'gripper'],
-        'bowl': ['default', 'above_mug', 'gripper'],
-        'mug': ['default', 'gripper'],
-    },
-
-    # The arm statuses
-    'ARM_STATUS': ['not_moving', 'in_motion'],
-
-    # The diagnosis options. These are keys corresponding to display values
-    'DIAGNOSES': collections.OrderedDict({
-        'lost': 'The robot is lost',
-        'cannot_move': 'The robot is stuck and cannot move to a location',
-        'base_collision': 'The robot has collided with an object',
-        'path_blocked': "The robot's path is blocked",
-        'cannot_pick': 'The cup cannot be picked up',
-        'cannot_see': 'The cup is not visible',
-        'different_location': 'The cup is not where it should be',
-        'object_fell': "The object fell out of the robot's hand",
-        'battery_low': 'The battery is low',
-        'video_problem': 'There is a problem with the camera',
-        'none': 'There is no problem',
-    }),
-
-    # The maximum number of actions that we allow
-    'MAX_NUMBER_OF_ACTIONS': 20,
-
-    # A dictionary mapping progress states through the study to the allowed
-    # pages in the event those states are reached. If the user navigates to an
-    # unallowed page, they are redirected to the first allowed page
-    'STUDY_PROGRESS_STATES': objdict({
-        # If the user has been created but hasn't logged in, then redirect to
-        # login. This will happen anyway because of login_required
-        'CREATED': ['login'],
-        # If demographics haven't been completed, redirect to demographics
-        'LOGGED_IN': ['demographics'],
-        # If the study has not been completed, but demographics have been,
-        # then redirect to the instructions or the knowledge test
-        'DEMOGRAPHED': ['instructions', 'test', 'study'],
-        # If the user has started the study, then they may only be on the study
-        # pages
-        'STARTED': ['study', 'survey'],
-        # If the user has completed the study but not the survey, then redirect
-        # them to the survey
-        'FINISHED': ['survey'],
-        # If the user has completed the study, and the survey, then redirect
-        # to the completed page
-        'SURVEYED': ['complete'],
-        # If the user has failed the knowledge test, then mark them as failed
-        'FAILED': ['fail'],
-    }),
-})
 
 
 # The main classes
@@ -314,7 +137,7 @@ class State:
 
     @base_location.setter
     def base_location(self, value):
-        assert value in constants.LOCATIONS
+        assert value in constants.LOCATIONS, value
         self._base_location = value
 
     @property
@@ -324,7 +147,7 @@ class State:
 
     @object_location.setter
     def object_location(self, value):
-        assert value in constants.LOCATIONS[:-1]
+        assert value in constants.LOCATIONS[:-1], value
         self._object_location = value
 
     @property
@@ -334,7 +157,7 @@ class State:
 
     @jug_state.setter
     def jug_state(self, value):
-        assert value in constants.OBJECT_STATES['jug']
+        assert value in constants.OBJECT_STATES['jug'], value
         self._jug_state = value
 
     @property
@@ -344,7 +167,7 @@ class State:
 
     @bowl_state.setter
     def bowl_state(self, value):
-        assert value in constants.OBJECT_STATES['bowl']
+        assert value in constants.OBJECT_STATES['bowl'], value
         self._bowl_state = value
 
     @property
@@ -354,7 +177,7 @@ class State:
 
     @mug_state.setter
     def mug_state(self, value):
-        assert value in constants.OBJECT_STATES['mug']
+        assert value in constants.OBJECT_STATES['mug'], value
         self._mug_state = value
 
     @property
@@ -364,7 +187,7 @@ class State:
 
     @gripper_state.setter
     def gripper_state(self, value):
-        assert value is None or value in constants.OBJECTS + [constants.EMPTY_GRIPPER]
+        assert value is None or value in (constants.OBJECTS + [constants.EMPTY_GRIPPER]), value
         self._gripper_state = value or constants.EMPTY_GRIPPER
 
     @property
@@ -376,7 +199,7 @@ class State:
 
     @current_dt_label.setter
     def current_dt_label(self, value):
-        assert value in constants.LOCATIONS
+        assert value in constants.LOCATIONS, value
         self._current_dt_label = value
 
     # Inferred attributes
@@ -395,7 +218,7 @@ class State:
 
     @tuple.setter
     def tuple(self, value):
-        assert len(value) == len(self.tuple)
+        assert len(value) == len(self.tuple), value
         self.base_location, self.object_location, self.jug_state, self.bowl_state, self.mug_state, self.gripper_state, self.current_dt_label = value
 
     @property
@@ -556,7 +379,7 @@ class Transition:
 
     @start_state.setter
     def start_state(self, value):
-        assert isinstance(value, State) or value is None
+        assert isinstance(value, State) or value is None, value
         self._start_state = value
 
     @property
@@ -566,7 +389,7 @@ class Transition:
 
     @action.setter
     def action(self, value):
-        assert value in constants.ACTIONS.keys() or value is None
+        assert value in constants.ACTIONS.keys() or value is None, value
         self._action = value
 
     @property
@@ -576,7 +399,7 @@ class Transition:
 
     @end_state.setter
     def end_state(self, value):
-        assert isinstance(value, State)
+        assert isinstance(value, State), value
         self._end_state = value
 
     # Inferred attributes
