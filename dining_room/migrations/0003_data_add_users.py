@@ -148,7 +148,7 @@ def remove_blacklisted_users(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dining_room', '0002_auto_20200212_1840'),
+        ('dining_room', '0002_auto_20200212_2210'),
     ]
 
     operations = [

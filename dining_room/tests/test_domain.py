@@ -120,6 +120,7 @@ class SuggestionsTestCase(TestCase):
         self.sm.max_dx_suggestions = 2
         self.sm.max_ax_suggestions = 2
         self.sm.save()
+        self.user.rng_state = Suggestions.DEFAULT_RNG_SEED
         self.user.refresh_from_db()
         self.suggestions_provider = Suggestions(self.user)
 

@@ -44,6 +44,8 @@ class StudyAction(models.Model):
 
     # Other data not part of the JSON action information
     browser_refreshed = models.BooleanField(default=False)
+    corrupted_dx_suggestions = models.BooleanField(default=False)
+    corrupted_ax_suggestions = models.BooleanField(default=False)
 
     # Cached property
     _action_idx = None

@@ -627,6 +627,9 @@ class Suggestions:
     DEFAULT_MAX_AX_SUGGESTIONS = 1
     DEFAULT_PAD_SUGGESTIONS = False
     DEFAULT_NOISE_LEVEL = 0
+    DEFAULT_RNG_SEED = 0x1337
+
+    RNG_STATE_SAVE_MODULO = int(1e8)
 
     def __init__(self,
         user=None,
@@ -644,8 +647,8 @@ class Suggestions:
         object; else we use parameters passed explicitly to the __init__ method.
         The initialization from the user object takes precedence.
         """
-        self.user = user
-        use_defaults = (self.user is None or not self.user.is_authenticated)
+        self.user = user if user is not None and user.is_authenticated else None
+        use_defaults = (user is None or not user.is_authenticated)
 
         self.max_dx_suggestions = max_dx_suggestions if use_defaults else user.study_management.max_dx_suggestions
         self.max_ax_suggestions = max_ax_suggestions if use_defaults else user.study_management.max_ax_suggestions
@@ -654,6 +657,9 @@ class Suggestions:
 
         self.show_dx_suggestions = True if use_defaults else user.show_dx_suggestions
         self.show_ax_suggestions = True if use_defaults else user.show_ax_suggestions
+
+        # Create an rng
+        self.rng = np.random.default_rng(Suggestions.DEFAULT_RNG_SEED if use_defaults else user.rng_state)
 
     def optimal_action(self, state, action):
         """
@@ -761,6 +767,30 @@ class Suggestions:
         # Return the suggestions
         return suggestions
 
+    def _add_noise(self, suggestions, alternatives, number=None):
+        """
+        Depending on the noise level, substitute elements in suggestions with
+        those from the alternatives. If number is provided, then pad elements
+        of alternatives into suggestions until we equal number.
+
+        len(alternatives) MUST be > len(suggestions)
+        no element in suggestions should be in alternatives
+        """
+        number = number or len(suggestions)
+
+        # Check if we need to corrupt the data & corrupt if so
+        should_corrupt = (self.rng.uniform() < self.noise_level)
+        if should_corrupt:
+            suggestions = self.rng.choice(alternatives, size=len(suggestions), replace=False)
+
+        # If we need to pad, then pad
+        alternatives = set(alternatives) - set(suggestions)
+        while len(suggestions) < number:
+            suggestions.append(self.rng.choice(list(alternatives)))
+            alternatives.discard(suggestions[-1])
+
+        return suggestions
+
     def suggest_dx(self, state, action):
         """
         Given the state and action, return diagnosis suggestions. This function
@@ -785,6 +815,11 @@ class Suggestions:
         # TODO: Add noise
 
         # TODO: Pad
+
+        # Update the user's rng state
+        if self.user is not None:
+            self.user.rng_state = self.rng.bit_generator.state['state']['state'] % Suggestions.RNG_STATE_SAVE_MODULO
+            self.user.save()
 
         # Return the diagnoses
         return suggestions
@@ -813,6 +848,11 @@ class Suggestions:
         # TODO: Add noise
 
         # TODO: Pad
+
+        # Update the user's rng state
+        if self.user is not None:
+            self.user.rng_state = self.rng.bit_generator.state['state']['state'] % Suggestions.RNG_STATE_SAVE_MODULO
+            self.user.save()
 
         # Return the actions
         return suggestions
