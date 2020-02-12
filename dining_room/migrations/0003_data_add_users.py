@@ -49,7 +49,7 @@ def remove_superuser(apps, schema_editor):
 
 # Define the list of workers to blacklist
 BLACKLISTED_WORKER_IDS = [
-    '\'\'\'\'',
+    '\'\'',
     '1258',
     '25588',
     '256',
@@ -57,20 +57,33 @@ BLACKLISTED_WORKER_IDS = [
     '56879',
     '586',
     'A1VR1XQEQQXYUE',
+    'A1WPCXNFENBSY4',
     'A1ZZCIE79O3048',
     'A21SP7E5DFFX37',
+    'A25YZ7RE911DPQ',
+    'A2APG8MSLJ6G2K',
     'A2B153AHPWHLH1',
     'A2GRJVN7B5YR96',
+    'A2O2Y99RA9GFUJ',
     'A2PXZ58VIBFNQQ',
+    'A2XCEMBRPHIWEG',
+    'A33VGSEJ44ORMF',
+    'A3CH8O5PB3UKD7',
     'A3I62J5XYOY6C8',
     'A3OT6R8ZCGIQWD',
+    'A3RLCGRXA34GC0',
+    'A5TMU62U5FE5K',
     'A9LXSGXZM4IJE',
+    'AL8TL480ET24G',
     'ASCLZFXD9WMON',
     'ATJ9VBARQEB46',
+    'AU5BD5NSSES9H',
     'AUMTP6BXBDBXL',
+    'AV22FQTJNBUZT',
     'fdgffghhgj',
     'fgfdhfghfgh',
     'sfdvsdgeu',
+    'test_worker',
     'vjhgjhgjhk',
 ]
 
@@ -113,7 +126,7 @@ def remove_blacklisted_users(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dining_room', '0002_auto_20200206_1404'),
+        ('dining_room', '0002_auto_20200211_1918'),
     ]
 
     operations = [

@@ -312,14 +312,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         _("I think that I would need the support of a technical person to be able to use this system."),
         blank=True, null=True, choices=LikertResponses.choices
     )
-    # sus_well_integrated = models.IntegerField(
-    #     _("I found the various functions in this system were well integrated."),
-    #     blank=True, null=True, choices=LikertResponses.choices
-    # )
-    # sus_inconsistency = models.IntegerField(
-    #     _("I thought there was too much inconsistency in the system."),
-    #     blank=True, null=True, choices=LikertResponses.choices
-    # )
+    sus_well_integrated = models.IntegerField(
+        _("I found the various functions in this system were well integrated."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
+    sus_inconsistency = models.IntegerField(
+        _("I thought there was too much inconsistency in the system."),
+        blank=True, null=True, choices=LikertResponses.choices
+    )
     sus_most_people_can_learn = models.IntegerField(
         _("I would imagine that most people would learn to use this system very quickly."),
         blank=True, null=True, choices=LikertResponses.choices
@@ -348,8 +348,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         'sus_unnecessarily_complex',
         'sus_easy_to_use',
         'sus_technical',
-        # 'sus_well_integrated',
-        # 'sus_inconsistency',
+        'sus_well_integrated',
+        'sus_inconsistency',
         'sus_most_people_can_learn',
         'sus_awkward',
         'sus_confident',

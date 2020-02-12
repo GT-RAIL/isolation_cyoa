@@ -1,8 +1,9 @@
 import datetime
 import logging
+import itertools
 
 from django import forms
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.contrib.auth import authenticate, login
 from django.utils import timezone
 
@@ -21,13 +22,18 @@ class CreateUserForm(forms.Form):
     nothing as input
     """
 
-    DATE_JOINED_TIMEDELTA = datetime.timedelta(minutes=20)
+    ALLOWED_TIME_SINCE_LOGIN = datetime.timedelta(minutes=45)
 
     def __init__(self, request=None, *args, **kwargs):
         """Initialize the same way as an AuthenticationForm"""
         self.request = request
         self.user_cache = None
         super().__init__(*args, **kwargs)
+
+        # Cache a pointer to the study manager
+        self._sm = None
+        self._conditions_idx = None
+        self._conditions_aggregate = None
 
     def _create_user(self, study_condition, start_condition):
         # Loop through to make sure that we never have duplicates
@@ -43,53 +49,65 @@ class CreateUserForm(forms.Form):
         user = User.objects.create_user(username, unique_key, study_condition=study_condition, start_condition=start_condition)
         return user
 
+    def _clear_abandoned_users(self):
+        """
+        Clear out users that might've abandoned the study
+        """
+        User.objects.filter(
+            Q(date_survey_completed__isnull=True) &
+            (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')) &
+            Q(last_login__lt=(timezone.now() - CreateUserForm.ALLOWED_TIME_SINCE_LOGIN))
+        ).update(
+            ignore_data_reason = f'marked as abandoned at {timezone.now()}'
+        )
+
+    def _get_study_management(self):
+        """Get a study manager. We cache the expensive aggregate generator"""
+        sm = StudyManagement.get_default()
+        if sm != self._sm:
+            self._sm = sm
+            self._conditions_idx = {}
+            self._conditions_aggregate = {}
+            for idx, (study_condition, start_condition) in enumerate(itertools.product(sm.enabled_study_conditions_list, sm.enabled_start_conditions_list)):
+                self._conditions_aggregate[str(idx)] = Count('pk', filter=Q(study_condition=study_condition, start_condition=start_condition))
+                self._conditions_idx[str(idx)] = (study_condition, start_condition)
+        return sm
+
     def clean(self):
         cleaned_data = super().clean()
+        self._clear_abandoned_users()
 
-        # Check to see if there are conditions that need to be satisfied on the
-        # manager and create a user if so
-        sm = StudyManagement.get_default()
+        # Get the management object
+        sm = self._get_study_management()
 
-        # First check that we haven't exceeded the max number of users
+        # Create the different filter conditions and make a queryset from that
         users_not_staff = Q(is_staff=False)
         users_valid_condition = Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')
-        # date_joined_condition = Q(date_joined__gte=(timezone.now()-CreateUserForm.DATE_JOINED_TIMEDELTA))
-        # date_finished_condition = Q(date_finished__isnull=False)
-        number_of_users = User.objects.filter(users_not_staff & users_valid_condition).count()
+        users_enabled_conditions = (Q(study_condition__in=sm.enabled_study_conditions_list) & Q(start_condition__in=sm.enabled_start_conditions_list))
+        qs = User.objects.filter(users_not_staff & users_valid_condition & users_enabled_conditions)
+
+        # First check that we haven't exceeded the max number of users
+        number_of_users = qs.count()
         if sm.max_number_of_people <= number_of_users:
             raise forms.ValidationError("Cannot create user")
 
-        # Then iterate through the conditions and create a user. We can optimize
-        # this to start with the minimum number of users in a given condition.
-        user = None
-        for num_users in range(1, sm.number_per_condition+1):
-            for study_condition in sm.enabled_study_conditions_list:
-                for start_condition in sm.enabled_start_conditions_list:
-                    # Check the number of active users, if less add a user, else
-                    # continue
-                    users_in_condition = Q(start_condition=start_condition, study_condition=study_condition)
-                    number_users_in_condition = User.objects.filter(
-                        users_in_condition
-                        & users_not_staff
-                        & users_valid_condition
-                        # & (date_joined_condition | date_finished_condition)
-                    ).count()
-                    if number_users_in_condition < num_users:
-                        user = self._create_user(study_condition, start_condition)
-                        logger.info(f"{user} created for {start_condition}, {study_condition}")
-                        break
+        # Get the number of users per condition
+        counts_per_condition = qs.aggregate(**self._conditions_aggregate)
+        min_count = float('inf')
+        assigned_condition = None
+        for cidx, count in counts_per_condition.items():
+            if count > min_count or count >= sm.number_per_condition:
+                continue
 
-                # Exit if we've created an user
-                if user is not None:
-                    break
+            min_count = count
+            assigned_condition = self._conditions_idx[cidx]
 
-            # Exit if we've created an user
-            if user is not None:
-                break
-
-        # Raise an error if we didn't manage to create a user
-        if user is None:
+        # If a condition exists, then pick the user, otherwise return a fail
+        if assigned_condition is None:
             raise forms.ValidationError("Cannot create user")
+
+        user = self._create_user(*assigned_condition)
+        logger.info(f"{user} created for {assigned_condition[0]}, {assigned_condition[1]}")
 
         # Authenticate the user in
         self.user_cache = authenticate(self.request, username=user.username, password=user.username)
@@ -127,9 +145,9 @@ class DemographicsForm(forms.ModelForm):
             raise forms.ValidationError("Worker ID needs to be filled in.")
 
         # Get workers with the same ID
-        num_failed_workers = User.objects.filter(amt_worker_id=cleaned_data['amt_worker_id'], ignore_data_reason__isnull=False).count()
-        if num_failed_workers > 0:
-            self.instance.ignore_data_reason = f"failed worker ID of {cleaned_data['amt_worker_id']} is repeated"
+        num_repeated = User.objects.filter(amt_worker_id=cleaned_data['amt_worker_id']).count()
+        if num_repeated > 0:
+            self.instance.ignore_data_reason = f"worker ID of {cleaned_data['amt_worker_id']} is repeated"
             self.instance.save()
 
     def save(self, *args, **kwargs):
