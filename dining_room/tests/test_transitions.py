@@ -60,25 +60,35 @@ class TransitionTestCase(SimpleTestCase):
             self._run_test_action_sequence(start_state_tuple, action_sequence)
 
 
-class SuggestionsTestCase(SimpleTestCase):
+class SuggestionsTestCase(TestCase):
     """
     Test the suggestions
     """
 
-    # For testing suggestions
+    def setUp(self):
+        # Create a user and log them in
+        user = User.objects.create_user('test_user', 'test_user')
+        user.study_condition = User.StudyConditions.DXAX_100
+        user.start_condition = User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG
+        user.save()
+
+        # # Log the user in on the client
+        self.client.login(username='test_user', password='test_user')
+
+        self.suggestions_provider = Suggestions(user)
+
     def test_ordered_diagnoses(self):
         """Test the ordered diagnosis method from the Suggestions"""
-        suggestions_provider = Suggestions(None)
         for start_state_str, action_sequence in constants.OPTIMAL_ACTION_SEQUENCES.items():
             for idx, (action, expected_values) in enumerate(action_sequence):
                 try:
                     state = State(expected_values['server_state_tuple'])
 
                     # Get the suggestions & test them
-                    suggestions = suggestions_provider.ordered_diagnoses(state, action, accumulate=True)
+                    suggestions = self.suggestions_provider.ordered_diagnoses(state, action, accumulate=True)
                     self.assertListEqual(expected_values['dx_suggestions'], suggestions)
 
-                    suggestions = suggestions_provider.ordered_diagnoses(state, action)
+                    suggestions = self.suggestions_provider.ordered_diagnoses(state, action)
                     self.assertListEqual([expected_values['dx_suggestions'][0]], suggestions)
 
                 except AssertionError as e:
@@ -87,14 +97,13 @@ class SuggestionsTestCase(SimpleTestCase):
 
     def test_optimal_actions(self):
         """Test the optimal actions method from the Suggestions"""
-        suggestions_provider = Suggestions(None)
         for start_state_str, action_sequence in constants.OPTIMAL_ACTION_SEQUENCES.items():
             for idx, (action, expected_values) in enumerate(action_sequence):
                 try:
                     state = State(expected_values['server_state_tuple'])
 
                     # Get the suggestions
-                    suggestions = suggestions_provider.optimal_actions(state, action)
+                    suggestions = self.suggestions_provider.optimal_actions(state, action)
 
                     # Test the suggestions
                     if idx == len(action_sequence)-1:

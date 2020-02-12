@@ -14,6 +14,22 @@ from dining_room.forms import CreateUserForm
 
 # The tests for the various forms and views go here
 
+class LoginTestCase(TestCase):
+    """
+    A simple test case to test whether logins work
+    """
+    def test_login(self):
+        # Create a user. Password should be the same as their username
+        user = User.objects.create_user('test_user', 'test_user')
+        user.study_condition = User.StudyConditions.DXAX_100
+        user.start_condition = User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG
+        user.save()
+
+        # Log the user in and test
+        logged_in = self.client.login(username='test_user', password='test_user')
+        self.assertTrue(logged_in)
+
+
 class CreateUserTestCase(TestCase):
     """
     Test the CreateUserForm and the assignment of users to conditions
