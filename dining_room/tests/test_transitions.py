@@ -507,44 +507,20 @@ class TransitionTestCase(SimpleTestCase):
             self._run_test_action_sequence(start_state_tuple, action_sequence)
 
     # For testing suggestions
-    def test_suggestions_json(self):
-        """Test the suggestions in optimal action sequences are expected"""
-        for start_state, action_sequence in OPTIMAL_ACTION_SEQUENCES.items():
-            for idx, (action, expected_values) in enumerate(action_sequence):
-                try:
-                    state = State(expected_values['server_state_tuple'])
-                    transition = Transition(None, action, state)
-
-                    # Get the suggestions
-                    suggestions_json = get_suggestions_json(transition)
-
-                    # Test the suggestions
-                    self.assertListEqual(
-                        [expected_values['dx_suggestions'][0]],
-                        suggestions_json['dx_suggestions']
-                    )
-
-                    if idx == len(action_sequence)-1:
-                        self.assertListEqual([], suggestions_json['ax_suggestions'])
-                    else:
-                        self.assertListEqual([action_sequence[idx+1][0]], suggestions_json['ax_suggestions'])
-
-                except AssertionError as e:
-                    print(f"Error in {start_state} step {idx+1}/{len(action_sequence)}: {e}")
-                    raise
-
     def test_ordered_diagnoses(self):
         """Test the ordered diagnosis method from the Suggestions"""
+        suggestions_provider = Suggestions(None)
         for start_state, action_sequence in OPTIMAL_ACTION_SEQUENCES.items():
             for idx, (action, expected_values) in enumerate(action_sequence):
                 try:
                     state = State(expected_values['server_state_tuple'])
 
-                    # Get the suggestions
-                    suggestions = Suggestions.ordered_diagnoses(state, action, accumulate=True)
-
-                    # Test the suggestions
+                    # Get the suggestions & test them
+                    suggestions = suggestions_provider.ordered_diagnoses(state, action, accumulate=True)
                     self.assertListEqual(expected_values['dx_suggestions'], suggestions)
+
+                    suggestions = suggestions_provider.ordered_diagnoses(state, action)
+                    self.assertListEqual([expected_values['dx_suggestions'][0]], suggestions)
 
                 except AssertionError as e:
                     print(f"Error in {start_state} step {idx+1}/{len(action_sequence)}: {e}")
@@ -552,13 +528,14 @@ class TransitionTestCase(SimpleTestCase):
 
     def test_optimal_actions(self):
         """Test the optimal actions method from the Suggestions"""
+        suggestions_provider = Suggestions(None)
         for start_state, action_sequence in OPTIMAL_ACTION_SEQUENCES.items():
             for idx, (action, expected_values) in enumerate(action_sequence):
                 try:
                     state = State(expected_values['server_state_tuple'])
 
                     # Get the suggestions
-                    suggestions = Suggestions.optimal_actions(state, action)
+                    suggestions = suggestions_provider.optimal_actions(state, action)
 
                     # Test the suggestions
                     if idx == len(action_sequence)-1:

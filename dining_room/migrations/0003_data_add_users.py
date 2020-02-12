@@ -13,6 +13,28 @@ from dining_room.models import User as DRUser
 logger = logging.getLogger(__name__)
 
 
+def create_study_management(apps, schema_editor):
+    """Create the single study management row"""
+    start_conditions = [
+        'kc.dt.default.default.default.empty.dt',
+        'dt.kc.default.default.default.empty.kc',
+        'kc.kc.default.above_mug.default.empty.dt',
+        'kc.kc.occluding.default.default.empty.dt',
+        'kc.kc.occluding.above_mug.default.empty.dt',
+        'kc.dt.occluding.above_mug.default.empty.dt',
+    ]
+
+    StudyManagement = apps.get_model('dining_room', 'StudyManagement')
+    sm = StudyManagement(data_directory='userdata_dev', enabled_start_conditions="\n".join(start_conditions))
+    sm.save()
+
+
+def remove_study_management(apps, schema_editor):
+    """Remove all study management rows"""
+    StudyManagement = apps.get_model('dining_room', 'StudyManagement')
+    StudyManagement.objects.all().delete()
+
+
 # Turns out we have to redo the model creation methods here because of migration
 # philosophies
 def create_user(User, username, password=None):
@@ -32,7 +54,7 @@ def create_superuser(apps, schema_editor):
         superuser = create_user(User, 'banerjs', 'IsolationCYOA')
         superuser.is_staff = True
         superuser.is_superuser = True
-        superuser.study_condition = DRUser.StudyConditions.DX_AX
+        superuser.study_condition = DRUser.StudyConditions.DXAX_100
         superuser.start_condition = DRUser.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG
         superuser.save()
 
@@ -126,10 +148,11 @@ def remove_blacklisted_users(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dining_room', '0002_auto_20200211_1918'),
+        ('dining_room', '0002_auto_20200212_1840'),
     ]
 
     operations = [
+        migrations.RunPython(create_study_management, remove_study_management),
         migrations.RunPython(create_superuser, remove_superuser),
         migrations.RunPython(add_blacklisted_users, remove_blacklisted_users),
     ]

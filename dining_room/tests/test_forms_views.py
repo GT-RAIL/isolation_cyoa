@@ -20,15 +20,12 @@ class CreateUserTestCase(TestCase):
     """
 
     START_CONDITIONS = [User.StartConditions.AT_COUNTER_ABOVE_MUG, User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG]
-    STUDY_CONDITIONS = [User.StudyConditions.BASELINE, User.StudyConditions.DX_AX]
+    STUDY_CONDITIONS = [User.StudyConditions.BASELINE, User.StudyConditions.DXAX_100]
 
     def setUp(self):
         sm = StudyManagement.get_default()
         sm.enabled_start_conditions = "\n".join(CreateUserTestCase.START_CONDITIONS)
-        study_conditions = 0
-        for x in CreateUserTestCase.STUDY_CONDITIONS:
-            study_conditions += (1 << (x-1))
-        sm.enabled_study_conditions = study_conditions
+        sm.enabled_study_conditions = StudyManagement.convert_to_enabled_study_conditions(CreateUserTestCase.STUDY_CONDITIONS)
         sm.data_directory = 'userdata_test'
         sm.max_number_of_people = 4
         sm.number_per_condition = 1

@@ -795,24 +795,26 @@ class Transition:
 
 class Suggestions:
     """
-    A class to provide suggestions given the state the user is in. These are
-    simply static methods within a class
-
-    For all the following functions:
-    Args:
-      state (State) : the state that the user is in; never None
-      action (str)  : the action the user took; None if no action yet
-
-    Returns:
-      suggestions (list of str) : the suggestions appropriate to the condition
-          represented by the function
+    A class to provide suggestions given the state the user is in. It is
+    initialized with the user object, so that we can cater suggestions depending
+    on the condition the user is in
     """
 
-    @staticmethod
-    def optimal_actions(state, action):
+    def __init__(self, user):
+        self.user = user
+
+    def optimal_actions(self, state, action):
         """
         Suggest the optimal action to take given the state of the system. This
         is done based on heuristics
+
+        Args:
+          state (State) : the state that the user is in; never None
+          action (str)  : the action the user took; None if no action yet
+
+        Returns:
+          suggestions (list of str) : the suggestions appropriate to the condition
+              represented by the function
         """
         suggestions = []
 
@@ -851,8 +853,7 @@ class Suggestions:
         # Return the suggestions
         return suggestions
 
-    @staticmethod
-    def ordered_diagnoses(state, action, accumulate=False):
+    def ordered_diagnoses(self, state, action, accumulate=False):
         """
         Suggest diagnoses based on the following priority order:
         - lost (mislocalized)
@@ -863,6 +864,14 @@ class Suggestions:
 
         If accumulate is set to True, then multiple suggestions of diagnoses are
         returned
+
+        Args:
+          state (State) : the state that the user is in; never None
+          action (str)  : the action the user took; None if no action yet
+
+        Returns:
+          suggestions (list of str) : the suggestions appropriate to the condition
+              represented by the function
         """
         suggestions = []
 
@@ -899,3 +908,9 @@ class Suggestions:
 
         # Return the suggestions
         return suggestions
+
+    def pad_action_suggestions(self, suggestions):
+        """
+        Given a set of action suggestions, pad them
+        """
+        pass

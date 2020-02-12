@@ -1,6 +1,7 @@
 import os
 
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.contrib import auth
 from django.contrib.auth.models import (AbstractBaseUser,
@@ -17,7 +18,8 @@ from .domain import State, Transition, constants
 
 class StudyManagement(models.Model):
     """
-    This model manages how new users are assigned to study conditions
+    This model manages how new users are assigned to study conditions. Note:
+    the class should've been named StudyManager
     """
 
     enabled_study_conditions = models.PositiveIntegerField(default=0, help_text="A bit vector for the study conditions that are enabled")
@@ -26,6 +28,9 @@ class StudyManagement(models.Model):
     max_number_of_people = models.PositiveIntegerField(default=0, help_text="Maximum number of people to provision IDs for")
     max_test_attempts = models.IntegerField(default=5, help_text="Maximum number of times a user can fail the knowledge test")
     data_directory = models.CharField(max_length=50, help_text=f"Data directory for user data within '{os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER)}'")
+    max_dx_suggestions = models.IntegerField(default=1, help_text="Max number of diagnosis suggestions to display", validators=[MinValueValidator(1)])
+    max_ax_suggestions = models.IntegerField(default=1, help_text="Max number of action suggestions to display", validators=[MinValueValidator(1)])
+    pad_suggestions = models.BooleanField(default=False, help_text="Pad the suggestions if we don't have enough")
 
     _enabled_study_conditions = _enabled_start_conditions = None
 
@@ -69,6 +74,15 @@ class StudyManagement(models.Model):
             return StudyManagement.get_default().pk
         except Exception as e:
             return None
+
+    @staticmethod
+    def convert_to_enabled_study_conditions(conditions):
+        """Given a list of enabled study conditions, convert them to the int
+        value representing the ones that are enabled"""
+        value = 0
+        for condition in set(conditions):
+            value += (1 << (condition-1))
+        return value
 
     def check_study_condition(self, condition):
         """Check that the condition, given by an int, is enabled"""
@@ -126,7 +140,7 @@ class UserManager(models.Manager):
         """"""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('study_condition', User.StudyConditions.DX_AX)
+        extra_fields.setdefault('study_condition', User.StudyConditions.DXAX_100)
         extra_fields.setdefault('start_condition', User.StartConditions.AT_COUNTER_OCCLUDING_ABOVE_MUG)
 
         if extra_fields.get('is_staff') is not True:
@@ -187,23 +201,79 @@ class User(AbstractBaseUser, PermissionsMixin):
     class StudyConditions(models.IntegerChoices):
         """The study conditions"""
         BASELINE = 1, _('Baseline')
-        DX_ONLY = 2, _('DX Only')
-        AX_ONLY = 3, _('AX Only')
-        DX_AX = 4, _('DX & AX')
+
+        # 100% correct
+        DX_100 = 2, _('DX, 100')
+        AX_100 = 3, _('AX, 100')
+        DXAX_100 = 4, _('DX & AX, 100')
+
+        # 90% correct
+        DX_90 = 5, _('DX, 90')
+        AX_90 = 6, _('AX, 90')
+        DXAX_90 = 7, _('DX & AX, 90')
+
+        # 80% correct
+        DX_80 = 8, _('DX, 80')
+        AX_80 = 9, _('AX, 80')
+        DXAX_80 = 10, _('DX & AX, 80')
+
+        # 70% correct
+        DX_70 = 11, _('DX, 70')
+        AX_70 = 12, _('AX, 70')
+        DXAX_70 = 13, _('DX & AX, 70')
+
+        # 60% correct
+        DX_60 = 14, _('DX, 60')
+        AX_60 = 15, _('AX, 60')
+        DXAX_60 = 16, _('DX & AX, 60')
+
         # TODO: Add the actions with SA improvement conditions
-        # TODO: Add the noise conditions
         __empty__ = _('(Unknown)')
 
     study_condition = models.IntegerField(_('study condition'), blank=True, null=True, choices=StudyConditions.choices)
 
     SHOW_DX_STUDY_CONDITIONS = [
-        StudyConditions.DX_ONLY,
-        StudyConditions.DX_AX,
+        StudyConditions.DX_100,
+        StudyConditions.DXAX_100,
+        StudyConditions.DX_90,
+        StudyConditions.DXAX_90,
+        StudyConditions.DX_80,
+        StudyConditions.DXAX_80,
+        StudyConditions.DX_70,
+        StudyConditions.DXAX_70,
+        StudyConditions.DX_60,
+        StudyConditions.DXAX_60,
     ]
     SHOW_AX_STUDY_CONDITIONS = [
-        StudyConditions.AX_ONLY,
-        StudyConditions.DX_AX,
+        StudyConditions.AX_100,
+        StudyConditions.DXAX_100,
+        StudyConditions.AX_90,
+        StudyConditions.DXAX_90,
+        StudyConditions.AX_80,
+        StudyConditions.DXAX_80,
+        StudyConditions.AX_70,
+        StudyConditions.DXAX_70,
+        StudyConditions.AX_60,
+        StudyConditions.DXAX_60,
     ]
+
+    STUDY_CONDITIONS_NOISE_VALUES = {
+        StudyConditions.DX_100: 0,
+        StudyConditions.AX_100: 0,
+        StudyConditions.DXAX_100: 0,
+        StudyConditions.DX_90: 0.1,
+        StudyConditions.AX_90: 0.1,
+        StudyConditions.DXAX_90: 0.1,
+        StudyConditions.DX_80: 0.2,
+        StudyConditions.AX_80: 0.2,
+        StudyConditions.DXAX_80: 0.2,
+        StudyConditions.DX_70: 0.3,
+        StudyConditions.AX_70: 0.3,
+        StudyConditions.DXAX_70: 0.3,
+        StudyConditions.DX_60: 0.4,
+        StudyConditions.AX_60: 0.4,
+        StudyConditions.DXAX_60: 0.4,
+    }
 
     class StartConditions(models.TextChoices):
         """
@@ -391,6 +461,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     def show_ax_suggestions(self):
         """Return a boolean if the user should see action suggestions"""
         return self.study_condition in User.SHOW_AX_STUDY_CONDITIONS
+
+    @property
+    def noise_level(self):
+        """Get the noise value associated with the participants' condition"""
+        return User.STUDY_CONDITIONS_NOISE_VALUES.get(self.study_condition, 0)
 
     @property
     def study_progress(self):
