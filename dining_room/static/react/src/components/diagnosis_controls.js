@@ -40,12 +40,10 @@ class DiagnosisControlButton extends React.Component {
                     style={{
                         minHeight: "4rem",
                         pointerEvents: (!!this.props.disabled ? "none" : "auto"),
-                        fontSize: "1.25rem",
-                        fontWeight: "300",
                     }}
                     value={this.props.value}
                     onClick={this.props.select_diagnosis}>
-                {star_marks}{window.constants.DIAGNOSES[this.props.value]}
+                <span className="lead" style={{pointerEvents: "none"}}>{star_marks}{window.constants.DIAGNOSES[this.props.value]}</span>
             </button>
         );
     }
@@ -116,7 +114,6 @@ class DiagnosisControls extends React.Component {
 
     select_diagnosis(e) {
         let diagnosis = e.target.value;
-        console.log("selected "+diagnosis);
         let new_selection = [...this.state.selected_diagnoses];
         if (new_selection.includes(diagnosis)) {
             new_selection.splice(new_selection.indexOf(diagnosis), 1);

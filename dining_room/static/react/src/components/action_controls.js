@@ -47,12 +47,10 @@ class ActionControlButton extends React.Component {
                     style={{
                         height: "100%",
                         minHeight: "4rem",
-                        fontSize: "1.25rem",
-                        fontWeight: "300",
                     }}
                     onClick={this.select_action}
                     disabled={this.props.disabled}>
-                {star_marks}{window.constants.ACTIONS[this.props.value]}
+                <span className="lead" style={{pointerEvents: "none"}}>{star_marks}{window.constants.ACTIONS[this.props.value]}</span>
             </button>
         );
     }
