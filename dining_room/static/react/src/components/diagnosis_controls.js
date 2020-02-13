@@ -5,6 +5,7 @@ import Tooltip from 'react-bootstrap/Tooltip';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
+import { faStar } from '@fortawesome/free-solid-svg-icons/faStar';
 
 import { selectDiagnoses } from '../actions';
 
@@ -15,35 +16,36 @@ class DiagnosisControlButton extends React.Component {
         super(props);
 
         // Constants
-        this.SUGGESTED_BUTTON_COLOURS = [' btn-outline-primary', ' btn-outline-warning', ' btn-outline-info'];
-        this.SUGGESTED_BORDER_WIDTH = ["6px", "3px", "1px"];
         this.DEFAULT_BUTTON_COLOUR = ' btn-outline-info';
+        this.DISABLED_BUTTON_COLOUR = ' btn-outline-secondary';
     }
 
     render() {
         // Pick the button colour
         let suggest = (!!this.props.show_suggestions && !!this.props.suggested && !this.props.disabled);
+        let button_colour = this.DEFAULT_BUTTON_COLOUR;
 
-        let button_colour = (!!suggest && this.props.suggested_idx >= 0)
-                            ? this.SUGGESTED_BUTTON_COLOURS[this.props.suggested_idx]
-                            : this.DEFAULT_BUTTON_COLOUR;
-        button_colour = (!suggest && !!this.props.show_suggestions)
-                        ? " btn-outline-secondary"
-                        : button_colour;
+        // Add stars to the button if it's suggested
+        let star_marks = [];
+        if (!!suggest) {
+            for (let i = 0; i < this.props.suggested_imp; i++) {
+                star_marks.push(<FontAwesomeIcon icon={faStar} key={i} />);
+            }
+            star_marks.push(<br key={-1}/>);
+        }
 
         return (
             <button className={"mx-1 col btn" + button_colour + (!!this.props.selected ? " active font-weight-bold" : "")}
                     type="button"
                     style={{
                         minHeight: "4rem",
-                        borderWidth: (!!suggest) ? this.SUGGESTED_BORDER_WIDTH[this.props.suggested_idx] : "",
                         pointerEvents: (!!this.props.disabled ? "none" : "auto"),
                         fontSize: "1.25rem",
                         fontWeight: "300",
                     }}
                     value={this.props.value}
                     onClick={this.props.select_diagnosis}>
-                {window.constants.DIAGNOSES[this.props.value]}
+                {star_marks}{window.constants.DIAGNOSES[this.props.value]}
             </button>
         );
     }
@@ -141,6 +143,10 @@ class DiagnosisControls extends React.Component {
             // Create buttons according to the data
             let sublayout = [];
             for (const [sidx, diagnosis] of display_object.diagnoses.entries()) {
+                let suggest = this.props.suggestions.includes(diagnosis);
+                let suggestion_idx = this.props.suggestions.indexOf(diagnosis); // -1, or idx
+                let suggestion_imp = (!!suggest) ? this.props.suggestions.length - suggestion_idx : 0;
+
                 sublayout.push(
                     <DiagnosisControlButton key={diagnosis}
                                             value={diagnosis}
@@ -148,8 +154,9 @@ class DiagnosisControls extends React.Component {
                                             selected={this.state.selected_diagnoses.includes(diagnosis)}
                                             select_diagnosis={this.select_diagnosis}
                                             show_suggestions={this.props.show_suggestions}
-                                            suggested={this.props.suggestions.includes(diagnosis)}
-                                            suggested_idx={this.props.suggestions.indexOf(diagnosis)} />
+                                            suggested={suggest}
+                                            suggested_idx={suggestion_idx}
+                                            suggested_imp={suggestion_imp} />
                 );
             }
 
@@ -168,7 +175,7 @@ class DiagnosisControls extends React.Component {
 
         // Add additional instructions if necessary
         let extra_instructions = !!this.props.show_suggestions
-                                 ? (<small><br/>The robot colours the problems it thinks might be stopping it from reaching its goal. The more thick or blue a button, the more sure the robot is.</small>)
+                                 ? (<small><br/>The robot might put a star on the problem(s) it thinks might be stopping it from reaching its goal. <b>The more stars, the more certain the robot might be</b>.</small>)
                                  : "";
         return (
             <div className="row">

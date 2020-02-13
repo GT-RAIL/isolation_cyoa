@@ -5,6 +5,7 @@ import Tooltip from 'react-bootstrap/Tooltip';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuestionCircle } from '@fortawesome/free-regular-svg-icons/faQuestionCircle';
+import { faStar } from '@fortawesome/free-solid-svg-icons/faStar';
 
 import { fetchNextState } from '../actions';
 
@@ -15,9 +16,8 @@ class ActionControlButton extends React.Component {
         super(props);
 
         // Constants
-        this.SUGGESTED_BUTTON_COLOURS = [' btn-outline-primary', ' btn-outline-warning', ' btn-outline-info'];
-        this.SUGGESTED_BORDER_WIDTH = ["6px", "3px", "1px"];
         this.DEFAULT_BUTTON_COLOUR = ' btn-outline-info';
+        this.DISABLED_BUTTON_COLOUR = ' btn-outline-secondary';
 
         // Bind the functions
         this.select_action = this.select_action.bind(this);
@@ -31,25 +31,28 @@ class ActionControlButton extends React.Component {
         // Pick the button colour
         let suggest = (!!this.props.show_suggestions && !!this.props.suggested && !this.props.disabled);
 
-        let button_colour = (!!suggest && this.props.suggested_idx >= 0)
-                            ? this.SUGGESTED_BUTTON_COLOURS[this.props.suggested_idx]
-                            : this.DEFAULT_BUTTON_COLOUR;
-        button_colour = (!suggest && !!this.props.show_suggestions)
-                        ? " btn-outline-secondary"
-                        : button_colour;
+        let button_colour = this.DEFAULT_BUTTON_COLOUR;
+
+        // Add stars to the button if it's suggested
+        let star_marks = [];
+        if (!!suggest) {
+            for (let i = 0; i < this.props.suggested_imp; i++) {
+                star_marks.push(<FontAwesomeIcon icon={faStar} key={i} />);
+            }
+            star_marks.push(<br key={-1}/>);
+        }
 
         return (
             <button className={"col btn" + button_colour}
                     style={{
                         height: "100%",
                         minHeight: "4rem",
-                        borderWidth: (!!suggest) ? this.SUGGESTED_BORDER_WIDTH[this.props.suggested_idx] : "",
                         fontSize: "1.25rem",
                         fontWeight: "300",
                     }}
                     onClick={this.select_action}
                     disabled={this.props.disabled}>
-                {window.constants.ACTIONS[this.props.value]}
+                {star_marks}{window.constants.ACTIONS[this.props.value]}
             </button>
         );
     }
@@ -105,31 +108,6 @@ class ActionControls extends React.Component {
                 name: "Hardware & Drivers",
                 actions: window.constants.ACTIONS_ORDER.slice(15, 17)
             }
-
-            // {
-            //     name: "Update location beliefs",
-            //     actions: window.constants.ACTIONS_ORDER.slice(0, 3),
-            // },
-            // {
-            //     name: "Navigate",
-            //     actions: window.constants.ACTIONS_ORDER.slice(3, 6),
-            // },
-            // {
-            //     name: "Nav Distractor",
-            //     actions: window.constants.ACTIONS_ORDER.slice(6, 9),
-            // },
-            // {
-            //     name: "Look at",
-            //     actions: window.constants.ACTIONS_ORDER.slice(9, 12),
-            // },
-            // {
-            //     name: "Pick",
-            //     actions: window.constants.ACTIONS_ORDER.slice(12, 15),
-            // },
-            // {
-            //     name: "Place",
-            //     actions: window.constants.ACTIONS_ORDER.slice(15, 17),
-            // },
         ];
 
         // Inferred property
@@ -154,14 +132,18 @@ class ActionControls extends React.Component {
             // Create the buttons according to the data
             let sublayout = [];
             for (const [sidx, action_name] of display_object.actions.entries()) {
+                let suggest = this.props.suggestions.includes(action_name);
+                let suggestion_idx = this.props.suggestions.indexOf(action_name); // -1, or idx
+                let suggestion_imp = (!!suggest) ? this.props.suggestions.length - suggestion_idx : 0;
                 sublayout.push(
                     <ActionControlButton key={action_name}
                                          dispatch={this.props.dispatch}
                                          value={action_name}
                                          disabled={!!this.props.selected_action}
                                          show_suggestions={this.props.show_suggestions}
-                                         suggested={this.props.suggestions.includes(action_name)}
-                                         suggested_idx={this.props.suggestions.indexOf(action_name)} />
+                                         suggested={suggest}
+                                         suggested_idx={suggestion_idx}
+                                         suggested_imp={suggestion_imp} />
                 );
             }
             for (let idx = sublayout.length; idx < this.MAX_BUTTONS_PER_ROW; idx++) {
@@ -187,7 +169,7 @@ class ActionControls extends React.Component {
 
         // Add additional instructions if necessary
         let extra_instructions = !!this.props.show_suggestions
-                                 ? (<small><br/>The robot colours the actions it thinks might help you gather more information about the problem, or help resolve it. The more thick or blue a button, the more sure the robot is.</small>)
+                                 ? (<small><br/>The robot puts a star on the actions it thinks might help you gather more information about the problem, or help resolve it. <b>The more stars, the more certain the robot might be</b>.</small>)
                                  : "";
 
         return (
