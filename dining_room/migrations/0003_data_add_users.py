@@ -18,9 +18,7 @@ def create_study_management(apps, schema_editor):
     start_conditions = [
         'kc.dt.default.default.default.empty.dt',
         'dt.kc.default.default.default.empty.kc',
-        'kc.kc.default.above_mug.default.empty.dt',
         'kc.kc.occluding.default.default.empty.dt',
-        'kc.kc.occluding.above_mug.default.empty.dt',
         'kc.dt.occluding.above_mug.default.empty.dt',
     ]
 

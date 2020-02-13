@@ -1,5 +1,19 @@
-// @import "~bootstrap/scss/bootstrap";
+////////////////////////////////////////////////////////////////////
+// // Change bootstrap options to include gradients
+$enable-gradients: true;
+$warning: #0d91d8;
 
+@import "~bootstrap/scss/bootstrap";
+
+// @import "~bootstrap/scss/functions";
+// @import "~bootstrap/scss/variables";
+// @import "~bootstrap/scss/mixins";
+
+// @import "~bootstrap/scss/reboot";
+// @import "~bootstrap/scss/buttons";
+
+
+////////////////////////////////////////////////////////////////////
 // Copy from Material design UI (masks)
 $mask-overlay-transition                     : all .4s ease-in-out !default;
 $mask-zoom-transition                        : all .2s linear !default;
@@ -41,6 +55,8 @@ $intro-video-transition                      : 1s !default;
   }
 }
 
+
+////////////////////////////////////////////////////////////////////
 // Slider fixes? Taken from github
 .slider.slider-horizontal:hover, .slider.slider-vertical:hover {
     .tooltip.tooltip-main {
@@ -53,6 +69,7 @@ $intro-video-transition                      : 1s !default;
 }
 
 
+////////////////////////////////////////////////////////////////////
 // Remove the ability to interact with the video
 video {
     pointer-events: none;

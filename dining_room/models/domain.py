@@ -650,6 +650,12 @@ class Suggestions:
         self.user = user if user is not None and user.is_authenticated else None
         use_defaults = (user is None or not user.is_authenticated)
 
+        # FIXME
+        max_dx_suggestions = 3
+        max_ax_suggestions = 3
+        pad_suggestions = True
+        noise_level = 0.2
+
         self.max_dx_suggestions = max_dx_suggestions if use_defaults else user.study_management.max_dx_suggestions
         self.max_ax_suggestions = max_ax_suggestions if use_defaults else user.study_management.max_ax_suggestions
         self.pad_suggestions = pad_suggestions if use_defaults else user.study_management.pad_suggestions
@@ -858,7 +864,8 @@ class Suggestions:
         limited_suggestions = suggestions[:self.max_ax_suggestions]
 
         # Alternative suggestions. TODO: SA actions might come in here
-        alternatives = [x for x in constants.ACTIONS.keys() if x not in suggestions]
+        valid_actions_check = state.get_valid_actions()
+        alternatives = [k for k, v in valid_actions_check.items() if (k not in suggestions and v)]
 
         # Add noise and pad
         suggestions = self._add_noise_and_pad(

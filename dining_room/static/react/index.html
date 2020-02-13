@@ -8,9 +8,8 @@
   <title>Robot Assistance Study</title>
   <link rel="shortcut icon" href="http://localhost:8000/static/favicon.ico"/>
 
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.6.2/css/bootstrap-slider.min.css" integrity="sha256-G3IAYJYIQvZgPksNQDbjvxd/Ca1SfCDFwu2s2lt0oGo=" crossorigin="anonymous" />
   <link rel="stylesheet" href="/static/dining_room/study.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.6.2/css/bootstrap-slider.min.css" integrity="sha256-G3IAYJYIQvZgPksNQDbjvxd/Ca1SfCDFwu2s2lt0oGo=" crossorigin="anonymous" />
 </head>
 
 <body>
@@ -33,21 +32,19 @@
           ax_selected_time: null
         },
         scenario_state: {
-          "server_state_tuple": ["kc", "kc", "occluding", "above_mug", "default", "empty", "dt"],
-          "video_link": "https://dl.dropboxusercontent.com/s/hqaouaoizrwmcqm/kc.kc.occluding.above_mug.default.noop.empty.mp4",
+          "server_state_tuple": ["kc", "kc", "occluding", "default", "default", "empty", "dt"],
+          "video_link": "https://dl.dropboxusercontent.com/s/t6x0xt9mp7lp5bw/kc.kc.occluding.default.default.noop.empty.mp4",
           "robot_beliefs": [
             {"attr": "Location", "value": "Kitchen Counter"},
             {"attr": "Object in hand", "value": "Nothing"},
             {"attr": "Objects in view", "value": ["Jug", "Bowl"]},
             {"attr": "Arm status", "value": "Not Moving"}
           ],
-          "valid_actions": {
-            "at_c": true, "at_dt": true, "at_kc": true, "go_to_c": true, "go_to_dt": true, "go_to_kc": true, "remove_obstacle": false, "out_of_collision": false, "look_at_c": true, "look_at_dt": true, "look_at_kc": true, "pick_bowl": true, "pick_jug": true, "pick_mug": false, "place": false, "restart_video": true, "find_charger": false
-          },
-          "dx_suggestions": ["cannot_see"],
-          "ax_suggestions": ["pick_jug"],
+          "valid_actions": {"at_c": true, "at_dt": true, "at_kc": true, "go_to_c": true, "go_to_dt": true, "go_to_kc": true, "remove_obstacle": false, "out_of_collision": false, "look_at_c": true, "look_at_dt": true, "look_at_kc": true, "pick_bowl": true, "pick_jug": true, "pick_mug": false, "place": false, "restart_video": true, "find_charger": false},
           "action_result": true,
-          "scenario_completed": false
+          "scenario_completed": false,
+          "dx_suggestions": ["cannot_see", "cannot_pick", "different_location"],
+          "ax_suggestions": ["pick_jug", "pick_mug", "look_at_kc"]
         },
         history: {
           dx_to_add: null,
@@ -60,7 +57,7 @@
       NEXT_STATE_URL: "http://localhost:8000/_/next_state",
       EXPERIMENT_CONDITION: {
         show_dx_suggestions: true,
-        show_ax_suggestions: true
+        show_ax_suggestions: false
       },
       ACTIONS: {"at_c": "Update robot's location belief to: Couch", "at_dt": "Update robot's location belief to:  Dining Table", "at_kc": "Update robot's location belief to:  Kitchen Counter", "go_to_c": "Navigate to Couch", "go_to_dt": "Navigate to Dining Table", "go_to_kc": "Navigate to Kitchen Counter", "remove_obstacle": "Remove the obstacle blocking navigation", "out_of_collision": "Move away from a collision", "look_at_c": "Look at Couch", "look_at_dt": "Look at Dining Table", "look_at_kc": "Look at Kitchen Counter", "pick_bowl": "Pick up the Bowl", "pick_jug": "Pick up the Jug", "pick_mug": "Pick up the Cup", "place": "Put away held object", "restart_video": "Restart the camera", "find_charger": "Find the charger and navigate to it"},
       ACTIONS_ORDER: ["at_c", "at_dt", "at_kc", "go_to_c", "go_to_dt", "go_to_kc", "remove_obstacle", "out_of_collision", "look_at_c", "look_at_dt", "look_at_kc", "pick_bowl", "pick_jug", "pick_mug", "place", "restart_video", "find_charger"],

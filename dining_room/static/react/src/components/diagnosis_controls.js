@@ -10,27 +10,43 @@ import { selectDiagnoses } from '../actions';
 
 
 /** The button for diagnoses */
-const DiagnosisControlButton = (props) => {
-    // This breaks the nice flow of information, but for now, we'll allow it
-    let suggest = (!!window.constants.EXPERIMENT_CONDITION.show_dx_suggestions && !!props.suggested) && !props.disabled;
-    let button_colour = (!!suggest || !window.constants.EXPERIMENT_CONDITION.show_dx_suggestions)
-                        ? " btn-outline-info"
-                        : " btn-outline-secondary";
-    // let button_colour = " btn-outline-info";
+class DiagnosisControlButton extends React.Component {
+    constructor(props) {
+        super(props);
 
-    return (
-        <button className={"mx-1 col btn" + button_colour + (!!props.selected ? " active font-weight-bold" : "")}
-                type="button"
-                style={{
-                    minHeight: "4rem",
-                    borderWidth: (!!suggest) ? "3px" : "",
-                    pointerEvents: (!!props.disabled ? "none" : "auto")
-                }}
-                value={props.value}
-                onClick={props.select_diagnosis}>
-            {window.constants.DIAGNOSES[props.value]}
-        </button>
-    );
+        // Constants
+        this.SUGGESTED_BUTTON_COLOURS = [' btn-outline-primary', ' btn-outline-warning', ' btn-outline-info'];
+        this.SUGGESTED_BORDER_WIDTH = ["6px", "3px", "1px"];
+        this.DEFAULT_BUTTON_COLOUR = ' btn-outline-info';
+    }
+
+    render() {
+        // Pick the button colour
+        let suggest = (!!this.props.show_suggestions && !!this.props.suggested && !this.props.disabled);
+
+        let button_colour = (!!suggest && this.props.suggested_idx >= 0)
+                            ? this.SUGGESTED_BUTTON_COLOURS[this.props.suggested_idx]
+                            : this.DEFAULT_BUTTON_COLOUR;
+        button_colour = (!suggest && !!this.props.show_suggestions)
+                        ? " btn-outline-secondary"
+                        : button_colour;
+
+        return (
+            <button className={"mx-1 col btn" + button_colour + (!!this.props.selected ? " active font-weight-bold" : "")}
+                    type="button"
+                    style={{
+                        minHeight: "4rem",
+                        borderWidth: (!!suggest) ? this.SUGGESTED_BORDER_WIDTH[this.props.suggested_idx] : "",
+                        pointerEvents: (!!this.props.disabled ? "none" : "auto"),
+                        fontSize: "1.25rem",
+                        fontWeight: "300",
+                    }}
+                    value={this.props.value}
+                    onClick={this.props.select_diagnosis}>
+                {window.constants.DIAGNOSES[this.props.value]}
+            </button>
+        );
+    }
 }
 
 
@@ -41,6 +57,7 @@ const mapStateToProps = (state, ownProps) => {
         video_playing: state.ui_status.video_playing,
         confirmed_dx: state.ui_status.confirmed_dx,
         suggestions: state.scenario_state.dx_suggestions,
+        show_suggestions: !!window.constants.EXPERIMENT_CONDITION.show_dx_suggestions,
     };
 }
 
@@ -97,6 +114,7 @@ class DiagnosisControls extends React.Component {
 
     select_diagnosis(e) {
         let diagnosis = e.target.value;
+        console.log("selected "+diagnosis);
         let new_selection = [...this.state.selected_diagnoses];
         if (new_selection.includes(diagnosis)) {
             new_selection.splice(new_selection.indexOf(diagnosis), 1);
@@ -129,7 +147,9 @@ class DiagnosisControls extends React.Component {
                                             disabled={this.props.confirmed_dx.length > 0}
                                             selected={this.state.selected_diagnoses.includes(diagnosis)}
                                             select_diagnosis={this.select_diagnosis}
-                                            suggested={this.props.suggestions.includes(diagnosis)} />
+                                            show_suggestions={this.props.show_suggestions}
+                                            suggested={this.props.suggestions.includes(diagnosis)}
+                                            suggested_idx={this.props.suggestions.indexOf(diagnosis)} />
                 );
             }
 
@@ -146,15 +166,19 @@ class DiagnosisControls extends React.Component {
             );
         }
 
+        // Add additional instructions if necessary
+        let extra_instructions = !!this.props.show_suggestions
+                                 ? (<small><br/>The robot colours the problems it thinks might be stopping it from reaching its goal. The more thick or blue a button, the more sure the robot is.</small>)
+                                 : "";
         return (
             <div className="row">
             <div className="col">
                 <div className="row">
                 <p className="col">
-                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the problem(s) in the current situation you observe or are trying to resolve</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What do you think is interfering with the robot's ability to achieve its goal?</b>
+                    <OverlayTrigger placement="right" overlay={<Tooltip>Select the problem(s) in the current situation you observe or are trying to resolve</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What do you think is interfering with the robot's ability to achieve its goal?</b>{extra_instructions}
                 </p>
                 </div>
-                    {diagnoses_buttons}
+                {diagnoses_buttons}
                 <div className="row mt-2">
                 <div className="offset-8 col">
                     <button className="btn btn-block btn-success"

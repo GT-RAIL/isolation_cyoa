@@ -175,9 +175,10 @@ class SuggestionsTestCase(TestCase):
                 alternatives = set([x for x in constants.DIAGNOSES.keys() if x not in expected_values['dx_suggestions']])
                 if will_corrupt:
                     # Move the rng forward
-                    self.rng.choice(list(alternatives),
-                                    size=min(len(expected_values['dx_suggestions']), self.sm.max_dx_suggestions),
-                                    replace=False)
+                    x = self.rng.choice(list(alternatives),
+                                        size=min(len(expected_values['dx_suggestions']), self.sm.max_dx_suggestions),
+                                        replace=False)
+                    alternatives = alternatives - set(x)
 
                 # Then get the suggestions and check if they are corrupted
                 suggestions = self.suggestions_provider.suggest_dx(state, action)
@@ -207,15 +208,17 @@ class SuggestionsTestCase(TestCase):
                 self._reset_rng(idx)
                 state = State(expected_values['server_state_tuple'])
                 expected_suggestions = [] if idx == len(action_sequence)-1 else [action_sequence[idx+1][0]]
-                alternatives = set([x for x in constants.ACTIONS.keys() if x not in expected_suggestions])
+                valid_actions_check = state.get_valid_actions()
+                alternatives = set([k for k, v in valid_actions_check.items() if (k not in expected_suggestions and v)])
 
                 # Predict if we will see noise
                 will_corrupt = (self.rng.uniform() < self.user.noise_level)
                 if will_corrupt and idx < len(action_sequence)-1:
                     # Move the rng forward
-                    self.rng.choice(list(alternatives),
-                                    size=min(len(expected_suggestions), self.sm.max_ax_suggestions),
-                                    replace=False)
+                    x = self.rng.choice(list(alternatives),
+                                        size=min(len(expected_suggestions), self.sm.max_ax_suggestions),
+                                        replace=False)
+                    alternatives = alternatives - set(x)
 
                 # Then get the suggestions and check if they are corrupted
                 suggestions = self.suggestions_provider.suggest_ax(state, action)
@@ -281,9 +284,10 @@ class SuggestionsTestCase(TestCase):
                 will_corrupt = (self.rng.uniform() < self.user.noise_level)
                 if will_corrupt:
                     # Move the rng forward
-                    self.rng.choice(list(alternatives),
-                                    size=min(len(expected_values['dx_suggestions']), self.sm.max_dx_suggestions),
-                                    replace=False)
+                    x = self.rng.choice(list(alternatives),
+                                        size=min(len(expected_values['dx_suggestions']), self.sm.max_dx_suggestions),
+                                        replace=False)
+                    alternatives = alternatives - set(x)
 
                 # Then update the rng if we need to pad
                 for _ in range(len(expected_values['dx_suggestions']), self.sm.max_dx_suggestions):
@@ -305,15 +309,17 @@ class SuggestionsTestCase(TestCase):
 
                 # Then we do the AX
                 expected_suggestions = [] if idx == len(action_sequence)-1 else [action_sequence[idx+1][0]]
-                alternatives = set([x for x in constants.ACTIONS.keys() if x not in expected_suggestions])
+                valid_actions_check = state.get_valid_actions()
+                alternatives = set([k for k, v in valid_actions_check.items() if (k not in expected_suggestions and v)])
 
                 # Predict if we will see noise
                 will_corrupt = (self.rng.uniform() < self.user.noise_level)
                 if will_corrupt and idx < len(action_sequence)-1:
                     # Move the rng one forward
-                    self.rng.choice(list(alternatives),
-                                    size=min(len(expected_suggestions), self.sm.max_ax_suggestions),
-                                    replace=False)
+                    x = self.rng.choice(list(alternatives),
+                                        size=min(len(expected_suggestions), self.sm.max_ax_suggestions),
+                                        replace=False)
+                    alternatives = alternatives - set(x)
 
                 # Then update the rng based on the padding
                 for _ in range(len(expected_suggestions), self.sm.max_ax_suggestions):
@@ -360,9 +366,10 @@ class SuggestionsTestCase(TestCase):
                         if will_corrupt and idx < len(action_sequence)-1:
                             encountered_noise = True
                             # Move the rng forward
-                            self.rng.choice(list(alternatives),
-                                            size=min(len(expected_values['dx_suggestions']), self.sm.max_dx_suggestions),
-                                            replace=False)
+                            x = self.rng.choice(list(alternatives),
+                                                size=min(len(expected_values['dx_suggestions']), self.sm.max_dx_suggestions),
+                                                replace=False)
+                            alternatives = alternatives - set(x)
 
                         # Then get the suggestions and check if they are
                         # actually corrupted. If so, we have successful noise
@@ -382,16 +389,19 @@ class SuggestionsTestCase(TestCase):
                     # If we should show action suggestions, then check for noise
                     if self.user.show_ax_suggestions:
                         expected_suggestions = [] if idx == len(action_sequence)-1 else [action_sequence[idx+1][0]]
-                        alternatives = set([x for x in constants.ACTIONS.keys() if x not in expected_suggestions])
+                        valid_actions_check = state.get_valid_actions()
+                        alternatives = set([k for k, v in valid_actions_check.items() if (k not in expected_suggestions and v)])
+
 
                         # Predict if we will see noise
                         will_corrupt = (self.rng.uniform() < self.user.noise_level)
                         if will_corrupt and idx < len(action_sequence)-1:
                             encountered_noise = True
                             # Move the rng forward
-                            self.rng.choice(list(alternatives),
-                                            size=min(len(expected_suggestions), self.sm.max_ax_suggestions),
-                                            replace=False)
+                            x = self.rng.choice(list(alternatives),
+                                                size=min(len(expected_suggestions), self.sm.max_ax_suggestions),
+                                                replace=False)
+                            alternatives = alternatives - set(x)
 
                         # Then get the suggestions and check if they are
                         # actually corrupted. If so, we have successful noise

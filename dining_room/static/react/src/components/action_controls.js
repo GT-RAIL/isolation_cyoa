@@ -14,6 +14,11 @@ class ActionControlButton extends React.Component {
     constructor(props) {
         super(props);
 
+        // Constants
+        this.SUGGESTED_BUTTON_COLOURS = [' btn-outline-primary', ' btn-outline-warning', ' btn-outline-info'];
+        this.SUGGESTED_BORDER_WIDTH = ["6px", "3px", "1px"];
+        this.DEFAULT_BUTTON_COLOUR = ' btn-outline-info';
+
         // Bind the functions
         this.select_action = this.select_action.bind(this);
     }
@@ -23,20 +28,24 @@ class ActionControlButton extends React.Component {
     }
 
     render() {
-        let suggest = (!!window.constants.EXPERIMENT_CONDITION.show_ax_suggestions && !!this.props.suggested) && !this.props.disabled;
-        let button_colour = (!!suggest || !window.constants.EXPERIMENT_CONDITION.show_ax_suggestions)
-                            ? " btn-outline-info"
-                            : " btn-outline-secondary";
-        // let button_colour = " btn-outline-info";
+        // Pick the button colour
+        let suggest = (!!this.props.show_suggestions && !!this.props.suggested && !this.props.disabled);
 
-        button_colour = (!!this.props.disabled ? " btn-outline-secondary" : button_colour);
+        let button_colour = (!!suggest && this.props.suggested_idx >= 0)
+                            ? this.SUGGESTED_BUTTON_COLOURS[this.props.suggested_idx]
+                            : this.DEFAULT_BUTTON_COLOUR;
+        button_colour = (!suggest && !!this.props.show_suggestions)
+                        ? " btn-outline-secondary"
+                        : button_colour;
 
         return (
             <button className={"col btn" + button_colour}
                     style={{
                         height: "100%",
                         minHeight: "4rem",
-                        borderWidth: (!!suggest) ? "3px" : "",
+                        borderWidth: (!!suggest) ? this.SUGGESTED_BORDER_WIDTH[this.props.suggested_idx] : "",
+                        fontSize: "1.25rem",
+                        fontWeight: "300",
                     }}
                     onClick={this.select_action}
                     disabled={this.props.disabled}>
@@ -57,6 +66,7 @@ const mapStateToProps = (state, ownProps) => {
         dx_certainty: state.ui_status.dx_certainty,
         selected_action: state.ui_status.selected_action,
         suggestions: state.scenario_state.ax_suggestions,
+        show_suggestions: !!window.constants.EXPERIMENT_CONDITION.show_ax_suggestions,
     };
 }
 
@@ -149,7 +159,9 @@ class ActionControls extends React.Component {
                                          dispatch={this.props.dispatch}
                                          value={action_name}
                                          disabled={!!this.props.selected_action}
-                                         suggested={this.props.suggestions.includes(action_name)} />
+                                         show_suggestions={this.props.show_suggestions}
+                                         suggested={this.props.suggestions.includes(action_name)}
+                                         suggested_idx={this.props.suggestions.indexOf(action_name)} />
                 );
             }
             for (let idx = sublayout.length; idx < this.MAX_BUTTONS_PER_ROW; idx++) {
@@ -173,12 +185,18 @@ class ActionControls extends React.Component {
             );
         }
 
+        // Add additional instructions if necessary
+        let extra_instructions = !!this.props.show_suggestions
+                                 ? (<small><br/>The robot colours the actions it thinks might help you gather more information about the problem, or help resolve it. The more thick or blue a button, the more sure the robot is.</small>)
+                                 : "";
+
         return (
             <div className="row">
             <div className="col">
                 <div className="row">
                 <p className="col">
                     <OverlayTrigger placement="right" overlay={<Tooltip>Select the next action that the robot should take to eventually achieve its goal</Tooltip>}><FontAwesomeIcon icon={faQuestionCircle} /></OverlayTrigger> <b>What action should the robot take to move towards its goal?</b>
+                    {extra_instructions}
                 </p>
                 </div>
                 {action_buttons}
