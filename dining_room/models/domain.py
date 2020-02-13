@@ -798,8 +798,14 @@ class Suggestions:
         # If we need to pad, then pad
         alternatives = set(alternatives) - set(suggestions)
         while len(suggestions) < number:
-            suggestions.append(self.rng.choice(list(alternatives)))
-            alternatives.discard(suggestions[-1])
+            # We don't want to cause an exception when we pad the suggestions,
+            # so just catch an exception if that's the case and exit
+            try:
+                suggestions.append(self.rng.choice(list(alternatives)))
+                alternatives.discard(suggestions[-1])
+            except:
+                logger.error(f"Exception padding suggestions: {e}")
+                break
 
         return suggestions
 

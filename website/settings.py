@@ -87,6 +87,32 @@ TEMPLATES = [
 WSGI_APPLICATION = 'website.wsgi.application'
 
 
+# Configure logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'custom': {
+            'format': ('%(asctime)s [%(name)s][%(levelname)s] %(message)s'),
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'formatter': 'custom',
+            'class': 'logging.StreamHandler'
+        },
+    },
+    'loggers': {
+        'dining_room': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        }
+    }
+}
+
+
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 import dj_database_url
@@ -94,22 +120,6 @@ import dj_database_url
 DATABASES = {
     'default': dj_database_url.parse(os.getenv('DATABASE_URL', ''), ssl_require=False)
 }
-
-
-# Setup Caches
-# if DEBUG:
-#     CACHES = {
-#         'default': {
-#             'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-#         }
-#     }
-# else:
-#     CACHES = {
-#         'default': {
-#             'BACKEND': 'redis_cache.RedisCache',
-#             'LOCATION': os.getenv('REDIS_URL', ''),
-#         },
-#     }
 
 
 # Password validation
@@ -136,10 +146,8 @@ LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/demographics'
 
 # Caches are disabled in development, so change the session engine too
-# if DEBUG:
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-# else:
-#     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
