@@ -296,7 +296,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_started = models.DateTimeField(_('date started'), blank=True, null=True)   # Starting the scenario
     date_finished = models.DateTimeField(_('date finished'), blank=True, null=True) # Not necessarily completed the scenario
     study_management = models.ForeignKey(StudyManagement, on_delete=models.SET_NULL, default=StudyManagement.get_default_pk, null=True, blank=True)
-    rng_state = models.BigIntegerField(default=Suggestions.DEFAULT_RNG_SEED)
+    rng_state = models.IntegerField(default=Suggestions.DEFAULT_RNG_SEED)
 
     # Demographics
     class AgeGroups(models.IntegerChoices):

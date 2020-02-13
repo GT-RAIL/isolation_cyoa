@@ -96,7 +96,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='rng_state',
-            field=models.BigIntegerField(default=4919),
+            field=models.IntegerField(default=4919),
         ),
         migrations.AddField(
             model_name='user',

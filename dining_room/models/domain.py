@@ -629,7 +629,7 @@ class Suggestions:
     DEFAULT_NOISE_LEVEL = 0
     DEFAULT_RNG_SEED = 0x1337
 
-    RNG_STATE_SAVE_MODULO = int(1e8)
+    RNG_STATE_SAVE_MODULO = int(1e5)
 
     def __init__(self,
         user=None,
@@ -660,6 +660,12 @@ class Suggestions:
 
         # Create an rng
         self.rng = np.random.default_rng(Suggestions.DEFAULT_RNG_SEED if use_defaults else user.rng_state)
+
+    @staticmethod
+    def get_next_rng_seed(rng):
+        """Given an rng, get the seed that should be used the next time the rng
+        is reinitialized from scratch"""
+        return rng.bit_generator.state['state']['state'] % Suggestions.RNG_STATE_SAVE_MODULO
 
     def optimal_action(self, state, action):
         """
@@ -767,7 +773,7 @@ class Suggestions:
         # Return the suggestions
         return suggestions
 
-    def _add_noise(self, suggestions, alternatives, number=None):
+    def _add_noise_and_pad(self, suggestions, alternatives, number=None):
         """
         Depending on the noise level, substitute elements in suggestions with
         those from the alternatives. If number is provided, then pad elements
@@ -781,7 +787,7 @@ class Suggestions:
         # Check if we need to corrupt the data & corrupt if so
         should_corrupt = (self.rng.uniform() < self.noise_level)
         if should_corrupt:
-            suggestions = self.rng.choice(alternatives, size=len(suggestions), replace=False)
+            suggestions = self.rng.choice(alternatives, size=len(suggestions), replace=False).tolist()
 
         # If we need to pad, then pad
         alternatives = set(alternatives) - set(suggestions)
@@ -810,15 +816,21 @@ class Suggestions:
             suggestions = []
 
         # Limit the number to the maximum number of diagnoses
-        suggestions = suggestions[:self.max_dx_suggestions]
+        limited_suggestions = suggestions[:self.max_dx_suggestions]
 
-        # TODO: Add noise
+        # Alternative suggestions
+        alternatives = [x for x in constants.DIAGNOSES.keys() if x not in suggestions]
 
-        # TODO: Pad
+        # Add noise and pad. TODO: Should we pad if there is "no problem"?
+        suggestions = self._add_noise_and_pad(
+            limited_suggestions,
+            alternatives,
+            self.max_dx_suggestions if self.pad_suggestions else None
+        )
 
         # Update the user's rng state
         if self.user is not None:
-            self.user.rng_state = self.rng.bit_generator.state['state']['state'] % Suggestions.RNG_STATE_SAVE_MODULO
+            self.user.rng_state = Suggestions.get_next_rng_seed(self.rng)
             self.user.save()
 
         # Return the diagnoses
@@ -842,16 +854,22 @@ class Suggestions:
         else:
             suggestions = []
 
-        # Limit the number to the maximum number of actions
-        suggestions = suggestions[:self.max_ax_suggestions]
+        # Limit the number to the maximum number of diagnoses
+        limited_suggestions = suggestions[:self.max_ax_suggestions]
 
-        # TODO: Add noise
+        # Alternative suggestions. TODO: SA actions might come in here
+        alternatives = [x for x in constants.ACTIONS.keys() if x not in suggestions]
 
-        # TODO: Pad
+        # Add noise and pad
+        suggestions = self._add_noise_and_pad(
+            limited_suggestions,
+            alternatives,
+            self.max_ax_suggestions if self.pad_suggestions else None
+        )
 
         # Update the user's rng state
         if self.user is not None:
-            self.user.rng_state = self.rng.bit_generator.state['state']['state'] % Suggestions.RNG_STATE_SAVE_MODULO
+            self.user.rng_state = Suggestions.get_next_rng_seed(self.rng)
             self.user.save()
 
         # Return the actions
