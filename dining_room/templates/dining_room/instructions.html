@@ -33,7 +33,7 @@
     <ul>
         <li>The robot is in a living room with three locations - The Couch, The Dining Table, and The Kitchen Counter (shown below).</li>
         <li>The robot recognizes three objects in this environment - The Jug, The Bowl, and The Cup (shown below).</li>
-        <li>The robot has been given the goal of picking up the Cup from the Kitchen Counter and taking it to the Couch.<!--  <small>(in anticipation of a human arriving to receive the cup)</small> -->.</li>
+        <li>The robot has been given the goal of picking up the Cup from the Kitchen Counter and taking it to the Couch.</li>
     </ul>
 </div>
 </div>
@@ -62,7 +62,7 @@
 <div class="row mx-n5">
 <div class="col px-0">
     <figure class="figure text-center">
-        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has {% if request.user.show_dx_suggestions or request.user.show_ax_suggestions %}five{% else %}four{% endif %} sections. The screenshot includes brief descriptions of the sections in red.</figcaption>
+        <figcaption class="figure-caption mb-2">The Web UI for directing the robot has four sections. The screenshot includes brief descriptions of the sections in red.</figcaption>
         {% if request.user.show_dx_suggestions and request.user.show_ax_suggestions %}
         <img src="https://dl.dropboxusercontent.com/s/h4yrxgpw23jghzk/ui_dx_ax.png" class="figure-img img-fluid rounded border p-1">
         {% elif request.user.show_ax_suggestions %}

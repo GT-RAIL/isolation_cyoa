@@ -650,12 +650,6 @@ class Suggestions:
         self.user = user if user is not None and user.is_authenticated else None
         use_defaults = (user is None or not user.is_authenticated)
 
-        # FIXME
-        max_dx_suggestions = 3
-        max_ax_suggestions = 3
-        pad_suggestions = True
-        noise_level = 0.2
-
         self.max_dx_suggestions = max_dx_suggestions if use_defaults else user.study_management.max_dx_suggestions
         self.max_ax_suggestions = max_ax_suggestions if use_defaults else user.study_management.max_ax_suggestions
         self.pad_suggestions = pad_suggestions if use_defaults else user.study_management.pad_suggestions

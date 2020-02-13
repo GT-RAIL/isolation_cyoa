@@ -18,6 +18,7 @@ from django.conf import settings
 from django.core import management, exceptions
 from django.core.management.base import BaseCommand, CommandError
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 
 from dining_room.models import User, StudyManagement
 
@@ -101,7 +102,12 @@ class Command(BaseCommand):
         # First we update the accept / reject
         for idx, work in batch_df.iterrows():
             try:
-                _ = User.objects.get(unique_key=work['Answer.surveycode'].strip(), amt_worker_id=work['WorkerId'].strip())
+                _ = User.objects.get(
+                    Q(unique_key=work['Answer.surveycode'].strip()) &
+                    Q(amt_worker_id=work['WorkerId'].strip()) &
+                    (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')) &
+                    Q(is_staff=False)
+                )
                 batch_df.loc[idx, 'Approve'] = 'x'
             except (exceptions.ObjectDoesNotExist, exceptions.MultipleObjectsReturned):
                 batch_df.loc[idx, 'Reject'] = 'Cannot match worker id to survey code'
