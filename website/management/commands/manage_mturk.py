@@ -63,14 +63,17 @@ class Command(BaseCommand):
         parser.add_argument('--output-folder', default=os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')), help="Folder to output generated CSV to")
         parser.add_argument('--qualification', default=Command.QUALIFICATION_NAME, help="The qualification to update")
 
-    def _find_batch_results_file(self, dbx_folder):
+    def _find_batch_results_files(self, dbx_folder):
+        filenames = []
         try:
             results = self.dbx.files_list_folder(dbx_folder)
             for entry in results.entries:
                 if Command.BATCH_RESULTS_FILE_RE.match(entry.name) is not None:
-                    return entry.path_display
+                    filenames.append(entry.path_display)
         except dropbox.exceptions.ApiError as e:
-            raise CommandError(f"Error listing files in folder {dbx_folder}: {e}")
+            raise CommandError(f"Error listing filenames in folder {dbx_folder}: {e}")
+
+        return filenames
 
     def _get_csv_data(self, dbx_filename):
         try:
@@ -91,32 +94,48 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # raise CommandError("This command remains incomplete")
-
+        verbosity = options.get('verbosity')
         dbx_folder = os.path.join(settings.DROPBOX_ROOT_PATH, settings.DROPBOX_DATA_FOLDER, options['dropbox_folder'])
-        dbx_batch_file = self._find_batch_results_file(dbx_folder)
-        batch_csv_data = self._get_csv_data(dbx_batch_file)
+        dbx_batch_filenames = self._find_batch_results_files(dbx_folder)
+        batch_csv_data = { filename: self._get_csv_data(filename) for filename in dbx_batch_filenames }
 
-        # Parse out the files into dataframes
-        batch_df = pd.DataFrame(batch_csv_data)
+        encountered_ids = set()
 
-        # First we update the accept / reject
-        for idx, work in batch_df.iterrows():
-            try:
-                _ = User.objects.get(
-                    Q(unique_key=work['Answer.surveycode'].strip()) &
-                    Q(amt_worker_id=work['WorkerId'].strip()) &
-                    (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')) &
-                    Q(is_staff=False)
-                )
-                batch_df.loc[idx, 'Approve'] = 'x'
-            except (exceptions.ObjectDoesNotExist, exceptions.MultipleObjectsReturned):
-                batch_df.loc[idx, 'Reject'] = 'Cannot match worker id to survey code'
+        for filename, file_data in batch_csv_data.items():
+            if verbosity > 1:
+                self.stdout.write(f"Parsing {filename}")
 
-        # Save the CSV data
-        batch_df[Command.BATCH_OUTPUT_HEADERS].to_csv(
-            os.path.join(options['output_folder'], os.path.basename(dbx_batch_file)),
-            index=False
-        )
+            # Parse out the files into dataframes
+            batch_df = pd.DataFrame(file_data)
+
+            # First we update the accept / reject
+            for idx, work in batch_df.iterrows():
+                worker_id = work['WorkerId'].strip()
+                surveycode = work['Answer.surveycode'].strip()
+
+                # Check to see that we haven't seen this worker in the CSV
+                if worker_id in encountered_ids:
+                    batch_df.loc[idx, 'Reject'] = 'Cannot submit on multiple HITs'
+                    self.stdout.write(f"Rejecting {worker_id} in {os.path.basename}. Found multiple times")
+                    continue
+
+                try:
+                    _ = User.objects.get(
+                        Q(unique_key=surveycode) &
+                        Q(amt_worker_id=worker_id) &
+                        (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')) &
+                        Q(is_staff=False)
+                    )
+                    batch_df.loc[idx, 'Approve'] = 'x'
+                except (exceptions.ObjectDoesNotExist, exceptions.MultipleObjectsReturned):
+                    batch_df.loc[idx, 'Reject'] = 'Cannot match worker id to survey code'
+                    self.stdout.write(f"Rejecting {worker_id} in {os.path.basename(filename)}. Code: {surveycode}")
+
+            # Save the CSV data
+            batch_df[Command.BATCH_OUTPUT_HEADERS].to_csv(
+                os.path.join(options['output_folder'], os.path.basename(filename)),
+                index=False
+            )
 
         # Create an update to the qualifications. For this we use ALL users
         qualifications_to_update = []
