@@ -639,3 +639,41 @@ OPTIMAL_ACTION_SEQUENCES = {
         ),
     ],
 }
+
+
+# Combinations of the different survey questions
+SURVEY_COMBINATIONS = objdict({
+    'diagnosis': ['could_identify_problems', 'not_sure_how_to_help'],
+    'actions': ['information_was_enough', 'actions_were_not_enough'],
+    'sus': [
+        'sus_like_to_use_frequently',
+        'sus_unnecessarily_complex',
+        'sus_easy_to_use',
+        'sus_technical',
+        'sus_well_integrated',
+        'sus_inconsistency',
+        'sus_most_people_can_learn',
+        'sus_awkward',
+        'sus_confident',
+        'sus_learn_a_lot',
+    ]
+})
+
+
+# A valence for each of the survey questions
+SURVEY_QUESTION_VALENCE = {
+    'could_identify_problems': 1,
+    'not_sure_how_to_help': -1,
+    'information_was_enough': 1,
+    'actions_were_not_enough': -1,
+    'sus_like_to_use_frequently': 1,
+    'sus_unnecessarily_complex': -1,
+    'sus_easy_to_use': 1,
+    'sus_technical': -1,
+    'sus_well_integrated': 1,
+    'sus_inconsistency': -1,
+    'sus_most_people_can_learn': 1,
+    'sus_awkward': -1,
+    'sus_confident': 1,
+    'sus_learn_a_lot': -1,
+}

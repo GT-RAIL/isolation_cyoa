@@ -415,18 +415,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         'information_was_enough',
         'actions_were_not_enough',
     ]
-    SUS_SURVEY_FIELD_NAMES = [
-        'sus_like_to_use_frequently',
-        'sus_unnecessarily_complex',
-        'sus_easy_to_use',
-        'sus_technical',
-        'sus_well_integrated',
-        'sus_inconsistency',
-        'sus_most_people_can_learn',
-        'sus_awkward',
-        'sus_confident',
-        'sus_learn_a_lot',
-    ]
+    SUS_SURVEY_FIELD_NAMES = constants.SURVEY_COMBINATIONS.sus
 
     comments = models.TextField(_("Additional comments or feedback about the system"), blank=True, null=True)
     date_survey_completed = models.DateTimeField(_('date survey completed'), blank=True, null=True)
