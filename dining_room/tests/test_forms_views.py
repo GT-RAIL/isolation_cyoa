@@ -2,7 +2,7 @@ import itertools
 import datetime
 import random
 
-from django.test import TestCase, Client
+from django.test import SimpleTestCase, TestCase, Client
 from django.db.models import Q
 from django.urls import reverse
 from django.contrib.messages import get_messages
@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from dining_room.models import User, StudyManagement
 from dining_room.forms import CreateUserForm
+from dining_room.utils import DropboxConnection
 
 
 # The tests for the various forms and views go here
@@ -165,3 +166,27 @@ class CreateUserTestCase(TestCase):
                 0 if start_condition not in CreateUserTestCase.START_CONDITIONS else 2,
                 base_user_qs.filter(start_condition=start_condition).count()
             )
+
+class CSVTestCase(SimpleTestCase):
+    """
+    Test the CSV generation and saving
+    """
+
+    EXPECTED_CSV_HEADERS = [
+        'timestamp',
+        'start_state',
+        'diagnoses',
+        'diagnosis_certainty',
+        'action',
+        'next_state',
+        'video_loaded_time',
+        'video_stop_time',
+        'dx_selected_time',
+        'dx_confirmed_time',
+        'ax_selected_time',
+        'corrupted_dx_suggestions',
+        'corrupted_ax_suggestions',
+    ]
+
+    def test_csv_headers(self):
+        self.assertListEqual(CSVTestCase.EXPECTED_CSV_HEADERS, DropboxConnection.USERDATA_CSV_HEADERS)

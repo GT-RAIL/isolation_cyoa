@@ -57,6 +57,8 @@ class StudyAction(models.Model):
         'start_timestamp',
         'end_timestamp',
         'browser_refreshed',
+        # The corrupted flags should be populated post-processing, but they
+        # are now forever part of the CSV header
     ]
 
     class Meta:

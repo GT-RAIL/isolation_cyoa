@@ -78,10 +78,17 @@ class Command(BaseCommand):
         # Set the attributes
         current_row.pop('timestamp', None)
         for key, value in current_row.items():
-            if '_time' in key:
+            if key is None:
+                # This happens in the case of unexpected columns in the CSV.
+                # For now, we silently fail on that condition
+                pass
+            elif '_time' in key:
                 setattr(action, key, datetime.datetime.fromtimestamp(float(value), pytz.utc))
             elif key == 'diagnoses':
                 setattr(action, key, eval(value))
+            elif 'corrupted_' in key:
+                # FIXME: Maybe make this more permanent?
+                pass
             else:
                 setattr(action, key, value)
 
