@@ -54,6 +54,7 @@ class CreateUserForm(forms.Form):
         Clear out users that might've abandoned the study
         """
         User.objects.filter(
+            Q(is_staff=False) &
             Q(date_survey_completed__isnull=True) &
             (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason='')) &
             Q(last_login__lte=(timezone.now() - CreateUserForm.ALLOWED_TIME_SINCE_LOGIN))
