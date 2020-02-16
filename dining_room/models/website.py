@@ -223,11 +223,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         AX_70 = 12, _('AX, 70')
         DXAX_70 = 13, _('DX & AX, 70')
 
-        # 60% correct
-        DX_60 = 14, _('DX, 60')
-        AX_60 = 15, _('AX, 60')
-        DXAX_60 = 16, _('DX & AX, 60')
-
         # TODO: Add the actions with SA improvement conditions
         __empty__ = _('(Unknown)')
 
@@ -242,8 +237,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         StudyConditions.DXAX_80,
         StudyConditions.DX_70,
         StudyConditions.DXAX_70,
-        StudyConditions.DX_60,
-        StudyConditions.DXAX_60,
     ]
     SHOW_AX_STUDY_CONDITIONS = [
         StudyConditions.AX_100,
@@ -254,8 +247,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         StudyConditions.DXAX_80,
         StudyConditions.AX_70,
         StudyConditions.DXAX_70,
-        StudyConditions.AX_60,
-        StudyConditions.DXAX_60,
     ]
 
     STUDY_CONDITIONS_NOISE_LEVELS = {
@@ -271,9 +262,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         StudyConditions.DX_70: 0.3,
         StudyConditions.AX_70: 0.3,
         StudyConditions.DXAX_70: 0.3,
-        StudyConditions.DX_60: 0.4,
-        StudyConditions.AX_60: 0.4,
-        StudyConditions.DXAX_60: 0.4,
     }
 
     class StartConditions(models.TextChoices):
