@@ -61,7 +61,10 @@ ENV WEBSITE_WORKSPACE=/home/banerjs/website NOTEBOOKS_WORKSPACE=/notebooks
 RUN cd /home/banerjs/website && \
     . /opt/anaconda/etc/profile.d/conda.sh && \
     conda activate venv && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install \
+        researchpy==0.1.8 \
+        statsmodels==0.11.0
 
 # Small updates for QoL
 RUN mkdir /home/banerjs/.saves && \

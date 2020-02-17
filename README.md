@@ -30,18 +30,3 @@ Then run the docker container. To run in interactive mode: `./docker/run_website
 ## Notes
 
 - In case we need to switch to websockets, then [this blog post](https://blog.heroku.com/in_deep_with_django_channels_the_future_of_real_time_apps_in_django) on Django channels might be a good place to start
-
-Things to do:
-
-1. Refine the UI
-    - Add instructions
-    - Finalize the questions to ask (and associated prompts)
-    - Add the possibility of taking actions that fail
-1. Setup MTurk to use the CSV (or an API)
-1. Setup scripts to grab production data and save it
-1. Automated solvers to pick action given a state - this can now be done correctly if we assume that the domain description is working as expected
-1. Create suggestions conditions
-
-If we have the time, we should, in this order:
-
-1. Write some unit tests for the Django code
