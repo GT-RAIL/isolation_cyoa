@@ -29,7 +29,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         verbosity = options.get('verbosity')
-        users = User.objects.filter(pk__in=options['user_ids'])
+        users = User.objects.filter(pk__in=options['user_ids'], is_staff=False)
 
         # Setup the list of checks
         checks = {

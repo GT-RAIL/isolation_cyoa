@@ -46,6 +46,8 @@ class StudyAction(models.Model):
     browser_refreshed = models.BooleanField(default=False)
     corrupted_dx_suggestions = models.BooleanField(default=False)
     corrupted_ax_suggestions = models.BooleanField(default=False)
+    dx_suggestions = multiselectfield.MultiSelectField(choices=tuple(constants.DIAGNOSES.items()), blank=True, null=True)
+    ax_suggestions = multiselectfield.MultiSelectField(choices=tuple(constants.ACTIONS.items()), blank=True, null=True)
 
     # Cached property
     _action_idx = None
@@ -57,6 +59,8 @@ class StudyAction(models.Model):
         'start_timestamp',
         'end_timestamp',
         'browser_refreshed',
+        'dx_suggestions',
+        'ax_suggestions',
         # The corrupted flags should be populated post-processing, but they
         # are now forever part of the CSV header
     ]
