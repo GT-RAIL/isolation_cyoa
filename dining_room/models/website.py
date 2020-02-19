@@ -332,6 +332,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('actions_involve_invisible_arm_motion', True),
     ]
 
+    # Field to count the number of times the user has requested the state from
+    # the server. We start at -1 and increment every time `get_next_state_json`
+    # is invoked. This can then be used as the basis for injecting noise
+    number_state_requests = models.IntegerField(default=-1)
+
     # Likert Responses
     class LikertResponses(models.IntegerChoices):
         STRONGLY_DISAGREE = 0

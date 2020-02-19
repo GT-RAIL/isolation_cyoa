@@ -320,6 +320,12 @@ def get_next_state_json(current_state, action, user=None):
     Returns:
         next_state_json: JSON dictionary of the next state
     """
+    # Update the number of times that this function has been called
+    if user is not None and user.is_authenticated:
+        user.number_state_requests += 1
+        user.save()
+
+    # Create a State object
     current_state = State(current_state)
 
     # Generate the JSON data

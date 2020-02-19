@@ -517,7 +517,7 @@ class ActionsAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': (('username', 'amt_worker_id', 'study_condition', 'start_condition', 'study_progress', 'valid_data'), ('date_started', 'date_finished'))
+            'fields': (('username', 'amt_worker_id', 'study_condition', 'start_condition', 'study_progress', 'valid_data'), ('date_started', 'date_finished', 'number_state_requests'))
         }),
     )
     inlines = [ StudyActionInline ]
@@ -531,6 +531,7 @@ class ActionsAdmin(admin.ModelAdmin):
         'scenario_completed',
         'date_started',
         'duration',
+        'number_state_requests',
         'num_actions',
         'num_refreshes',
         'confidences',

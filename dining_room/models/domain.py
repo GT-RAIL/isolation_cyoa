@@ -627,9 +627,13 @@ class Suggestions:
     DEFAULT_MAX_AX_SUGGESTIONS = 1
     DEFAULT_PAD_SUGGESTIONS = False
     DEFAULT_NOISE_LEVEL = 0
-    DEFAULT_RNG_SEED = 0x1337
 
+    # Parameters that we cannot change
+    DEFAULT_RNG_SEED = 0x1337
     RNG_STATE_SAVE_MODULO = int(1e5)
+
+    DX_CORRUPT_IDX_OFFSETS = [1, 4, 8]
+    AX_CORRUPT_IDX_OFFSETS = [1, 5, 7]
 
     def __init__(self,
         user=None,
@@ -773,19 +777,35 @@ class Suggestions:
         # Return the suggestions
         return suggestions
 
-    def _add_noise_and_pad(self, suggestions, alternatives, number=None):
+    def _should_corrupt(self, offsets):
+        """
+        Decide if the user's suggestions should be corrupted based on a
+        deterministic paradigm
+        """
+        if self.user is not None:
+            num_noise_offsets = int(self.noise_level * 10)
+            offsets = [offsets[i] for i in range(num_noise_offsets)]
+            should_corrupt = any([
+                ((self.user.number_state_requests - offset) % 10 == 0)
+                for offset in offsets
+            ])
+        else:
+            should_corrupt = bool(self.rng.choice(2))
+
+        return should_corrupt
+
+    def _add_noise_and_pad(self, suggestions, alternatives, *, should_corrupt=False, number=None):
         """
         Depending on the noise level, substitute elements in suggestions with
         those from the alternatives. If number is provided, then pad elements
         of alternatives into suggestions until we equal number.
 
-        len(alternatives) MUST be > len(suggestions)
-        no element in suggestions should be in alternatives
+        - len(alternatives) MUST be > len(suggestions)
+        - no element in suggestions should be in alternatives
         """
         number = number or len(suggestions)
 
         # Check if we need to corrupt the data & corrupt if so
-        should_corrupt = (self.rng.uniform() < self.noise_level)
         if should_corrupt:
             suggestions = self.rng.choice(alternatives, size=len(suggestions), replace=False).tolist()
 
@@ -827,11 +847,12 @@ class Suggestions:
         # Alternative suggestions
         alternatives = [x for x in constants.DIAGNOSES.keys() if x not in suggestions]
 
-        # Add noise and pad. TODO: Should we pad if there is "no problem"?
+        # Add noise and pad. We pad if there is no problem as well
         suggestions = self._add_noise_and_pad(
             limited_suggestions,
             alternatives,
-            self.max_dx_suggestions if self.pad_suggestions else None
+            should_corrupt=self._should_corrupt(Suggestions.DX_CORRUPT_IDX_OFFSETS),
+            number=self.max_dx_suggestions if self.pad_suggestions else None
         )
 
         # Update the user's rng state
@@ -863,7 +884,7 @@ class Suggestions:
         # Limit the number to the maximum number of diagnoses
         limited_suggestions = suggestions[:self.max_ax_suggestions]
 
-        # Alternative suggestions. TODO: SA actions might come in here
+        # Alternative suggestions. We don't treat SA actions separately
         valid_actions_check = state.get_valid_actions()
         alternatives = [k for k, v in valid_actions_check.items() if (k not in suggestions and v)]
 
@@ -871,7 +892,8 @@ class Suggestions:
         suggestions = self._add_noise_and_pad(
             limited_suggestions,
             alternatives,
-            self.max_ax_suggestions if self.pad_suggestions else None
+            should_corrupt=self._should_corrupt(Suggestions.AX_CORRUPT_IDX_OFFSETS),
+            number=self.max_ax_suggestions if self.pad_suggestions else None
         )
 
         # Update the user's rng state
