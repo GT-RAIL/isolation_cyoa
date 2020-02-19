@@ -490,6 +490,8 @@ class StudyActionInline(admin.TabularInline):
         'dx_decision_duration',
         'ax_decision_duration',
         'browser_refreshed',
+        'corrupted_dx_suggestions',
+        'corrupted_ax_suggestions'
     )
     readonly_fields = (
         'action_idx',
@@ -504,6 +506,8 @@ class StudyActionInline(admin.TabularInline):
         'dx_decision_duration',
         'ax_decision_duration',
         'browser_refreshed',
+        'corrupted_dx_suggestions',
+        'corrupted_ax_suggestions'
     )
     ordering = ('start_timestamp',)
     show_change_link = True
@@ -531,7 +535,6 @@ class ActionsAdmin(admin.ModelAdmin):
         'scenario_completed',
         'date_started',
         'duration',
-        'number_state_requests',
         'num_actions',
         'num_refreshes',
         'confidences',

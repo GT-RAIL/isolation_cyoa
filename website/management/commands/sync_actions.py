@@ -35,7 +35,7 @@ class Command(BaseCommand):
         self.dbx = dropbox.Dropbox(settings.DROPBOX_OAUTH2_TOKEN)
 
     def add_arguments(self, parser):
-        parser.add_argument("--user-ids", nargs='*', default=[x.pk for x in User.objects.order_by('pk')], help="The user ids to get actions for")
+        parser.add_argument('-a', '--all', action='store_true', help='Whether to simulate suggestions for all users, or only those with valid / relevant data')
         parser.add_argument("--raise-on-missing", action="store_true", help="Raise an error if the actions CSV file is missing")
         parser.add_argument("--raise-on-delete", action="store_true", help="Raise an error if there already exist actions for the user")
 
@@ -97,7 +97,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         verbosity = options.get('verbosity')
-        users = User.objects.filter(pk__in=options['user_ids'])
+        if options['all']:
+            users = User.objects.filter(is_staff=False).exclude(studyaction=None)
+        else:
+            users = User.objects.filter(
+                Q(is_staff=False) &
+                Q(date_survey_completed__isnull=False) &
+                (Q(ignore_data_reason__isnull=True) | Q(ignore_data_reason=''))
+            )
 
         # Iterate through the users and get their data
         for user in users:
