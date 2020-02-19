@@ -85,6 +85,7 @@ class Command(BaseCommand):
         sim_user.study_condition = user.study_condition
         sim_user.start_condition = user.start_condition
         sim_user.rng_state = Suggestions.DEFAULT_RNG_SEED
+        sim_user.number_state_requests = -1
         sim_user.save()
 
         # For each state visited by the user, simulate the suggestions

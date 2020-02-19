@@ -92,13 +92,13 @@ class SuggestionsTestCase(TestCase):
         refreshes the RNG values in the provider to simulate how we expect
         the RNG values to evolve as user requests come in
         """
+        self.user.refresh_from_db()
         if idx == 0:
             self.user.rng_state = Suggestions.DEFAULT_RNG_SEED
             self.user.save()
             self.suggestions_provider = Suggestions(self.user)
             self.rng = np.random.default_rng(Suggestions.DEFAULT_RNG_SEED)
         else:
-            self.user.refresh_from_db()
             self.suggestions_provider = Suggestions(self.user)
             self.rng = np.random.default_rng(self.user.rng_state)
 
@@ -463,6 +463,13 @@ class SuggestionsTestCase(TestCase):
         """Test that all the noise conditions actually do see noise in the first
         3 actions"""
         action_number_check_threshold = 3
+
+        # Make sure we're running the same condition that we will have for the
+        # study. This is where we went wrong last time
+        self.sm.max_dx_suggestions = 3
+        self.sm.max_ax_suggestions = 3
+        self.sm.pad_suggestions = True
+        self.sm.save()
 
         # Iterate through the study conditions
         for study_condition in [User.StudyConditions.DX_90, User.StudyConditions.AX_90, User.StudyConditions.DXAX_90]:
