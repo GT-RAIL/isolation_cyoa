@@ -102,7 +102,6 @@ class Command(BaseCommand):
         start_state = State(user.start_condition.split('.'))
         schk = Suggestions()  # Just a means to get the optimal alternatives
         for action in actions:
-            # print(sim_user.study_condition, sim_user.rng_state, user.num_actions)
             next_state = State(eval(action.start_state))
 
             # Get the next state and verify it
@@ -146,7 +145,7 @@ class Command(BaseCommand):
         # Simulate the last suggestions call
         if sim_user.study_condition in Command.V1_NOISE_USAGE_CONDITIONS:
             json = get_next_state_json(start_state.tuple, prev_action, None)
-            json.update(self._v1_noise_get_suggestions_json(next_state, sim_user))
+            json.update(self._v1_noise_get_suggestions_json(start_state, sim_user))
         else:
             json = get_next_state_json(start_state.tuple, prev_action, sim_user)
 
@@ -156,6 +155,7 @@ class Command(BaseCommand):
                 f"Mismatch end state... FML: {user}... {user.rng_state} != {sim_user.rng_state}"
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"{e}"))
+            raise
 
     def _v1_noise_get_suggestions_json(self, state, user):
         """Use the old style of garnering suggestions from the server"""
@@ -165,22 +165,16 @@ class Command(BaseCommand):
 
         def add_noise_and_pad(suggestions, alternatives, pad):
             """The old definition of the noise + pad function"""
-            # x1 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
             pad = pad or len(suggestions)
             should_corrupt = (suggestions_provider.rng.uniform() < user.noise_level)
-            # x2 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
             if should_corrupt:
                 suggestions = suggestions_provider.rng.choice(alternatives, size=len(suggestions), replace=False).tolist()
-            # x3 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
 
             alternatives = set(alternatives) - set(suggestions)
             while len(suggestions) < pad:
-                suggestions.append(suggestions_provider.rng.choice(list(alternatives)))
+                suggestions.append(suggestions_provider.rng.choice(list(sorted(alternatives))))
                 alternatives.discard(suggestions[-1])
-                # print(suggestions, alternatives, Suggestions.get_next_rng_seed(suggestions_provider.rng))
 
-            # x4 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
-            # print(x1==x2, x2==x3, x3==x4, x1, x2, x3, x4)
             return suggestions
 
         # First add the DX suggestions

@@ -815,7 +815,7 @@ class Suggestions:
             # We don't want to cause an exception when we pad the suggestions,
             # so just catch an exception if that's the case and exit
             try:
-                suggestions.append(self.rng.choice(list(alternatives)))
+                suggestions.append(self.rng.choice(list(sorted(alternatives))))
                 alternatives.discard(suggestions[-1])
             except:
                 logger.error(f"Exception padding suggestions: {e}")
