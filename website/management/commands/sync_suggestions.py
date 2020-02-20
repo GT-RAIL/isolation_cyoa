@@ -16,6 +16,7 @@ from django.core import management
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Q
 
+from dining_room import constants
 from dining_room.models import User, StudyManagement, StudyAction
 from dining_room.models.domain import State, Transition, Suggestions
 from dining_room.views import get_next_state_json
@@ -30,6 +31,14 @@ class Command(BaseCommand):
     """
 
     help = "Load actions data from dropbox replay the suggestions a user might've seen. Run `sync_actions` before this command"
+
+    V1_NOISE_USAGE_CONDITIONS = {
+        User.StudyConditions.BASELINE,
+        User.StudyConditions.DX_100,
+        User.StudyConditions.AX_100,
+        User.StudyConditions.DXAX_100,
+        User.StudyConditions.DX_90,
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -58,7 +67,7 @@ class Command(BaseCommand):
             sim_user.save()
 
         # Iterate through the users and get their data
-        for user in users.order_by('study_condition'):
+        for uidx, user in enumerate(users.order_by('study_condition')):
             # Assert that the user has actions
             assert user.studyaction_set.count() > 0, f"User {user} is missing actions"
 
@@ -67,7 +76,7 @@ class Command(BaseCommand):
 
             # Print a status message
             if verbosity > 0:
-                self.stdout.write(f"Simulated suggestions for {user}")
+                self.stdout.write(f"({uidx+1}/{len(users)}) Simulated suggestions for {user}")
 
         # Delete the sim user
         sim_user.refresh_from_db()
@@ -91,12 +100,20 @@ class Command(BaseCommand):
         # For each state visited by the user, simulate the suggestions
         prev_action = None
         start_state = State(user.start_condition.split('.'))
-        suggestions_check = Suggestions()
+        schk = Suggestions()  # Just a means to get the optimal alternatives
         for action in actions:
+            # print(sim_user.study_condition, sim_user.rng_state, user.num_actions)
             next_state = State(eval(action.start_state))
 
             # Get the next state and verify it
-            json = get_next_state_json(start_state.tuple, prev_action, sim_user)
+            if sim_user.study_condition in Command.V1_NOISE_USAGE_CONDITIONS:
+                # Send an empty user, then update the json with the simulated
+                # suggestions from the old way of doing things
+                json = get_next_state_json(start_state.tuple, prev_action, None)
+                json.update(self._v1_noise_get_suggestions_json(next_state, sim_user))
+            else:
+                json = get_next_state_json(start_state.tuple, prev_action, sim_user)
+
             assert tuple(json['server_state_tuple']) == next_state.tuple, \
                 f"({start_state.tuple}, {prev_action}): {json['server_state_tuple']} != {next_state.tuple}"
 
@@ -111,13 +128,13 @@ class Command(BaseCommand):
             if user.noise_level > 0:
                 if (
                     user.show_dx_suggestions and
-                    suggestions_check.ordered_diagnoses(start_state, prev_action)[0] not in action.dx_suggestions
+                    schk.ordered_diagnoses(start_state, prev_action)[0] not in action.dx_suggestions
                 ):
                     action.corrupted_dx_suggestions = True
 
                 if (
                     user.show_ax_suggestions and
-                    suggestions_check.optimal_action(start_state, prev_action)[0] not in action.ax_suggestions
+                    schk.optimal_action(start_state, prev_action)[0] not in action.ax_suggestions
                 ):
                     action.corrupted_ax_suggestions = True
 
@@ -127,9 +144,83 @@ class Command(BaseCommand):
             start_state = State(eval(action.next_state))
 
         # Simulate the last suggestions call
-        json = get_next_state_json(start_state.tuple, prev_action, sim_user)
+        if sim_user.study_condition in Command.V1_NOISE_USAGE_CONDITIONS:
+            json = get_next_state_json(start_state.tuple, prev_action, None)
+            json.update(self._v1_noise_get_suggestions_json(next_state, sim_user))
+        else:
+            json = get_next_state_json(start_state.tuple, prev_action, sim_user)
 
         # Check the RNG state
-        assert sim_user.rng_state == user.rng_state, \
-            f"Mismatch end state... FML: {user}... {user.rng_state} != {sim_user.rng_state}"
+        try:
+            assert sim_user.rng_state == user.rng_state, \
+                f"Mismatch end state... FML: {user}... {user.rng_state} != {sim_user.rng_state}"
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"{e}"))
 
+    def _v1_noise_get_suggestions_json(self, state, user):
+        """Use the old style of garnering suggestions from the server"""
+        suggestions_json = {}
+        user.refresh_from_db()
+        suggestions_provider = Suggestions(user)
+
+        def add_noise_and_pad(suggestions, alternatives, pad):
+            """The old definition of the noise + pad function"""
+            # x1 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
+            pad = pad or len(suggestions)
+            should_corrupt = (suggestions_provider.rng.uniform() < user.noise_level)
+            # x2 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
+            if should_corrupt:
+                suggestions = suggestions_provider.rng.choice(alternatives, size=len(suggestions), replace=False).tolist()
+            # x3 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
+
+            alternatives = set(alternatives) - set(suggestions)
+            while len(suggestions) < pad:
+                suggestions.append(suggestions_provider.rng.choice(list(alternatives)))
+                alternatives.discard(suggestions[-1])
+                # print(suggestions, alternatives, Suggestions.get_next_rng_seed(suggestions_provider.rng))
+
+            # x4 = Suggestions.get_next_rng_seed(suggestions_provider.rng)
+            # print(x1==x2, x2==x3, x3==x4, x1, x2, x3, x4)
+            return suggestions
+
+        # First add the DX suggestions
+        if user.show_dx_suggestions:
+            suggestions = suggestions_provider.ordered_diagnoses(state, None, accumulate=True)
+        else:
+            suggestions = []
+
+        alternatives = [x for x in constants.DIAGNOSES.keys() if x not in suggestions]
+        suggestions = add_noise_and_pad(
+            suggestions[:user.study_management.max_dx_suggestions],
+            alternatives,
+            user.study_management.max_dx_suggestions if user.study_management.pad_suggestions else None
+        )
+
+        suggestions_json['dx_suggestions'] = suggestions
+
+        # Update the RNG
+        user.rng_state = Suggestions.get_next_rng_seed(suggestions_provider.rng)
+        user.save()
+
+        # Second the AX suggestions
+        if user.show_ax_suggestions:
+            suggestions = suggestions_provider.optimal_action(state, None)
+        else:
+            suggestions = []
+
+        valid_actions = state.get_valid_actions()
+        alternatives = [k for k, v in valid_actions.items() if (k not in suggestions and v)]
+        suggestions  = add_noise_and_pad(
+            suggestions[:user.study_management.max_ax_suggestions],
+            alternatives,
+            user.study_management.max_ax_suggestions if user.study_management.pad_suggestions else None
+        )
+
+        suggestions_json['ax_suggestions'] = suggestions
+
+        # Update the RNG
+        user.rng_state = Suggestions.get_next_rng_seed(suggestions_provider.rng)
+        user.save()
+
+        # Return the JSON
+        return suggestions_json

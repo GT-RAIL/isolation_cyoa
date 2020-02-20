@@ -108,12 +108,12 @@ class Command(BaseCommand):
             )
 
         # Iterate through the users and get their data
-        for user in users:
+        for uidx, user in enumerate(users):
 
             # Don't get anything for users that don't have associated folders
             if user.study_management is None:
                 if verbosity > 0:
-                    self.stdout.write(f"No management for {user}; skipping")
+                    self.stdout.write(f"({uidx+1}/{len(users)}) No management for {user}; skipping")
                 continue
 
             # Remove existing actions for the user, if they exist
@@ -136,7 +136,7 @@ class Command(BaseCommand):
                     raise CommandError(msg)
                 else:
                     if verbosity > 0:
-                        self.stdout.write(f"{msg}; skipping")
+                        self.stdout.write(f"({uidx+1}/{len(users)}) {msg}; skipping")
                     continue
 
             # Get the user's data
@@ -164,7 +164,7 @@ class Command(BaseCommand):
 
             # Print a status message
             if verbosity > 0:
-                self.stdout.write(f"Updated actions for {user}")
+                self.stdout.write(f"({uidx+1}/{len(users)}) Updated actions for {user}")
 
         # Print a completion message
         self.stdout.write(self.style.SUCCESS("Actions synchronized!"))
