@@ -15,6 +15,7 @@ import dropbox
 from django.conf import settings
 from django.core import management
 from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Q
 
 from dining_room.models import User, StudyManagement, StudyAction
 
