@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 import multiselectfield
 
 from .. import constants
-from .domain import State, Transition
+from .domain import State, Transition, Suggestions
 from .website import User, StudyManagement
 
 
@@ -104,3 +104,31 @@ class StudyAction(models.Model):
     @property
     def decision_duration(self):
         return (self.ax_selected_time - self.video_stop_time) if self.video_stop_time is not None else None
+
+    @property
+    def chose_dx_suggestion(self):
+        if self.diagnoses is None or self.dx_suggestions is None:
+            return None
+        return len(set(self.diagnoses) & set(self.dx_suggestions)) > 0
+
+    @property
+    def chose_ax_suggestion(self):
+        if self.action is None or self.ax_suggestions is None:
+            return None
+        return self.action in self.ax_suggestions
+
+    @property
+    def chose_dx_optimal(self):
+        if self.start_state is None or self.diagnoses is None:
+            return None
+        state = State(eval(self.start_state))
+        optimal_dx = Suggestions().ordered_diagnoses(state, None, accumulate=True)
+        return len(set(self.diagnoses) & set(optimal_dx)) > 0
+
+    @property
+    def chose_ax_optimal(self):
+        if self.start_state is None or self.action is None:
+            return None
+        state = State(eval(self.start_state))
+        optimal_ax = Suggestions().optimal_action(state, None)
+        return self.action in optimal_ax

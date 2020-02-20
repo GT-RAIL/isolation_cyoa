@@ -152,23 +152,63 @@ class StudyActionAdmin(admin.ModelAdmin):
     list_display = (
         '__str__',
         'start_timestamp',
-        'duration',
         'decision_duration',
         'start_state',
         'diagnoses',
         'certainty',
         'action',
         'browser_refreshed',
+        'corrupted_dx',
+        'corrupted_ax',
+        'chose_dx',
+        'chose_ax',
+        'optimal_dx',
+        'optimal_ax',
+    )
+    list_filter = (
+        'user__study_condition',
+        'user__start_condition',
+        'user__study_management',
     )
     readonly_fields = (
         'duration',
         'decision_duration',
+        'corrupted_dx',
+        'corrupted_ax',
+        'chose_dx',
+        'chose_ax',
+        'optimal_dx',
+        'optimal_ax',
     )
     ordering = ('user', 'start_timestamp')
 
     def certainty(self, obj):
         return obj.diagnosis_certainty
     certainty.admin_order_field = 'diagnosis_certainty'
+
+    def corrupted_dx(self, obj):
+        return obj.corrupted_dx_suggestions
+    corrupted_dx.boolean = True
+
+    def corrupted_ax(self, obj):
+        return obj.corrupted_ax_suggestions
+    corrupted_ax.boolean = True
+
+    def chose_dx(self, obj):
+        return obj.chose_dx_suggestion
+    chose_dx.boolean = True
+
+    def chose_ax(self, obj):
+        return obj.chose_ax_suggestion
+    chose_ax.boolean = True
+
+    def optimal_dx(self, obj):
+        return obj.chose_dx_optimal
+    optimal_dx.boolean = True
+
+    def optimal_ax(self, obj):
+        return obj.chose_ax_optimal
+    optimal_ax.boolean = True
 
 
 # Special requirements for the redefined auth models
@@ -483,15 +523,15 @@ class StudyActionInline(admin.TabularInline):
         'duration',
         'start_state',
         'diagnoses',
-        'diagnosis_certainty',
+        'certainty',
         'action',
         'next_state',
         'decision_duration',
-        'dx_decision_duration',
-        'ax_decision_duration',
         'browser_refreshed',
-        'corrupted_dx_suggestions',
-        'corrupted_ax_suggestions'
+        'corrupted_dx',
+        'corrupted_ax',
+        'chose_dx',
+        'chose_ax',
     )
     readonly_fields = (
         'action_idx',
@@ -499,19 +539,41 @@ class StudyActionInline(admin.TabularInline):
         'duration',
         'start_state',
         'diagnoses',
-        'diagnosis_certainty',
+        'certainty',
         'action',
         'next_state',
         'decision_duration',
         'dx_decision_duration',
         'ax_decision_duration',
         'browser_refreshed',
-        'corrupted_dx_suggestions',
-        'corrupted_ax_suggestions'
+        'corrupted_dx',
+        'corrupted_ax',
+        'chose_dx',
+        'chose_ax',
     )
     ordering = ('start_timestamp',)
     show_change_link = True
     extra = 0
+
+    def certainty(self, obj):
+        return obj.diagnosis_certainty
+    certainty.admin_order_field = 'diagnosis_certainty'
+
+    def corrupted_dx(self, obj):
+        return obj.corrupted_dx_suggestions
+    corrupted_dx.boolean = True
+
+    def corrupted_ax(self, obj):
+        return obj.corrupted_ax_suggestions
+    corrupted_ax.boolean = True
+
+    def chose_dx(self, obj):
+        return obj.chose_dx_suggestion
+    chose_dx.boolean = True
+
+    def chose_ax(self, obj):
+        return obj.chose_ax_suggestion
+    chose_ax.boolean = True
 
 
 class ActionsAdmin(admin.ModelAdmin):
