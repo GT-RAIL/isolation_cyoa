@@ -37,7 +37,6 @@ class Command(BaseCommand):
         User.StudyConditions.DX_100,
         User.StudyConditions.AX_100,
         User.StudyConditions.DXAX_100,
-        User.StudyConditions.DX_90,
     }
 
     def __init__(self, *args, **kwargs):
@@ -155,7 +154,6 @@ class Command(BaseCommand):
                 f"Mismatch end state... FML: {user}... {user.rng_state} != {sim_user.rng_state}"
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"{e}"))
-            raise
 
     def _v1_noise_get_suggestions_json(self, state, user):
         """Use the old style of garnering suggestions from the server"""

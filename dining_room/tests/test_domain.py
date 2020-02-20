@@ -254,7 +254,7 @@ class SuggestionsTestCase(TestCase):
         if pad:
             alternatives = set(alternatives) - set(padded_suggestions)
             for _ in range(len(expected_suggestions), self.sm.max_dx_suggestions):
-                padded_suggestions.append(self.rng.choice(list(alternatives)))
+                padded_suggestions.append(self.rng.choice(list(sorted(alternatives))))
                 alternatives.discard(padded_suggestions[-1])
 
         # Then get the suggestions & check if they match. Add additional checks
@@ -299,7 +299,7 @@ class SuggestionsTestCase(TestCase):
         if pad:
             alternatives = set(alternatives) - set(padded_suggestions)
             for _ in range(len(expected_suggestions), self.sm.max_ax_suggestions):
-                padded_suggestions.append(self.rng.choice(list(alternatives)))
+                padded_suggestions.append(self.rng.choice(list(sorted(alternatives))))
                 alternatives.discard(padded_suggestions[-1])
 
         # Then get the suggestions & check if they match. Add additional checks
