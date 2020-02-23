@@ -136,8 +136,8 @@ class SuggestionsTestCase(TestCase):
         """
         dx_pattern = [False, True, False, False, True, False, False, False, True, False,
                       False, True, False, False, True, False, False, False, True, False]
-        ax_pattern = [False, True, False, False, False, True, False, True, False, False,
-                      False, True, False, False, False, True, False, True, False, False]
+        ax_pattern = [False, True, False, False, True, False, False, False, True, False,
+                      False, True, False, False, True, False, False, False, True, False]
 
         self.user.study_condition = User.StudyConditions.DXAX_70
         self.user.save()
@@ -163,8 +163,8 @@ class SuggestionsTestCase(TestCase):
         """
         dx_pattern = [False, True, False, False, True, False, False, False, False, False,
                       False, True, False, False, True, False, False, False, False, False]
-        ax_pattern = [False, True, False, False, False, True, False, False, False, False,
-                      False, True, False, False, False, True, False, False, False, False]
+        ax_pattern = [False, True, False, False, True, False, False, False, False, False,
+                      False, True, False, False, True, False, False, False, False, False]
 
         self.user.study_condition = User.StudyConditions.DXAX_80
         self.user.save()
@@ -472,7 +472,10 @@ class SuggestionsTestCase(TestCase):
         self.sm.save()
 
         # Iterate through the study conditions
-        for study_condition in [User.StudyConditions.DX_90, User.StudyConditions.AX_90, User.StudyConditions.DXAX_90]:
+        for study_condition in [
+            User.StudyConditions.DX_90, User.StudyConditions.AX_90, User.StudyConditions.DXAX_90,
+            User.StudyConditions.DX_80, User.StudyConditions.AX_90, User.StudyConditions.DXAX_80,
+        ]:
             self.user.study_condition = study_condition
             self.user.save()
 

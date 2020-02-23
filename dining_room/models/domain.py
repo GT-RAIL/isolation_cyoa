@@ -633,7 +633,7 @@ class Suggestions:
     RNG_STATE_SAVE_MODULO = int(1e5)
 
     DX_CORRUPT_IDX_OFFSETS = [1, 4, 8]
-    AX_CORRUPT_IDX_OFFSETS = [1, 5, 7]
+    AX_CORRUPT_IDX_OFFSETS = [1, 4, 8]
 
     def __init__(self,
         user=None,
