@@ -643,8 +643,18 @@ OPTIMAL_ACTION_SEQUENCES = {
 
 # Combinations of the different survey questions
 SURVEY_COMBINATIONS = objdict({
-    'diagnosis': ['could_identify_problems', 'not_sure_how_to_help'],
-    'actions': ['information_was_enough', 'actions_were_not_enough'],
+    'combo1': ['could_identify_problems', 'not_sure_how_to_help'],      # diagnosis
+    'combo3': ['information_was_enough', 'actions_were_not_enough'],    # actions
+    'combo2': ['could_identify_problems', 'information_was_enough'],
+    'combo4': ['not_sure_how_to_help', 'actions_were_not_enough'],
+    'combo5': ['information_was_enough', 'not_sure_how_to_help'],
+    'combo6': ['could_identify_problems', 'actions_were_not_enough'],
+    'combo7': [
+        'could_identify_problems',
+        'not_sure_how_to_help',
+        'information_was_enough',
+        'actions_were_not_enough',
+    ],
     'sus': [
         'sus_like_to_use_frequently',
         'sus_unnecessarily_complex',
