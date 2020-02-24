@@ -74,7 +74,8 @@ def plot_data(plot_df, variables_to_plot, out_var, as_subplots=False):
                 x=x_var, y=out_var, hue=hue_var, data=plot_df,
                 order=plot_conf.get('order'),
                 palette=plot_conf.get('palette'),
-                ax=axes[idx // 2, idx % 2] if as_subplots else None
+                ax=axes[idx // 2, idx % 2] if as_subplots else None,
+                dodge=True
             )
 
         # Add hatches if we can do that

@@ -78,11 +78,11 @@ def test_significance(df, dependent_var, *independent_vars, logit_model=False, c
     if not logit_model:
         model = smapi.ols(model_spec, data=df)
     else:
-        model = smapi.logit(model_spec, data=df)
+        # model = smapi.logit(model_spec, data=df)
+        model = smapi.glm(model_spec, data=df, family=sm.families.Binomial())
     model_results = model.fit()
     output += f"{model_results.summary()}\n\n"
     results['initial'] = model_results
-    # return model, model_results
 
     # Check for normality
     if not logit_model:
