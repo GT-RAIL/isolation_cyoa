@@ -5,6 +5,7 @@
 import os
 import sys
 assert sys.version_info.major >= 3
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -89,6 +90,7 @@ def test_significance(df, dependent_var, *independent_vars, logit_model=False, c
         w, pvalue = spstats.shapiro(model_results.resid)
         output += f'Shapiro-Wilk test: {w, pvalue}\n\n'
         results['shapiro'] = (w, pvalue,)
+        # if pvalue < 1e-4:
         if pvalue < ALPHA:
             output += 'NON NORMAL detected. Do something else\n\n'
             results['normal_distribution'] = False
@@ -225,4 +227,29 @@ def test_using_kruskal(df, dependent_var, *independent_vars, correction_method='
     except Exception as e:
         print(e)
 
+    return output, results
+
+
+def test_using_chi2(contingency_table):
+    """
+    Given a dataframe of contingency table, test using Chi^2
+    """
+    output = ''
+    results = {}
+
+    # First the omnibus
+    (chi2, pvalue, dof, expected_freq) = spstats.chi2_contingency(contingency_table.to_numpy())
+    output += f"Chi^2({dof}): {chi2}, p: {pvalue}\n\n"
+    results['initial'] = (chi2, pvalue, dof, expected_freq)
+
+    # Then the post-hoc tests
+    results['post_hoc'] = {}
+    for idx1, idx2 in itertools.combinations(range(contingency_table.shape[0]), 2):
+        conditions = contingency_table.iloc[[idx1, idx2], :].index
+        test_mat = contingency_table.iloc[[idx1, idx2], :].to_numpy()
+        post_hoc = spstats.chi2_contingency(test_mat)
+        output += f"Post-hoc {conditions[0]}-{conditions[1]}: {post_hoc[0]:.3f}({post_hoc[2]}), {post_hoc[1]:.3f}\n"
+        results['post_hoc'][(conditions[0], conditions[1])] = (post_hoc[0], post_hoc[1], post_hoc[2])
+
+    # Return the results
     return output, results

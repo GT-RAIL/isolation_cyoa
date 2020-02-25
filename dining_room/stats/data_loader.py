@@ -72,7 +72,7 @@ def get_users_df(*, users=None, use_cache=True):
 
         # Get the information tied to optimality
         optimal_sequence = constants.OPTIMAL_ACTION_SEQUENCES[user.start_condition]
-        data['num_optimal'] = len(optimal_sequence)
+        data['num_optimal'] = len(optimal_sequence)-1
         data['num_dx_optimal'] = 0
         data['num_ax_optimal'] = 0
 
