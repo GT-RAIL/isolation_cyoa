@@ -63,12 +63,17 @@ RUN cd /home/banerjs/website && \
     conda activate venv && \
     pip install -r requirements.txt && \
     pip install \
+        linearmodels==4.17 \
         researchpy==0.1.8 \
         statsmodels==0.11.0
 
 # Small updates for QoL
 RUN mkdir /home/banerjs/.saves && \
-    ln -sf /home/banerjs/website/docker/.emacs /home/banerjs/
+    ln -sf /home/banerjs/website/docker/.emacs /home/banerjs/ && \
+    . /opt/anaconda/etc/profile.d/conda.sh && \
+    conda activate venv && \
+    conda install -c conda-forge jupyter_contrib_nbextensions && \
+    conda install -c conda-forge jupyter_nbextensions_configurator
 
 # Then run the expose settings for the django dev server
 WORKDIR /notebooks

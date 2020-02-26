@@ -60,6 +60,7 @@ def get_users_df(*, users=None, use_cache=True):
         data['has_noise'] = user.noise_level > 0
         data['has_dx'] = user.show_dx_suggestions
         data['has_ax'] = user.show_ax_suggestions
+        data['has_dxax'] = user.show_dx_suggestions and user.show_ax_suggestions
 
         # Get meta information about the actions
         data['num_actions'] = user.num_actions
@@ -82,7 +83,20 @@ def get_users_df(*, users=None, use_cache=True):
         data['num_dx_followed'] = 0 if user.show_dx_suggestions else None
         data['num_ax_followed'] = 0 if user.show_ax_suggestions else None
 
+        # Get summary stats from actions
+        data['decision_duration'] = []
+        data['dx_decision_duration'] = []
+        data['ax_decision_duration'] = []
+        data['diagnosis_certainty'] = []
+
+        # Get the data from the actions
         for action in user.studyaction_set.order_by('start_timestamp'):
+            data['decision_duration'].append(action.decision_duration.total_seconds())
+            data['dx_decision_duration'].append(action.decision_duration.total_seconds())
+            data['ax_decision_duration'].append(action.decision_duration.total_seconds())
+
+            data['diagnosis_certainty'].append(action.diagnosis_certainty)
+
             data['num_dx_optimal'] += 1 if action.chose_dx_optimal else 0
             data['num_ax_optimal'] += 1 if action.chose_ax_optimal else 0
 
@@ -93,6 +107,37 @@ def get_users_df(*, users=None, use_cache=True):
             if user.show_ax_suggestions:
                 data['num_ax_corrupt'] += 1 if action.corrupted_ax_suggestions else 0
                 data['num_ax_followed'] += 1 if action.chose_ax_suggestion else 0
+
+        # Summary stats for the time per action
+        data['decision_duration_sum'] = np.sum(data['decision_duration'])
+        data['dx_decision_duration_sum'] = np.sum(data['dx_decision_duration'])
+        data['ax_decision_duration_sum'] = np.sum(data['ax_decision_duration'])
+        data['decision_duration_mean'] = np.mean(data['decision_duration'])
+        data['dx_decision_duration_mean'] = np.mean(data['dx_decision_duration'])
+        data['ax_decision_duration_mean'] = np.mean(data['ax_decision_duration'])
+        data['decision_duration_median'] = np.median(data['decision_duration'])
+        data['dx_decision_duration_median'] = np.median(data['dx_decision_duration'])
+        data['ax_decision_duration_median'] = np.median(data['ax_decision_duration'])
+
+        del data['decision_duration']
+        del data['dx_decision_duration']
+        del data['ax_decision_duration']
+
+        # Summary stats of the diagnosis certainty
+        data['diagnosis_certainty_sum'] = np.sum(data['diagnosis_certainty'])
+        data['diagnosis_certainty_mean'] = np.mean(data['diagnosis_certainty'])
+        data['diagnosis_certainty_median'] = np.median(data['diagnosis_certainty'])
+        del data['diagnosis_certainty']
+
+        # Add the num_actions_diff metric
+        data['num_actions_diff'] = data['num_actions'] - data['num_optimal']
+        data['frac_actions_diff'] = data['num_actions_diff'] / (20 - data['num_optimal'])
+
+        # Get normalized metric values
+        data['frac_dx_optimal'] = data['num_dx_optimal'] / data['num_actions']
+        data['frac_dx_followed'] = (data['num_dx_followed'] / data['num_actions']) if user.show_dx_suggestions else None
+        data['frac_ax_optimal'] = data['num_ax_optimal'] / data['num_actions']
+        data['frac_ax_followed'] = (data['num_ax_followed'] / data['num_actions']) if user.show_ax_suggestions else None
 
     # Make a dataframe out of the information
     _cached_users_df = pd.DataFrame(_cached_users_df)
@@ -138,6 +183,7 @@ def get_actions_df(*, actions=None, use_cache=True):
         data['has_noise'] = action.user.noise_level > 0
         data['has_dx'] = action.user.show_dx_suggestions
         data['has_ax'] = action.user.show_ax_suggestions
+        data['has_dxax'] = action.user.show_dx_suggestions and action.user.show_ax_suggestions
 
         # Get the durations
         data['action_idx'] = action.action_idx
@@ -145,6 +191,10 @@ def get_actions_df(*, actions=None, use_cache=True):
         data['dx_decision_duration'] = action.dx_decision_duration.total_seconds()
         data['ax_decision_duration'] = action.ax_decision_duration.total_seconds()
         data['decision_duration'] = action.decision_duration.total_seconds()
+
+        # Get a few normalized metrics
+        data['frac_dx_decision_duration'] = data['dx_decision_duration'] / data['decision_duration']
+        data['frac_ax_decision_duration'] = data['ax_decision_duration'] / data['decision_duration']
 
         # Get the computed booleans
         data['chose_dx'] = action.chose_dx_suggestion

@@ -32,7 +32,7 @@ def cronbach_alpha(scores):
     return nscores / (nscores-1.0) * (1 - var.sum()/total.var(ddof=1))
 
 
-def test_significance(df, dependent_var, *independent_vars, logit_model=False, correction_method='bonf'):
+def test_significance(df, dependent_var, *independent_vars, formula=None, logit_model=False, correction_method='bonf', anova_type=2):
     """
     Test the significance of independent vars on the dependent var and output
     the complete results of each step. This doesn't let us tune as many
@@ -42,14 +42,14 @@ def test_significance(df, dependent_var, *independent_vars, logit_model=False, c
         df: DataFrame
         dependent_var: The name of the dependent variable column in df
         independent_vars: Array of independent variable columns in df
+        formula (str): A formula relating the vars. If not specified, no
+            interactions are assumed
 
     Returns:
         output (str) : A string to print the results of each test
         results (dict) : A dictionary of results corresponding to each test
     """
     ALPHA = 0.05    # Used for diagnostic tests
-
-    assert len(independent_vars) <= 3, "Cannot handle more than 3 factors yet"
 
     output = ''
     results = {
@@ -64,23 +64,16 @@ def test_significance(df, dependent_var, *independent_vars, logit_model=False, c
     output += f'Summary:\n{summary_df}\n\n'
     results['summary'] = summary_df
 
-    # Get the OLS model def. The main effects, then the 2 term interactions, and
-    # then the 3 term interactions
-    model_spec = f"{dependent_var} ~ {' + '.join([f'C({v})' for v in independent_vars])} "
-    if len(independent_vars) > 1:
-        for i, v1 in enumerate(independent_vars):
-            for j, v2 in enumerate(independent_vars[i+1:]):
-                model_spec += f'+ C({v1}):C({v2}) '
-
-    if len(independent_vars) > 2:
-        model_spec += f"+ {':'.join([f'C({v})' for v in independent_vars])}"
+    # Get the OLS model formula
+    if formula is None:
+        formula = f"{dependent_var} ~ {' + '.join([f'C({v})' for v in independent_vars])} "
 
     # Then create the model and fit the data
     if not logit_model:
-        model = smapi.ols(model_spec, data=df)
+        model = smapi.ols(formula, data=df)
     else:
-        # model = smapi.logit(model_spec, data=df)
-        model = smapi.glm(model_spec, data=df, family=sm.families.Binomial())
+        # model = smapi.logit(formula, data=df)
+        model = smapi.glm(formula, data=df, family=sm.families.Binomial())
     model_results = model.fit()
     output += f"{model_results.summary()}\n\n"
     results['initial'] = model_results
@@ -135,17 +128,17 @@ def test_significance(df, dependent_var, *independent_vars, logit_model=False, c
     # TODO: Perhaps we should look into using the Wald test instead?
     # https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.RegressionResults.wald_test.html
     if results['normal_distribution'] and results['homoskedastic'] and not logit_model:
-        o, r = test_using_anova(model, model_results, True, df, dependent_var, *independent_vars)
+        o, r = test_using_anova(model, model_results, True, df, dependent_var, *independent_vars, anova_type=anova_type)
         output += o
         results.update(r)
 
     elif results['normal_distribution'] and not logit_model:
-        model = smapi.rlm(model_spec, data=df)
+        model = smapi.rlm(formula, data=df)
         rlm_results = model.fit()
         output += f"{rlm_results.summary()}\n\n"
         results['rlm'] = rlm_results
 
-        o, r = test_using_anova(model, rlm_results, False, df, dependent_var, *independent_vars)
+        o, r = test_using_anova(model, rlm_results, False, df, dependent_var, *independent_vars, anova_type=anova_type)
         output += o
         results.update(r)
 
@@ -171,14 +164,14 @@ def augment_anova_table(aov):
     return aov
 
 
-def test_using_anova(model, model_results, homoskedastic, df, dependent_var, *independent_vars):
+def test_using_anova(model, model_results, homoskedastic, df, dependent_var, *independent_vars, anova_type=2):
     """
     Generate and ANOVA table and test the results using that
     """
     output = ''
     results = {}
 
-    aov_table = sm.stats.anova_lm(model_results, typ=2, robust=None if homoskedastic else 'hc3')
+    aov_table = sm.stats.anova_lm(model_results, typ=anova_type, robust=None if homoskedastic else 'hc3')
     aov_table = augment_anova_table(aov_table)
     output += f"ANOVA\n{aov_table}\n\n"
     results['anova'] = aov_table
@@ -206,8 +199,8 @@ def test_using_kruskal(df, dependent_var, *independent_vars, correction_method='
         if len(independent_vars) > 1:
             selectors = [(df[v] == getattr(row, v)) for v in independent_vars]
             row_selector = np.logical_and(*selectors[:2])
-            if len(independent_vars) > 2:
-                row_selector = np.logical_and(row_selector, selectors[2])
+            for idx in range(2, len(independent_vars)):
+                row_selector = np.logical_and(row_selector, selectors[idx])
         else:
             v = independent_vars[0]
             row_selector = df[v] == getattr(row, v)
@@ -225,7 +218,7 @@ def test_using_kruskal(df, dependent_var, *independent_vars, correction_method='
         output += f"Pairwise Mann-Whitney U:\n{mc_results[0]}\n\n"
         results['multiple'] = mc_results[0]
     except Exception as e:
-        print(e)
+        print("ERROR:", e)
 
     return output, results
 
