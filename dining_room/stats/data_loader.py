@@ -6,6 +6,7 @@ import pandas as pd
 
 from django.conf import settings
 from django.db.models import Q
+from django.forms.models import model_to_dict
 from django.utils import timezone
 
 from .. import constants
@@ -55,6 +56,9 @@ def get_users_df(*, users=None, use_cache=True):
 
     # Add common information to the data frame
     for user, data in zip(users, _cached_users_df):
+        # Get rid of the AMT worker ID
+        del data['amt_worker_id']
+
         # Get some indicators
         data['noise_level'] = (user.noise_level * 10)
         data['has_noise'] = user.noise_level > 0
@@ -164,15 +168,16 @@ def get_actions_df(*, actions=None, use_cache=True):
 
     # Add commmon information to the data frames
     for action, data in zip(actions, _cached_actions_df):
+        data['action_idx'] = action.action_idx
+
         # Create State, Action, Transition objects
         start_state = State(eval(action.start_state))
         next_state = State(eval(action.next_state))
         transition = Transition(start_state, action.action, next_state)
 
         # Get data from the user
-        data['start_condition'] = action.user.start_condition
-        data['study_condition'] = action.user.study_condition
-        data['scenario_completed'] = action.user.scenario_completed
+        data.update(model_to_dict(action.user))
+        del data['amt_worker_id']
         data['num_actions'] = action.user.num_actions
         if action.user.studyaction_set.filter(browser_refreshed=True).count() > 0:
             data['scenario_completed'] = False
@@ -185,14 +190,17 @@ def get_actions_df(*, actions=None, use_cache=True):
         data['has_ax'] = action.user.show_ax_suggestions
         data['has_dxax'] = action.user.show_dx_suggestions and action.user.show_ax_suggestions
 
+        # Get some the inferred data in the user df
+        optimal_sequence = constants.OPTIMAL_ACTION_SEQUENCES[action.user.start_condition]
+        data['num_optimal'] = len(optimal_sequence)-1
+        data['num_actions_diff'] = data['num_actions'] - data['num_optimal']
+        data['frac_actions_diff'] = data['num_actions_diff'] / (20 - data['num_optimal'])
+
         # Get the durations
-        data['action_idx'] = action.action_idx
         data['duration'] = action.duration.total_seconds()
         data['dx_decision_duration'] = action.dx_decision_duration.total_seconds()
         data['ax_decision_duration'] = action.ax_decision_duration.total_seconds()
         data['decision_duration'] = action.decision_duration.total_seconds()
-
-        # Get a few normalized metrics
         data['frac_dx_decision_duration'] = data['dx_decision_duration'] / data['decision_duration']
         data['frac_ax_decision_duration'] = data['ax_decision_duration'] / data['decision_duration']
 
