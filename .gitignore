@@ -63,3 +63,10 @@ CATKIN_IGNORE
 
 # Node stuff
 node_modules/
+.Rproj.user
+
+# R stuff
+.Rhistory
+*.nb.html
+notebooks/*.html
+.RData

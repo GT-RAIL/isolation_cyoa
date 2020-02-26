@@ -1,0 +1,176 @@
+---
+title: "AMT Effects of Suggestions"
+output:
+  html_document:
+    theme: readable
+    code_folding: hide
+    df_print: kable
+    toc: true
+    toc_depth: 2
+    toc_float: true
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+library(ggplot2)
+library(reshape)
+library(car)
+library(compute.es)
+library(multcomp)
+library(pastecs)
+library(nlme)
+library(stats)
+library(plyr)
+library(ez)
+library(ggsignif)
+library(pgirmess)
+library(PMCMR)
+library(Exact)
+library(psych)
+library(gvlma)
+library(lmtest)
+
+# Load the CSV files
+
+users = read_csv(
+  "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/users.csv",
+  col_types = cols(
+    study_condition = col_factor(levels = seq(from = 1, to = 10))
+  )
+)
+
+actions = read_csv(
+  "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/actions.csv",
+  col_types = cols(
+    study_condition = col_factor(levels = seq(from = 1, to = 10))
+  )
+)
+
+# Relabel the factors
+users$study_condition = mapvalues(users$study_condition,
+                                  from = seq(from = 1, to = 10),
+                                  to = c("1"="BASELINE",
+                                         "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
+                                         "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
+                                         "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
+actions$study_condition = mapvalues(actions$study_condition,
+                                    from = seq(from = 1, to = 10),
+                                    to = c("1"="BASELINE",
+                                          "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
+                                          "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
+                                          "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
+```
+```{r, message=FALSE, warning=FALSE}
+# Helper functions copied from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
+
+## Gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
+##   data: a data frame.
+##   measurevar: the name of a column that contains the variable to be summariezed
+##   groupvars: a vector containing names of columns that contain grouping variables
+##   na.rm: a boolean that indicates whether to ignore NA's
+##   conf.interval: the percent range of the confidence interval (default is 95%)
+summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
+                      conf.interval=.95, .drop=TRUE) {
+    # library(plyr)
+
+    # New version of length which can handle NA's: if na.rm==T, don't count them
+    length2 <- function (x, na.rm=FALSE) {
+        if (na.rm) sum(!is.na(x))
+        else       length(x)
+    }
+
+    # This does the summary. For each group's data frame, return a vector with
+    # N, mean, and sd
+    datac <- ddply(data, groupvars, .drop=.drop,
+      .fun = function(xx, col) {
+        c(N    = length2(xx[[col]], na.rm=na.rm),
+          mean = mean   (xx[[col]], na.rm=na.rm),
+          sd   = sd     (xx[[col]], na.rm=na.rm)
+        )
+      },
+      measurevar
+    )
+
+    # Rename the "mean" column    
+    datac <- rename(datac, c("mean" = measurevar))
+
+    datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
+
+    # Confidence interval multiplier for standard error
+    # Calculate t-statistic for confidence interval: 
+    # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
+    ciMult <- qt(conf.interval/2 + .5, datac$N-1)
+    datac$ci <- datac$se * ciMult
+
+    return(datac)
+}
+
+powerTransform <- function(y, lambda1, lambda2 = NULL, method = "boxcox") {
+
+  boxcoxTrans <- function(x, lam1, lam2 = NULL) {
+    # if we set lambda2 to zero, it becomes the one parameter transformation
+    lam2 <- ifelse(is.null(lam2), 0, lam2)
+  
+    if (lam1 == 0L) {
+      log(y + lam2)
+    } else {
+      (((y + lam2)^lam1) - 1) / lam1
+    }
+  }
+
+  switch(method
+  , boxcox = boxcoxTrans(y, lambda1, lambda2)
+  , tukey = y^lambda1
+  )
+}
+```
+
+## Scratch
+
+```{r}
+m1 = glm(scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience),
+         data=users, family = 'binomial')
+summary(m1)
+with(m1, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+```
+```{r}
+plot_df = subset(users, scenario_completed = T);
+# plot_df = users;
+plot_df$num_actions_diff_1 = plot_df$num_actions_diff + 1;
+# m2 = lm(num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+#         data=plot_df)
+m2 = lm(num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+        data=plot_df)
+summary(m2)
+gvlma::gvlma(m2)
+shapiro.test(resid(m2))
+
+# m2 = lm(num_actions_diff_1 ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+#         data=plot_df)
+m2 = lm(num_actions_diff_1 ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+        data=plot_df)
+summary(m2)
+gvlma::gvlma(m2)
+shapiro.test(resid(m2))
+
+# Do boxcox
+bc = boxcox(m2)
+(lambda = bc$x[which.max(bc$y)])
+# m3 = lm(powerTransform(num_actions_diff_1, lambda) ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+#         data=plot_df)
+m3 = lm(powerTransform(num_actions_diff_1, lambda) ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+        data=plot_df)
+summary(m3)
+gvlma::gvlma(m3)
+shapiro.test(resid(m3))
+```
+
+```{r}
+plot_df = users;
+plot_df$num_actions_diff_1 = plot_df$num_actions_diff + 1;
+m2 = glm(num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+        data=plot_df,
+        family='poisson')
+summary(m2)
+with(m2, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+```
