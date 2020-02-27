@@ -178,6 +178,7 @@ def get_actions_df(*, actions=None, use_cache=True):
         # Get data from the user
         data.update(model_to_dict(action.user))
         del data['amt_worker_id']
+        data['id'] = action.pk
         data['num_actions'] = action.user.num_actions
         if action.user.studyaction_set.filter(browser_refreshed=True).count() > 0:
             data['scenario_completed'] = False
