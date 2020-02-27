@@ -30,6 +30,9 @@ library(psych)
 library(gvlma)
 library(lmtest)
 library(lme4)
+library(fitdistrplus)
+library(dplyr)
+library(brms)
 ```
 ```{r, message=FALSE, warning=FALSE}
 # Load the CSV files
@@ -70,6 +73,9 @@ actions$study_condition = mapvalues(actions$study_condition,
 # Relevel the non-binary age
 users$gender[users$gender == 'U'] = 'M'
 actions$gender[actions$gender == 'U'] = 'M'
+
+# Change scenario completed to an integer
+users$scenario_completed = as.integer(users$scenario_completed)
 ```
 ```{r, message=FALSE, warning=FALSE}
 # Helper functions copied from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
@@ -228,10 +234,10 @@ This is the number of actions taken by the user minus the number of optimal acti
 
 ```{r}
 plot_df = users;
-actions_diff.model = glm(
+plot_df$scenario_completed_pred = complete.model$fitted.values
+actions_diff.model = glm.nb(
   num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
   data=plot_df,
-  family = 'poisson'
 )
 summary(actions_diff.model)
 with(actions_diff.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
@@ -251,8 +257,10 @@ Given the state, did the user take the optimal action?
 ```{r, eval=FALSE}
 # Linear Regression...
 plot_df = actions
-optimal_action.model = lm(
-  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + start_state + (1 | X1),
+plot_df$user_id = 
+optimal_action.model = lme(
+  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + state_idx,
+  random = ~1 | user_id,
   data=plot_df
 )
 summary(optimal_action.model)
@@ -261,13 +269,16 @@ shapiro.test(optimal_action.model$residuals)
 
 ```{r}
 # Logistic regression
-optimal_action.model = glmer(
-  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + (gripper_empty:mislocalized:bowl_visible) + (1 | X1),
+plot_df = actions
+plot_df$user_id = scale(actions %>% group_indices(user_id))
+plot_df$state_idx = scale(plot_df$state_idx)
+optimal_action.model = brm(
+  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience) + state_idx + (1 | user_id),
   data=plot_df,
-  family = 'binomial'
+  family = 'bernoulli'
 )
 summary(optimal_action.model)
-with(actions_diff.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+# with(optimal_action.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
 ```
 
 ```{r, eval=FALSE}
@@ -276,5 +287,5 @@ r2glm(optimal_action.model)
 anova(optimal_action.model, test = "Chisq")
 # Cannot perform VIF test
 # alias(optimal_action.model)
-# car::vif(optimal_action.model)
+car::vif(optimal_action.model)
 ```
