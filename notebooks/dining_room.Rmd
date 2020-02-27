@@ -10,7 +10,7 @@ output:
     toc_float: true
 ---
 
-```{r, message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 library(readr)
 library(ggplot2)
 library(reshape)
@@ -33,6 +33,10 @@ library(lme4)
 library(fitdistrplus)
 library(dplyr)
 library(brms)
+
+# Setup for multiprocessing
+library(future)
+plan(multiprocess)
 ```
 ```{r, message=FALSE, warning=FALSE}
 # Load the CSV files
@@ -70,12 +74,17 @@ actions$study_condition = mapvalues(actions$study_condition,
                                           "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
                                           "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
 
-# Relevel the non-binary age
-users$gender[users$gender == 'U'] = 'M'
-actions$gender[actions$gender == 'U'] = 'M'
+# # Relevel the non-binary age
+# users$gender[users$gender == 'U'] = 'M'
+# actions$gender[actions$gender == 'U'] = 'M'
 
-# Change scenario completed to an integer
+# Change binary responses to integers
 users$scenario_completed = as.integer(users$scenario_completed)
+actions$scenario_completed = as.integer(actions$scenario_completed)
+actions$optimal_ax = as.integer(actions$optimal_ax)
+
+# Relabel user ids
+actions$user_id = actions %>% group_indices(user_id)
 ```
 ```{r, message=FALSE, warning=FALSE}
 # Helper functions copied from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
@@ -210,6 +219,11 @@ r2glm <- function(model) {
 
 Did the person complete the scenario?
 
+```{r, eval=F}
+plot(users$scenario_completed)
+plotdist(users$scenario_completed, )
+```
+
 ```{r}
 plot_df = users;
 complete.model = glm(
@@ -233,10 +247,14 @@ car::vif(complete.model)
 This is the number of actions taken by the user minus the number of optimal actions for the scenario they were provided.
 
 ```{r}
+plot(sort(users$num_actions_diff))
+```
+
+```{r}
 plot_df = users;
 plot_df$scenario_completed_pred = complete.model$fitted.values
 actions_diff.model = glm.nb(
-  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed_pred,
   data=plot_df,
 )
 summary(actions_diff.model)
@@ -254,38 +272,36 @@ car::vif(actions_diff.model)
 
 Given the state, did the user take the optimal action?
 
-```{r, eval=FALSE}
-# Linear Regression...
+```{r message=FALSE, warning=FALSE}
 plot_df = actions
-plot_df$user_id = 
-optimal_action.model = lme(
-  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + state_idx,
-  random = ~1 | user_id,
-  data=plot_df
-)
-summary(optimal_action.model)
-shapiro.test(optimal_action.model$residuals)
+```
+
+```{r, eval=F}
+fnorm = fitdist(plot_df$optimal_ax, "norm")
+flogis = fitdist(plot_df$optimal_ax, "logis")
+fpois = fitdist(plot_df$optimal_ax, "pois")
+fnbinom = fitdist(plot_df$optimal_ax, "nbinom")
+fgeom = fitdist(plot_df$optimal_ax, "geom")
+
+par(mfrow = c(4, 4))
+plot(sort(actions$optimal_ax))
+plotdist(actions$optimal_ax, histo=T, demp=T)
+descdist(actions$optimal_ax, boot=1000)
+plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
+denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
 ```
 
 ```{r}
-# Logistic regression
-plot_df = actions
-plot_df$user_id = scale(actions %>% group_indices(user_id))
-plot_df$state_idx = scale(plot_df$state_idx)
+# MCMC estimation
+plot_df$user_id = actions %>% group_indices(user_id)
 optimal_action.model = brm(
   optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience) + state_idx + (1 | user_id),
   data=plot_df,
-  family = 'bernoulli'
+  family = 'bernoulli',
+  future = T
 )
 summary(optimal_action.model)
-# with(optimal_action.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
-```
-
-```{r, eval=FALSE}
-# Additional diagnostics
-r2glm(optimal_action.model)
-anova(optimal_action.model, test = "Chisq")
-# Cannot perform VIF test
-# alias(optimal_action.model)
-car::vif(optimal_action.model)
 ```
