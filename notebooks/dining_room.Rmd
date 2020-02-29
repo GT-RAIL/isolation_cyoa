@@ -44,9 +44,9 @@ users = read_csv(
   "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/users.csv",
   col_types = cols(
     study_condition = col_factor(),
-    noise_level = col_factor(),
-    age_group = col_factor(),
-    robot_experience = col_factor()
+    noise_level = col_factor(ordered = T),
+    age_group = col_factor(levels = seq(from = 0, to = 8), ordered = T),
+    robot_experience = col_factor(levels = seq(from = 0, to = 4), ordered = T)
   )
 )
 
@@ -54,9 +54,9 @@ actions = read_csv(
   "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/actions.csv",
   col_types = cols(
     study_condition = col_factor(),
-    noise_level = col_factor(),
-    age_group = col_factor(),
-    robot_experience = col_factor()
+    noise_level = col_factor(ordered = T),
+    age_group = col_factor(levels = seq(from = 0, to = 8), ordered = T),
+    robot_experience = col_factor(levels = seq(from = 0, to = 4), ordered = T)
   )
 )
 
@@ -70,18 +70,23 @@ users$study_condition = mapvalues(users$study_condition,
 actions$study_condition = mapvalues(actions$study_condition,
                                     from = seq(from = 1, to = 10),
                                     to = c("1"="BASELINE",
-                                          "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
-                                          "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
-                                          "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
+                                           "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
+                                           "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
+                                           "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
 
 # # Relevel the non-binary age
-# users$gender[users$gender == 'U'] = 'M'
-# actions$gender[actions$gender == 'U'] = 'M'
+users$gender[users$gender == 'U'] = 'M'
+actions$gender[actions$gender == 'U'] = 'M'
 
 # Change binary responses to integers
 users$scenario_completed = as.integer(users$scenario_completed)
 actions$scenario_completed = as.integer(actions$scenario_completed)
+
 actions$optimal_ax = as.integer(actions$optimal_ax)
+actions$chose_ax = as.integer(actions$chose_ax)
+
+actions$optimal_dx = as.integer(actions$optimal_dx)
+actions$chose_dx = as.integer(actions$optimal_dx)
 
 # Relabel user ids
 actions$user_id = actions %>% group_indices(user_id)
@@ -219,74 +224,23 @@ r2glm <- function(model) {
 
 Did the person complete the scenario?
 
-```{r, eval=F}
-plot(users$scenario_completed)
-plotdist(users$scenario_completed, )
-```
-
-```{r}
-plot_df = users;
-complete.model = glm(
-  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience),
-  data=plot_df,
-  family = 'binomial'
-)
-summary(complete.model)
-with(complete.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
-```
-```{r, eval=FALSE}
-# Additional diagnostics
-r2glm(complete.model)
-anova(complete.model, test = "Chisq")
-car::vif(complete.model)
-```
-
-
-### Num Actions Diff
-
-This is the number of actions taken by the user minus the number of optimal actions for the scenario they were provided.
-
-```{r}
-plot(sort(users$num_actions_diff))
-```
-
-```{r}
-plot_df = users;
-plot_df$scenario_completed_pred = complete.model$fitted.values
-actions_diff.model = glm.nb(
-  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed_pred,
-  data=plot_df,
-)
-summary(actions_diff.model)
-with(actions_diff.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
-```
-```{r, eval=FALSE}
-# Additional diagnostics
-r2glm(actions_diff.model)
-anova(actions_diff.model, test = "Chisq")
-car::vif(actions_diff.model)
-```
-
-
-### Took Optimal Action
-
-Given the state, did the user take the optimal action?
-
 ```{r message=FALSE, warning=FALSE}
-plot_df = actions
+plot_df = users
+x = plot_df$scenario_completed
 ```
 
 ```{r, eval=F}
-fnorm = fitdist(plot_df$optimal_ax, "norm")
-flogis = fitdist(plot_df$optimal_ax, "logis")
-fpois = fitdist(plot_df$optimal_ax, "pois")
-fnbinom = fitdist(plot_df$optimal_ax, "nbinom")
-fgeom = fitdist(plot_df$optimal_ax, "geom")
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+fpois = fitdist(x, "pois")
+fnbinom = fitdist(x, "nbinom")
+fgeom = fitdist(x, "geom")
 
-par(mfrow = c(4, 4))
-plot(sort(actions$optimal_ax))
-plotdist(actions$optimal_ax, histo=T, demp=T)
-descdist(actions$optimal_ax, boot=1000)
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
 plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
 denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
 qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
@@ -295,13 +249,1544 @@ ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
 ```
 
 ```{r}
+plot_df = users;
+scenario_completed.model = glm(
+  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience),
+  data=plot_df,
+  family = 'binomial'
+)
+summary(scenario_completed.model)
+with(scenario_completed.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+```
+```{r, eval=FALSE}
+# Additional diagnostics
+r2glm(scenario_completed.model)
+# anova(scenario_completed.model, test = "Chisq")
+car::vif(scenario_completed.model)
+```
+
+```{r, eval=F}
 # MCMC estimation
-plot_df$user_id = actions %>% group_indices(user_id)
-optimal_action.model = brm(
-  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience) + state_idx + (1 | user_id),
+scenario_completed.model1 = brm(
+  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience),
   data=plot_df,
   family = 'bernoulli',
+  iter = 4000,
+  cores = 8
+)
+summary(scenario_completed.model1)
+scenario_completed.model1 = add_criterion(scenario_completed.model1, "waic")
+scenario_completed.model1 = add_criterion(scenario_completed.model1, "loo")
+show(scenario_completed.model1$criteria$loo)
+
+# MCMC estimation
+scenario_completed.model2 = brm(
+  scenario_completed | trials(1) ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience),
+  data=plot_df,
+  family = 'binomial',
+  cores = 8
+  # future = T
+)
+summary(scenario_completed.model2)
+scenario_completed.model2 = add_criterion(scenario_completed.model2, "waic")
+scenario_completed.model2 = add_criterion(scenario_completed.model2, "loo")
+
+# Compare the models
+loo_compare(scenario_complete.model1, scenario_completed.model2)
+```
+
+```{r, eval=F}
+summary(scenario_completed.model2)
+print(scenario_completed.model2$criteria$loo)
+bayes_R2(scenario_completed.model2)
+# scenario_completed.model2.soo = launch_shinystan(scenario_completed.model2)
+```
+
+### Num Actions Diff
+
+This is the number of actions taken by the user minus the number of optimal actions for the scenario they were provided.
+
+```{r message=FALSE, warning=FALSE}
+plot_df = users
+x = plot_df$num_actions_diff
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+fpois = fitdist(x, "pois")
+fnbinom = fitdist(x, "nbinom")
+fgeom = fitdist(x, "geom")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
+denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+```
+
+```{r}
+# Plot the number of actions taken by users using GLM
+plot_df = users
+plot_df$scenario_completed_pred = scenario_completed.model$fitted.values
+
+# actions_diff.model = glm.nb(
+#   num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed, # scenario_completed_pred has higher AIC
+#   data=plot_df,
+# )
+
+actions_diff.model = glm(
+  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,  # scenario_completed_pred has higher AIC
+  data=plot_df,
+  family = 'poisson'
+)
+
+summary(actions_diff.model)
+with(actions_diff.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+```
+
+```{r, eval=FALSE}
+# Additional diagnostics
+r2glm(actions_diff.model)
+anova(actions_diff.model, test = "Chisq")
+car::vif(actions_diff.model)
+```
+
+```{r, eval=F}
+# MCMC estimation
+actions_diff.model1 = brm(
+  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+  data=plot_df,
+  family = 'poisson',
+  cores = 8
+  # future = T
+)
+summary(actions_diff.model1)
+actions_diff.model1 = add_criterion(actions_diff.model1, "waic")
+actions_diff.model1 = add_criterion(actions_diff.model1, "loo")
+
+# MCMC estimation
+actions_diff.model2 = brm(
+  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+  data=plot_df,
+  family = 'negbinomial',
+  cores = 8
+)
+summary(actions_diff.model2)
+actions_diff.model2 = add_criterion(actions_diff.model2, "waic")
+actions_diff.model2 = add_criterion(actions_diff.model2, "loo")
+
+# MCMC estimation
+actions_diff.model3 = brm(
+  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+  data=plot_df,
+  family = 'geometric',
+  cores = 8
+)
+summary(actions_diff.model3)
+actions_diff.model3 = add_criterion(actions_diff.model3, "waic")
+actions_diff.model3 = add_criterion(actions_diff.model3, "loo")
+
+# All models are invalid
+loo_compare(actions_diff.model1, actions_diff.model2, actions_diff.model3)
+# loo_compare(actions_diff.model1, actions_diff.model2, criterion = "loo")
+```
+
+```{r, eval=F}
+summary(actions_diff.model2)
+print(actions_diff.model2$criteria$loo)
+bayes_R2(actions_diff.model2)
+# actions_diff.model1.soo = launch_shinystan(actions_diff.model1)
+```
+
+
+### Action (Inverse) Reliance
+
+Given the state, did the user take the optimal action?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$optimal_ax
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+fpois = fitdist(x, "pois")
+fnbinom = fitdist(x, "nbinom")
+fgeom = fitdist(x, "geom")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
+denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Change to continuous values
+plot_df$age_group = as.numeric(plot_df$age_group)
+plot_df$robot_experience = as.numeric(plot_df$robot_experience)
+
+# Use linear model
+# optimal_action.model = lmer(
+#   optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(optimal_action.model))
+
+# Use a GLM to estimate parameters (unidentifiable)
+# optimal_action.model = glmer(
+#   optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df,
+#   family = 'binomial',
+# )
+optimal_action.model = glmer.nb(
+  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + scale(state_idx) + (1 | user_id),
+  data=plot_df
+)
+
+summary(optimal_action.model)
+```
+
+```{r message=FALSE}
+# MCMC estimation
+optimal_action.model1 = brm(
+  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'bernoulli',
+  cores = 8
+)
+summary(optimal_action.model1)
+optimal_action.model1 = add_criterion(optimal_action.model1, "waic")
+optimal_action.model1 = add_criterion(optimal_action.model1, "loo")
+
+# MCMC estimation
+optimal_action.model2 = brm(
+  optimal_ax | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'binomial',
+  cores = 8
+  # future = T
+)
+summary(optimal_action.model2)
+optimal_action.model2 = add_criterion(optimal_action.model2, "waic")
+optimal_action.model2 = add_criterion(optimal_action.model2, "loo")
+
+# MCMC estimation
+optimal_action.model3 = brm(
+  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'negbinomial',
+  cores = 8
+)
+summary(optimal_action.model3)
+optimal_action.model3 = add_criterion(optimal_action.model3, "waic")
+optimal_action.model3 = add_criterion(optimal_action.model3, "loo")
+
+# Model 1 is invalid, so only compare 2 & 3
+# loo_compare(optimal_action.model1, optimal_action.model2, optimal_action.model3)
+loo_compare(optimal_action.model2, optimal_action.model3, criterion = "loo")
+```
+
+```{r}
+# We choose model 2. Get the model details again
+summary(optimal_action.model2)
+print(optimal_action.model2$criteria$loo)
+bayes_R2(optimal_action.model2)
+# optimal_action.model2.soo = launch_shinystan(optimal_action.model2)
+```
+
+
+### Action Compliance
+
+Given suggestions, did the user follow the actions? P(follow | suggestion)
+
+```{r message=FALSE, warning=FALSE}
+plot_df = subset(actions, has_ax)
+x = plot_df$chose_ax
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+fpois = fitdist(x, "pois")
+fnbinom = fitdist(x, "nbinom")
+fgeom = fitdist(x, "geom")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
+denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Use linear model
+# chose_action.model = lmer(
+#   chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(chose_action.model))
+
+# Use a GLM to estimate parameters (unidentifiable)
+# chose_action.model = glmer(
+#   chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df,
+#   family = 'binomial',
+# )
+chose_action.model = glmer.nb(
+  chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df
+)
+
+summary(chose_action.model)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+chose_action.model1 = brm(
+  chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'bernoulli',
+  cores = 8
+)
+summary(chose_action.model1)
+chose_action.model1 = add_criterion(chose_action.model1, "waic")
+chose_action.model1 = add_criterion(chose_action.model1, "loo")
+
+# MCMC estimation
+chose_action.model2 = brm(
+  chose_ax | trials(num_actions) ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'binomial',
+  cores = 8
+  # future = T
+)
+summary(chose_action.model2)
+chose_action.model2 = add_criterion(chose_action.model2, "waic")
+chose_action.model2 = add_criterion(chose_action.model2, "loo")
+
+# MCMC estimation
+chose_action.model3 = brm(
+  chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'negbinomial',
+  cores = 8
+)
+summary(chose_action.model3)
+chose_action.model3 = add_criterion(chose_action.model3, "waic")
+chose_action.model3 = add_criterion(chose_action.model3, "loo")
+
+# Model 1 is invalid, so only compare 2 & 3
+# loo_compare(chose_action.model1, chose_action.model2, chose_action.model3)
+loo_compare(chose_action.model2, chose_action.model3, criterion = "loo")
+```
+
+```{r}
+# We choose model 2. Get the model details again
+summary(chose_action.model2)
+print(chose_action.model2$criteria$loo)
+bayes_R2(chose_action.model2)
+# chose_action.model2.soo = launch_shinystan(chose_action.model2)
+```
+
+
+### Decision Time
+
+How much time did it take to make a decision?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$decision_duration
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+fexp = fitdist(x, "exp")
+fgamma = fitdist(x, "gamma")
+flnorm = fitdist(x, "lnorm")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "exp", "gamma", "lnorm")
+denscomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+qqcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+cdfcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+ppcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Use linear model
+# decision_duration.model = lmer(
+#   decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(decision_duration.model))
+
+# Use a GLM to estimate parameters
+# None of the GLMER models work
+decision_duration.model = glmer(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'gamma',
+)
+
+summary(decision_duration.model)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+decision_duration.model1 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'exponential',
+  cores = 8
+)
+summary(decision_duration.model1)
+decision_duration.model1 = add_criterion(decision_duration.model1, "waic")
+decision_duration.model1 = add_criterion(decision_duration.model1, "loo")
+
+# MCMC estimation
+decision_duration.model2 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'weibull',
+  cores = 8
+  # future = T
+)
+summary(decision_duration.model2)
+decision_duration.model2 = add_criterion(decision_duration.model2, "waic")
+decision_duration.model2 = add_criterion(decision_duration.model2, "loo")
+
+# MCMC estimation
+decision_duration.model3 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'Gamma',
+  cores = 8
+)
+summary(decision_duration.model3)
+decision_duration.model3 = add_criterion(decision_duration.model3, "waic")
+decision_duration.model3 = add_criterion(decision_duration.model3, "loo")
+
+# MCMC estimation
+decision_duration.model4 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'lognormal',
+  cores = 8
+)
+summary(decision_duration.model4)
+decision_duration.model4 = add_criterion(decision_duration.model4, "waic")
+decision_duration.model4 = add_criterion(decision_duration.model4, "loo")
+
+# MCMC estimation
+decision_duration.model5 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'exgaussian',
+  cores = 8
+)
+summary(decision_duration.model5)
+decision_duration.model5 = add_criterion(decision_duration.model5, "waic")
+decision_duration.model5 = add_criterion(decision_duration.model5, "loo")
+
+# MCMC estimation
+decision_duration.model6 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'shifted_lognormal',
+  cores = 8
+)
+summary(decision_duration.model6)
+decision_duration.model6 = add_criterion(decision_duration.model6, "waic")
+decision_duration.model6 = add_criterion(decision_duration.model6, "loo")
+
+loo_compare(decision_duration.model1,
+            # decision_duration.model2, # Really high Rhat
+            decision_duration.model3,
+            decision_duration.model4,
+            decision_duration.model5,
+            decision_duration.model6)
+```
+
+```{r}
+# We choose model 6. Get the model details again
+summary(decision_duration.model6)
+print(decision_duration.model6$criteria$loo)
+bayes_R2(decision_duration.model6)
+# decision_duration.model6.soo = launch_shinystan(decision_duration.model6)
+```
+
+
+### Action Decision Time
+
+Maybe the action decision time is affected?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$ax_decision_duration
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+fexp = fitdist(x, "exp")
+fgamma = fitdist(x, "gamma")
+flnorm = fitdist(x, "lnorm")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "exp", "gamma", "lnorm")
+denscomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+qqcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+cdfcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+ppcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Use linear model
+# ax_decision_duration.model = lmer(
+#   ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(ax_decision_duration.model))
+
+# Use a GLM to estimate parameters
+# None of the GLMER models work
+ax_decision_duration.model = glmer(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data = plot_df,
+  family = Gamma(),
+)
+
+summary(ax_decision_duration.model)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+ax_decision_duration.model1 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'exponential',
+  cores = 8
+)
+summary(ax_decision_duration.model1)
+ax_decision_duration.model1 = add_criterion(ax_decision_duration.model1, "waic")
+ax_decision_duration.model1 = add_criterion(ax_decision_duration.model1, "loo")
+
+# MCMC estimation
+ax_decision_duration.model2 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'weibull',
+  cores = 8
+  # future = T
+)
+summary(ax_decision_duration.model2)
+ax_decision_duration.model2 = add_criterion(ax_decision_duration.model2, "waic")
+ax_decision_duration.model2 = add_criterion(ax_decision_duration.model2, "loo")
+
+# MCMC estimation
+ax_decision_duration.model3 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'Gamma',
+  cores = 8
+)
+summary(ax_decision_duration.model3)
+ax_decision_duration.model3 = add_criterion(ax_decision_duration.model3, "waic")
+ax_decision_duration.model3 = add_criterion(ax_decision_duration.model3, "loo")
+
+# MCMC estimation
+ax_decision_duration.model4 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'lognormal',
+  cores = 8
+)
+summary(ax_decision_duration.model4)
+ax_decision_duration.model4 = add_criterion(ax_decision_duration.model4, "waic")
+ax_decision_duration.model4 = add_criterion(ax_decision_duration.model4, "loo")
+
+# MCMC estimation
+ax_decision_duration.model5 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'exgaussian',
+  cores = 8
+)
+summary(ax_decision_duration.model5)
+ax_decision_duration.model5 = add_criterion(ax_decision_duration.model5, "waic")
+ax_decision_duration.model5 = add_criterion(ax_decision_duration.model5, "loo")
+
+# MCMC estimation
+ax_decision_duration.model6 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'shifted_lognormal',
+  cores = 8
+)
+summary(ax_decision_duration.model6)
+ax_decision_duration.model6 = add_criterion(ax_decision_duration.model6, "waic")
+ax_decision_duration.model6 = add_criterion(ax_decision_duration.model6, "loo")
+
+loo_compare(ax_decision_duration.model1,
+            # ax_decision_duration.model2, # Really high Rhat
+            ax_decision_duration.model3,
+            ax_decision_duration.model4,
+            # ax_decision_duration.model5, # Really high Rhat
+            ax_decision_duration.model6)
+```
+
+```{r}
+# We choose model 6. Get the model details again
+summary(ax_decision_duration.model6)
+print(ax_decision_duration.model6$criteria$loo)
+bayes_R2(ax_decision_duration.model6)
+# ax_decision_duration.model6.soo = launch_shinystan(ax_decision_duration.model6)
+```
+
+
+### Diagnosis Decision Time
+
+Maybe the action decision time is affected?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$dx_decision_duration
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+fexp = fitdist(x, "exp")
+fgamma = fitdist(x, "gamma")
+flnorm = fitdist(x, "lnorm")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "exp", "gamma", "lnorm")
+denscomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+qqcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+cdfcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+ppcomp(list(fnorm, fexp, fgamma, flnorm), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Use linear model
+# dx_decision_duration.model = lmer(
+#   dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(dx_decision_duration.model))
+
+# Use a GLM to estimate parameters
+# None of the GLMER models work
+dx_decision_duration.model = glmer(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data = plot_df,
+  family = Gamma(link = "log"),
+)
+
+summary(dx_decision_duration.model)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+dx_decision_duration.model1 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'exponential',
+  cores = 8
+)
+summary(dx_decision_duration.model1)
+dx_decision_duration.model1 = add_criterion(dx_decision_duration.model1, "waic")
+dx_decision_duration.model1 = add_criterion(dx_decision_duration.model1, "loo")
+
+# MCMC estimation
+dx_decision_duration.model2 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'weibull',
+  cores = 8
+  # future = T
+)
+summary(dx_decision_duration.model2)
+dx_decision_duration.model2 = add_criterion(dx_decision_duration.model2, "waic")
+dx_decision_duration.model2 = add_criterion(dx_decision_duration.model2, "loo")
+
+# MCMC estimation
+dx_decision_duration.model3 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'Gamma',
+  cores = 8
+)
+summary(dx_decision_duration.model3)
+dx_decision_duration.model3 = add_criterion(dx_decision_duration.model3, "waic")
+dx_decision_duration.model3 = add_criterion(dx_decision_duration.model3, "loo")
+
+# MCMC estimation
+dx_decision_duration.model4 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'lognormal',
+  cores = 8
+)
+summary(dx_decision_duration.model4)
+dx_decision_duration.model4 = add_criterion(dx_decision_duration.model4, "waic")
+dx_decision_duration.model4 = add_criterion(dx_decision_duration.model4, "loo")
+
+# MCMC estimation
+dx_decision_duration.model5 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'exgaussian',
+  cores = 8
+)
+summary(dx_decision_duration.model5)
+dx_decision_duration.model5 = add_criterion(dx_decision_duration.model5, "waic")
+dx_decision_duration.model5 = add_criterion(dx_decision_duration.model5, "loo")
+
+# MCMC estimation
+dx_decision_duration.model6 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'shifted_lognormal',
+  cores = 8
+)
+summary(dx_decision_duration.model6)
+dx_decision_duration.model6 = add_criterion(dx_decision_duration.model6, "waic")
+dx_decision_duration.model6 = add_criterion(dx_decision_duration.model6, "loo")
+
+loo_compare(dx_decision_duration.model1,
+            dx_decision_duration.model2,
+            dx_decision_duration.model3,
+            dx_decision_duration.model4,
+            dx_decision_duration.model5,
+            dx_decision_duration.model6)
+```
+
+```{r}
+# We choose model 6. Get the model details again
+summary(dx_decision_duration.model6)
+print(dx_decision_duration.model6$criteria$loo)
+bayes_R2(dx_decision_duration.model6)
+# dx_decision_duration.model6.soo = launch_shinystan(dx_decision_duration.model6)
+```
+
+
+### Time when compliant / reliant
+
+Does the AX or DX suggestion time change (as perhaps indicated by Yang et al.) when the choices of problems and the actions are optimal, or if people are blindly following the suggestions? (add additional factors to the regression models)
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$decision_duration
+plot_df$optimal_ax = factor(plot_df$optimal_ax, levels = c(0, 1), ordered = T)
+plot_df$optimal_dx = factor(plot_df$optimal_dx, levels = c(0, 1), ordered = T)
+plot_df$chose_ax = factor(plot_df$chose_ax, levels = c(0, 1), ordered = T)
+plot_df$chose_ax = factor(plot_df$chose_ax, levels = c(0, 1), ordered = T)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+conditional_decision_duration.model1 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + chose_dx + optimal_dx + (1 | user_id),
+  data=plot_df,
+  family = 'exponential',
+  cores = 8
+)
+summary(conditional_decision_duration.model1)
+conditional_decision_duration.model1 = add_criterion(conditional_decision_duration.model1, "waic")
+conditional_decision_duration.model1 = add_criterion(conditional_decision_duration.model1, "loo")
+
+# MCMC estimation
+conditional_decision_duration.model2 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + chose_dx + optimal_dx + (1 | user_id),
+  data=plot_df,
+  family = 'weibull',
+  cores = 8
+  # future = T
+)
+summary(conditional_decision_duration.model2)
+conditional_decision_duration.model2 = add_criterion(conditional_decision_duration.model2, "waic")
+conditional_decision_duration.model2 = add_criterion(conditional_decision_duration.model2, "loo")
+
+# MCMC estimation
+conditional_decision_duration.model3 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + chose_dx + optimal_dx + (1 | user_id),
+  data=plot_df,
+  family = 'Gamma',
+  cores = 8
+)
+summary(conditional_decision_duration.model3)
+conditional_decision_duration.model3 = add_criterion(conditional_decision_duration.model3, "waic")
+conditional_decision_duration.model3 = add_criterion(conditional_decision_duration.model3, "loo")
+
+# MCMC estimation
+conditional_decision_duration.model4 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + chose_dx + optimal_dx + (1 | user_id),
+  data=plot_df,
+  family = 'lognormal',
+  cores = 8
+)
+summary(conditional_decision_duration.model4)
+conditional_decision_duration.model4 = add_criterion(conditional_decision_duration.model4, "waic")
+conditional_decision_duration.model4 = add_criterion(conditional_decision_duration.model4, "loo")
+
+# MCMC estimation
+conditional_decision_duration.model5 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + chose_dx + optimal_dx + (1 | user_id),
+  data=plot_df,
+  family = 'exgaussian',
+  cores = 8
+)
+summary(conditional_decision_duration.model5)
+conditional_decision_duration.model5 = add_criterion(conditional_decision_duration.model5, "waic")
+conditional_decision_duration.model5 = add_criterion(conditional_decision_duration.model5, "loo")
+
+# MCMC estimation
+conditional_decision_duration.model6 = brm(
+  decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + chose_dx + optimal_dx + (1 | user_id),
+  data=plot_df,
+  family = 'shifted_lognormal',
+  cores = 8
+)
+summary(conditional_decision_duration.model6)
+conditional_decision_duration.model6 = add_criterion(conditional_decision_duration.model6, "waic")
+conditional_decision_duration.model6 = add_criterion(conditional_decision_duration.model6, "loo")
+
+# All models are terrible
+# loo_compare(conditional_decision_duration.model1,
+#             conditional_decision_duration.model2,
+#             conditional_decision_duration.model3,
+#             conditional_decision_duration.model4,
+#             conditional_decision_duration.model5,
+#             conditional_decision_duration.model6)
+```
+
+Maybe if we subset to the action duration when actions were provided?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$ax_decision_duration
+plot_df$optimal_ax = factor(plot_df$optimal_ax, levels = c(0, 1), ordered = T)
+plot_df$optimal_dx = factor(plot_df$optimal_dx, levels = c(0, 1), ordered = T)
+plot_df$chose_ax = factor(plot_df$chose_ax, levels = c(0, 1), ordered = T)
+plot_df$chose_ax = factor(plot_df$chose_ax, levels = c(0, 1), ordered = T)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+conditional_ax_decision_duration.model1 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + (1 | user_id),
+  data=plot_df,
+  family = 'exponential',
+  cores = 8
+)
+summary(conditional_ax_decision_duration.model1)
+conditional_ax_decision_duration.model1 = add_criterion(conditional_ax_decision_duration.model1, "waic")
+conditional_ax_decision_duration.model1 = add_criterion(conditional_ax_decision_duration.model1, "loo")
+
+# MCMC estimation
+conditional_ax_decision_duration.model2 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + (1 | user_id),
+  data=plot_df,
+  family = 'weibull',
+  cores = 8
+  # future = T
+)
+summary(conditional_ax_decision_duration.model2)
+conditional_ax_decision_duration.model2 = add_criterion(conditional_ax_decision_duration.model2, "waic")
+conditional_ax_decision_duration.model2 = add_criterion(conditional_ax_decision_duration.model2, "loo")
+
+# MCMC estimation
+conditional_ax_decision_duration.model3 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + (1 | user_id),
+  data=plot_df,
+  family = 'Gamma',
+  cores = 8
+)
+summary(conditional_ax_decision_duration.model3)
+conditional_ax_decision_duration.model3 = add_criterion(conditional_ax_decision_duration.model3, "waic")
+conditional_ax_decision_duration.model3 = add_criterion(conditional_ax_decision_duration.model3, "loo")
+
+# MCMC estimation
+conditional_ax_decision_duration.model4 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + (1 | user_id),
+  data=plot_df,
+  family = 'lognormal',
+  cores = 8
+)
+summary(conditional_ax_decision_duration.model4)
+conditional_ax_decision_duration.model4 = add_criterion(conditional_ax_decision_duration.model4, "waic")
+conditional_ax_decision_duration.model4 = add_criterion(conditional_ax_decision_duration.model4, "loo")
+
+# MCMC estimation
+conditional_ax_decision_duration.model5 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + (1 | user_id),
+  data=plot_df,
+  family = 'exgaussian',
+  cores = 8
+)
+summary(conditional_ax_decision_duration.model5)
+conditional_ax_decision_duration.model5 = add_criterion(conditional_ax_decision_duration.model5, "waic")
+conditional_ax_decision_duration.model5 = add_criterion(conditional_ax_decision_duration.model5, "loo")
+
+# MCMC estimation
+conditional_ax_decision_duration.model6 = brm(
+  ax_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_ax + chose_ax + (1 | user_id),
+  data=plot_df,
+  family = 'shifted_lognormal',
+  cores = 8
+)
+summary(conditional_ax_decision_duration.model6)
+conditional_ax_decision_duration.model6 = add_criterion(conditional_ax_decision_duration.model6, "waic")
+conditional_ax_decision_duration.model6 = add_criterion(conditional_ax_decision_duration.model6, "loo")
+
+# All models are terrible
+loo_compare(conditional_ax_decision_duration.model1,
+            # conditional_ax_decision_duration.model2, # Terrible Rhat
+            conditional_ax_decision_duration.model3,
+            conditional_ax_decision_duration.model4,
+            conditional_ax_decision_duration.model5,
+            conditional_ax_decision_duration.model6)
+```
+
+```{r}
+# We choose model 6. Get the model details again
+summary(conditional_ax_decision_duration.model6)
+print(conditional_ax_decision_duration.model6$criteria$loo)
+bayes_R2(conditional_ax_decision_duration.model6)
+# conditional_ax_decision_duration.model6.soo = launch_shinystan(dx_decision_duration.model6)
+```
+
+The same might hold true for diagnoses?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$dx_decision_duration
+plot_df$optimal_ax = factor(plot_df$optimal_ax, levels = c(0, 1), ordered = T)
+plot_df$optimal_dx = factor(plot_df$optimal_dx, levels = c(0, 1), ordered = T)
+plot_df$chose_ax = factor(plot_df$chose_ax, levels = c(0, 1), ordered = T)
+plot_df$chose_ax = factor(plot_df$chose_ax, levels = c(0, 1), ordered = T)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+conditional_dx_decision_duration.model1 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_dx + chose_dx + (1 | user_id),
+  data=plot_df,
+  family = 'exponential',
+  cores = 8
+)
+summary(conditional_dx_decision_duration.model1)
+conditional_dx_decision_duration.model1 = add_criterion(conditional_dx_decision_duration.model1, "waic")
+conditional_dx_decision_duration.model1 = add_criterion(conditional_dx_decision_duration.model1, "loo")
+
+# MCMC estimation
+conditional_dx_decision_duration.model2 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_dx + chose_dx + (1 | user_id),
+  data=plot_df,
+  family = 'weibull',
+  cores = 8
+  # future = T
+)
+summary(conditional_dx_decision_duration.model2)
+conditional_dx_decision_duration.model2 = add_criterion(conditional_dx_decision_duration.model2, "waic")
+conditional_dx_decision_duration.model2 = add_criterion(conditional_dx_decision_duration.model2, "loo")
+
+# MCMC estimation
+conditional_dx_decision_duration.model3 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_dx + chose_dx + (1 | user_id),
+  data=plot_df,
+  family = 'Gamma',
+  cores = 8
+)
+summary(conditional_dx_decision_duration.model3)
+conditional_dx_decision_duration.model3 = add_criterion(conditional_dx_decision_duration.model3, "waic")
+conditional_dx_decision_duration.model3 = add_criterion(conditional_dx_decision_duration.model3, "loo")
+
+# MCMC estimation
+conditional_dx_decision_duration.model4 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_dx + chose_dx + (1 | user_id),
+  data=plot_df,
+  family = 'lognormal',
+  cores = 8
+)
+summary(conditional_dx_decision_duration.model4)
+conditional_dx_decision_duration.model4 = add_criterion(conditional_dx_decision_duration.model4, "waic")
+conditional_dx_decision_duration.model4 = add_criterion(conditional_dx_decision_duration.model4, "loo")
+
+# MCMC estimation
+conditional_dx_decision_duration.model5 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_dx + chose_dx + (1 | user_id),
+  data=plot_df,
+  family = 'exgaussian',
+  cores = 8
+)
+summary(conditional_dx_decision_duration.model5)
+conditional_dx_decision_duration.model5 = add_criterion(conditional_dx_decision_duration.model5, "waic")
+conditional_dx_decision_duration.model5 = add_criterion(conditional_dx_decision_duration.model5, "loo")
+
+# MCMC estimation
+conditional_dx_decision_duration.model6 = brm(
+  dx_decision_duration ~ ((has_ax + has_dx) * noise_level) + (age_group + robot_experience + gender) + state_idx + optimal_dx + chose_dx + (1 | user_id),
+  data=plot_df,
+  family = 'shifted_lognormal',
+  cores = 8
+)
+summary(conditional_dx_decision_duration.model6)
+conditional_dx_decision_duration.model6 = add_criterion(conditional_dx_decision_duration.model6, "waic")
+conditional_dx_decision_duration.model6 = add_criterion(conditional_dx_decision_duration.model6, "loo")
+
+# All models are terrible
+loo_compare(conditional_dx_decision_duration.model1,
+            conditional_dx_decision_duration.model2, # Terrible Rhat
+            conditional_dx_decision_duration.model3,
+            conditional_dx_decision_duration.model4,
+            conditional_dx_decision_duration.model5,
+            conditional_dx_decision_duration.model6)
+```
+
+
+### Diagnosis (Inverse) Reliance
+
+Given the state, did the user take the optimal action?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$optimal_dx
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+fpois = fitdist(x, "pois")
+fnbinom = fitdist(x, "nbinom")
+fgeom = fitdist(x, "geom")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
+denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Change to continuous values
+# plot_df$age_group = as.numeric(plot_df$age_group)
+# plot_df$robot_experience = as.numeric(plot_df$robot_experience)
+
+# Use linear model
+# optimal_dx.model = lmer(
+#   optimal_dx ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(optimal_action.model))
+
+# Use a GLM to estimate parameters (unidentifiable)
+# optimal_action.model = glmer(
+#   optimal_dx ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df,
+#   family = 'binomial',
+# )
+optimal_dx.model = glmer.nb(
+  optimal_dx ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + scale(state_idx) + (1 | user_id),
+  data=plot_df
+)
+
+summary(optimal_dx.model)
+```
+
+```{r message=FALSE}
+# MCMC estimation
+optimal_dx.model1 = brm(
+  optimal_dx ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'bernoulli',
+  cores = 8
+)
+summary(optimal_dx.model1)
+optimal_dx.model1 = add_criterion(optimal_dx.model1, "waic")
+optimal_dx.model1 = add_criterion(optimal_dx.model1, "loo")
+
+# MCMC estimation
+optimal_dx.model2 = brm(
+  optimal_dx | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'binomial',
+  cores = 8
+  # future = T
+)
+summary(optimal_dx.model2)
+optimal_dx.model2 = add_criterion(optimal_dx.model2, "waic")
+optimal_dx.model2 = add_criterion(optimal_dx.model2, "loo")
+
+# MCMC estimation
+optimal_dx.model3 = brm(
+  optimal_dx ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'negbinomial',
+  cores = 8
+)
+summary(optimal_dx.model3)
+optimal_dx.model3 = add_criterion(optimal_dx.model3, "waic")
+optimal_dx.model3 = add_criterion(optimal_dx.model3, "loo")
+
+# Model 1 is invalid, so only compare 2 & 3. Model 1 is valid if age and robot experience
+# are treated as continuous variables
+# loo_compare(optimal_dx.model1, optimal_dx.model2, optimal_dx.model3)
+loo_compare(optimal_dx.model2, optimal_dx.model3, criterion = "loo")
+```
+
+```{r}
+# We choose model 2. Get the model details again
+summary(optimal_dx.model2)
+print(optimal_dx.model2$criteria$loo)
+bayes_R2(optimal_dx.model2)
+# optimal_action.model2.soo = launch_shinystan(optimal_action.model2)
+```
+
+
+### Diagnosis Compliance
+
+Given suggestions, did the user follow the actions? P(follow | suggestion)
+
+```{r message=FALSE, warning=FALSE}
+plot_df = subset(actions, has_dx)
+x = plot_df$chose_dx
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+fpois = fitdist(x, "pois")
+fnbinom = fitdist(x, "nbinom")
+fgeom = fitdist(x, "geom")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
+denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Try with continuous valued predictors
+plot_df$age_group = as.numeric(plot_df$age_group)
+plot_df$robot_experience = as.numeric(plot_df$robot_experience)
+
+# Use linear model
+# chose_dx.model = lmer(
+#   chose_dx ~ (has_ax * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(chose_dx.model))
+
+# Use a GLM to estimate parameters (unidentifiable)
+# chose_dx.model = glmer(
+#   chose_dx ~ (has_ax * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df,
+#   family = 'binomial',
+# )
+chose_dx.model = glmer.nb(
+  chose_dx ~ (has_ax * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df
+)
+
+# Somewhat promising if continuous predictors are used
+summary(chose_dx.model)
+```
+
+```{r, message=FALSE}
+# MCMC estimation
+chose_dx.model1 = brm(
+  chose_dx ~ (has_ax * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'bernoulli',
+  cores = 8
+)
+summary(chose_dx.model1)
+chose_dx.model1 = add_criterion(chose_dx.model1, "waic")
+chose_dx.model1 = add_criterion(chose_dx.model1, "loo")
+
+# MCMC estimation
+chose_dx.model2 = brm(
+  chose_dx | trials(num_actions) ~ (has_ax * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'binomial',
+  # cores = 8
   future = T
 )
-summary(optimal_action.model)
+summary(chose_dx.model2)
+chose_dx.model2 = add_criterion(chose_dx.model2, "waic")
+chose_dx.model2 = add_criterion(chose_dx.model2, "loo")
+
+# MCMC estimation
+chose_dx.model3 = brm(
+  chose_dx ~ (has_ax * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'negbinomial',
+  cores = 8
+)
+summary(chose_dx.model3)
+chose_dx.model3 = add_criterion(chose_dx.model3, "waic")
+chose_dx.model3 = add_criterion(chose_dx.model3, "loo")
+
+# Model 1 is invalid, so only compare 2 & 3
+# loo_compare(chose_dx.model1, chose_dx.model2, chose_dx.model3)
+loo_compare(chose_dx.model2, chose_dx.model3, criterion = "loo")
+```
+
+```{r}
+# We choose model 2. Get the model details again
+summary(chose_dx.model2)
+print(chose_dx.model2$criteria$loo)
+bayes_R2(chose_dx.model2)
+```
+
+
+### Diagnosis Certainty
+
+What's the effect on the diagnosis certainty?
+
+```{r message=FALSE, warning=FALSE}
+plot_df = actions
+x = plot_df$diagnosis_certainty
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+fpois = fitdist(x, "pois")
+fnbinom = fitdist(x, "nbinom")
+fgeom = fitdist(x, "geom")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit", "poisson", "negbinom", "geom")
+denscomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
+```
+
+```{r, eval=F}
+# Change to continuous values
+# plot_df$age_group = as.numeric(plot_df$age_group)
+# plot_df$robot_experience = as.numeric(plot_df$robot_experience)
+
+# Use linear model
+# dx_certainty.model = lmer(
+#   diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df
+# )
+# shapiro.test(resid(dx_certainty.model))
+
+# Use a GLM to estimate parameters (unidentifiable)
+dx_certainty.model = glmer(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'poisson',
+)
+# dx_certainty.model = glmer.nb(
+#   diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + scale(state_idx) + (1 | user_id),
+#   data=plot_df
+# )
+
+summary(dx_certainty.model)
+```
+
+```{r message=FALSE}
+# MCMC estimation
+# Cannot calculate criterion on categorical?
+# dx_certainty.model1 = brm(
+#   diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df,
+#   family = 'categorical',
+#   cores = 8
+# )
+# summary(dx_certainty.model1)
+# dx_certainty.model1 = add_criterion(dx_certainty.model1, "waic")
+# dx_certainty.model1 = add_criterion(dx_certainty.model1, "loo")
+
+# MCMC estimation
+# Multinomial is undefined
+# dx_certainty.model2 = brm(
+#   diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+#   data=plot_df,
+#   family = 'multinomial',
+#   cores = 8
+#   # future = T
+# )
+# summary(dx_certainty.model2)
+# dx_certainty.model2 = add_criterion(dx_certainty.model2, "waic")
+# dx_certainty.model2 = add_criterion(dx_certainty.model2, "loo")
+
+# MCMC estimation
+dx_certainty.model3 = brm(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'cumulative',
+  cores = 8
+)
+summary(dx_certainty.model3)
+dx_certainty.model3 = add_criterion(dx_certainty.model3, "waic")
+dx_certainty.model3 = add_criterion(dx_certainty.model3, "loo")
+
+# MCMC estimation
+dx_certainty.model4 = brm(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'cratio',
+  cores = 8
+)
+summary(dx_certainty.model4)
+dx_certainty.model4 = add_criterion(dx_certainty.model4, "waic")
+dx_certainty.model4 = add_criterion(dx_certainty.model4, "loo")
+
+# MCMC estimation
+dx_certainty.model5 = brm(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'sratio',
+  cores = 8
+)
+summary(dx_certainty.model5)
+dx_certainty.model5 = add_criterion(dx_certainty.model5, "waic")
+dx_certainty.model5 = add_criterion(dx_certainty.model5, "loo")
+
+# MCMC estimation
+dx_certainty.model6 = brm(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'acat',
+  cores = 8
+)
+summary(dx_certainty.model6)
+dx_certainty.model6 = add_criterion(dx_certainty.model6, "waic")
+dx_certainty.model6 = add_criterion(dx_certainty.model6, "loo")
+
+# MCMC estimation
+dx_certainty.model7 = brm(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'poisson',
+  cores = 8
+)
+summary(dx_certainty.model7)
+dx_certainty.model7 = add_criterion(dx_certainty.model7, "waic")
+dx_certainty.model7 = add_criterion(dx_certainty.model7, "loo")
+
+# MCMC estimation
+dx_certainty.model8 = brm(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'negbinomial',
+  cores = 8
+)
+summary(dx_certainty.model8)
+dx_certainty.model8 = add_criterion(dx_certainty.model8, "waic")
+dx_certainty.model8 = add_criterion(dx_certainty.model8, "loo")
+
+# MCMC estimation
+dx_certainty.model9 = brm(
+  diagnosis_certainty ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'geometric',
+  cores = 8
+)
+summary(dx_certainty.model9)
+dx_certainty.model9 = add_criterion(dx_certainty.model9, "waic")
+dx_certainty.model9 = add_criterion(dx_certainty.model9, "loo")
+
+# Model 3 is the chosen one
+loo_compare(# dx_certainty.model1,
+            # dx_certainty.model2,
+            dx_certainty.model3,
+            dx_certainty.model4,
+            dx_certainty.model5,
+            dx_certainty.model6,
+            dx_certainty.model7,
+            dx_certainty.model8,
+            dx_certainty.model9)
+```
+
+```{r}
+# We choose model 2. Get the model details again
+summary(dx_certainty.model3)
+print(dx_certainty.model3$criteria$loo)
+bayes_R2(dx_certainty.model3)
+```
+
+
+## Likert Scales
+
+Is there no significance here?
+
+First the SUS
+
+```{r message=FALSE, warning=FALSE}
+plot_df = users
+x = plot_df$sus
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit")
+denscomp(list(fnorm, flogis), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis), legendtext = plot.legend)
+```
+
+```{r}
+# Plot the number of actions taken by users using GLM
+plot_df = users
+
+sus.model = lm(
+  sus ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  data=plot_df,
+)
+
+summary(sus.model)
+shapiro.test(resid(sus.model))
+
+# Do boxcox	
+plot_df$sus = plot_df$sus + 20
+sus.model = lm(
+  sus ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  data=plot_df,
+)
+shapiro.test(resid(sus.model))
+bc = boxcox(sus.model)
+(lambda = bc$x[which.max(bc$y)])	
+sus.model = lm(powerTransform(sus, lambda) ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,	
+        data=plot_df)	
+summary(sus.model)
+shapiro.test(resid(sus.model))
+car::vif(sus.model)
+```
+
+
+Then the diagnoses
+
+```{r message=FALSE, warning=FALSE}
+plot_df = users
+x = plot_df$combo1
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit")
+denscomp(list(fnorm, flogis), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis), legendtext = plot.legend)
+```
+
+```{r}
+# Plot the number of actions taken by users using GLM
+plot_df = users
+
+combo1.model = lm(
+  combo1 ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  data=plot_df,
+)
+
+summary(combo1.model)
+shapiro.test(resid(combo1.model))
+
+car::vif(combo1.model)
+```
+
+Then the actions
+
+```{r message=FALSE, warning=FALSE}
+plot_df = users
+x = plot_df$combo2
+```
+
+```{r, eval=F}
+fnorm = fitdist(x, "norm")
+flogis = fitdist(x, "logis")
+
+descdist(x, boot=1000)
+plotdist(x, histo=T, demp=T)
+plot(sort(x))
+
+par(mfrow = c(2, 2))
+plot.legend = c("norm", "logit")
+denscomp(list(fnorm, flogis), legendtext = plot.legend)
+qqcomp(list(fnorm, flogis), legendtext = plot.legend)
+cdfcomp(list(fnorm, flogis), legendtext = plot.legend)
+ppcomp(list(fnorm, flogis), legendtext = plot.legend)
+```
+
+```{r}
+# Plot the number of actions taken by users using GLM
+plot_df = users
+
+combo2.model = lm(
+  combo2 ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  data=plot_df,
+)
+
+summary(combo2.model)
+shapiro.test(resid(combo2.model))
+
+car::vif(combo2.model)
 ```
