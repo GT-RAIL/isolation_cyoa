@@ -422,7 +422,8 @@ The choice of the model family is informed by the tests in the second markdown f
 
 ```{r}
 plot_df = actions
-
+```
+```{r}
 # Fit the main model
 optimal_action.model = brm(
   optimal_ax | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
@@ -431,6 +432,8 @@ optimal_action.model = brm(
   cores = 4,
   
 )
+```
+```{r}
 optimal_action.model = add_criterion(optimal_action.model, "waic")
 optimal_action.model = add_criterion(optimal_action.model, "loo")
 print(summary(optimal_action.model))
@@ -460,6 +463,8 @@ optimal_action.model.sparse = brm(
   family = "binomial",
   cores = 4,
 )
+```
+```{r}
 optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "waic")
 optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "loo")
 print(summary(optimal_action.model.sparse))
@@ -480,12 +485,31 @@ So there are three independent effects; get the conditional plots for those
 
 ```{r}
 plot(conditional_effects(optimal_action.model.sparse, effects = "has_ax"), ask = F, points = T)
-plot_df %>%
-  data_grid(num_actions, has_ax, age_group, robot_experience, state_idx, user_id) %>%
-  add_predicted_draws(optimal_action.model.sparse)
-  # ggplot(aes(y = study_condition, x = .prediction)) +
-  # stat_intervalh(.width = c(.50, .80, .95, .99)) +
-  # geom_point(aes(x = optimal_ax), data = plot_df)
+
+# We want to create our own conditional sample, but don't want to kill our machine
+plot_df$state_idx = mean(plot_df$state_idx)
+g = subset(plot_df, age_group == 0 | age_group == 8) %>%
+  data_grid(num_actions, has_ax, age_group, robot_experience, state_idx, user_id)
+fits = g %>% add_fitted_draws(optimal_action.model.sparse, n=1)
+preds = g %>% add_predicted_draws(optimal_action.model.sparse, n=1)
+
+subset(plot_df, age_group == 0 | age_group == 8) %>%
+  ggplot(aes(y = has_ax, x = optimal_ax)) +
+  stat_halfeyeh(aes(x = .value), relative_scale = 0.7, position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction), data = preds) +
+  geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
+
+subset(plot_df, age_group == 0 | age_group == 8) %>%
+  ggplot(aes(y = robot_experience, x = optimal_ax)) +
+  stat_halfeyeh(aes(x = .value), relative_scale = 0.7, position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction), data = preds) +
+  geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
+
+subset(plot_df, age_group == 0 | age_group == 8) %>%
+  ggplot(aes(y = age_group, x = optimal_ax)) +
+  stat_halfeyeh(aes(x = .value), relative_scale = 0.7, position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction), data = preds) +
+  geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
 
 # ggplot() +
 #   conditional_effects(optimal_action.model, effects = "has_ax", re_formula = NULL) +
