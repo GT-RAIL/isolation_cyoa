@@ -485,13 +485,16 @@ So there are three independent effects; get the conditional plots for those
 
 ```{r}
 plot(conditional_effects(optimal_action.model.sparse, effects = "has_ax"), ask = F, points = T)
-
+plot(conditional_effects(optimal_action.model.sparse, effects = "robot_experience"), ask = F, points = T)
+plot(conditional_effects(optimal_action.model.sparse, effects = "age_group"), ask = F, points = T)
+```
+```{r}
 # We want to create our own conditional sample, but don't want to kill our machine
 plot_df$state_idx = mean(plot_df$state_idx)
 g = subset(plot_df, age_group == 0 | age_group == 8) %>%
   data_grid(num_actions, has_ax, age_group, robot_experience, state_idx, user_id)
-fits = g %>% add_fitted_draws(optimal_action.model.sparse, n=1)
-preds = g %>% add_predicted_draws(optimal_action.model.sparse, n=1)
+fits = g %>% add_fitted_draws(optimal_action.model.sparse, n=10)
+preds = g %>% add_predicted_draws(optimal_action.model.sparse, n=10)
 
 subset(plot_df, age_group == 0 | age_group == 8) %>%
   ggplot(aes(y = has_ax, x = optimal_ax)) +
@@ -505,16 +508,13 @@ subset(plot_df, age_group == 0 | age_group == 8) %>%
   stat_intervalh(aes(x = .prediction), data = preds) +
   geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
 
+# I don't understand why there are more than 2 age groups... is it because of the sampling process?
 subset(plot_df, age_group == 0 | age_group == 8) %>%
   ggplot(aes(y = age_group, x = optimal_ax)) +
   stat_halfeyeh(aes(x = .value), relative_scale = 0.7, position = position_nudge(y = 0.1), data = fits) +
   stat_intervalh(aes(x = .prediction), data = preds) +
   geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
-
-# ggplot() +
-#   conditional_effects(optimal_action.model, effects = "has_ax", re_formula = NULL) +
-#   conditional_effects(optimal_action.model, effects = "has_dx", re_formula = NULL) +
-#   conditional_effects(optimal_action.model, effects = "noise_level", re_formula = NULL) +
-#   facet_grid(rows = 1, cols = 3, scales = "free_x")
 ```
 
+
+### 
