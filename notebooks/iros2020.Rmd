@@ -31,6 +31,13 @@ library(brms)
 library(jtools)
 library(ggiraph)
 library(ggiraphExtra)
+library(modelr)
+library(bayesplot)
+library(tidybayes)
+
+# # Setup for multiprocessing
+# library(future)
+# plan(multiprocess)
 ```
 ```{r, message=FALSE, warning=FALSE}
 # Load the CSV files
@@ -84,6 +91,9 @@ actions$chose_dx = as.integer(actions$optimal_dx)
 
 # Relabel user ids
 actions$user_id = actions %>% group_indices(user_id)
+
+# Relevel the age group factor to remove unused values
+actions$age_group = droplevels(actions$age_group)
 ```
 ```{r, message=FALSE, warning=FALSE}
 # Helper functions copied from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
@@ -235,11 +245,11 @@ print(with(scenario_completed.model, pchisq(null.deviance - deviance, df.null - 
 print(summ(scenario_completed.model))
 ```
 
-Based on the data, only the effect of the ax and noise variables matters
+Based on the data, only the effect of the ax variable matters
 
 ```{r}
 scenario_completed.model.sparse = glm(
-  scenario_completed ~ has_ax + noise_level,
+  scenario_completed ~ has_ax,
   data = plot_df,
   family = binomial()
 )
@@ -300,7 +310,7 @@ There is a high effect of robot experience and of action suggestions. How does a
 
 ```{r}
 actions_diff.model.sparse = glm.nb(
-  num_actions_diff ~ has_ax + robot_experience,
+  num_actions_diff ~ robot_experience + has_ax,
   data = plot_df
 )
 print(with(actions_diff.model.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
@@ -313,7 +323,11 @@ print(summ(actions_diff.model.sparse))
 #                           "age_group^5", "age_group^6", "age_group^7", "(Intercept)"))
 plot_summs(actions_diff.model.sparse, omit.coefs = NULL, plot.distributions = T)
 # Cannot plot binomial responses?
-# ggPredict(actions_diff.model.sparse)
+plot_df$fitted = actions_diff.model.sparse$fitted.values
+ggplot(plot_df, aes(x = robot_experience, y = num_actions_diff, color = has_ax, fill = has_ax)) +
+  geom_boxplot(aes(alpha = 0.3)) +
+  geom_jitter() +
+  geom_line(aes(y = fitted, x = robot_experience, color = has_ax, group = has_ax, size = 2))
 ```
 
 Unfortunately, while AIC is lower, the R^2 has also gone lower. Let's look at the data.
@@ -364,20 +378,119 @@ There is indeed a large effect of the scenario completed; and controlling for it
 
 ```{r}
 actions_diff.model.augment.sparse = glm.nb(
-  num_actions_diff ~ gender + robot_experience + scenario_completed + has_dx:noise_level,
+  num_actions_diff ~ gender + robot_experience + scenario_completed + has_dx*noise_level,
   data = plot_df
 )
 print(with(actions_diff.model.augment.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model.augment.sparse))
 
 # Plot the coefficients. For some unknown reason, we cannot plot this model either
-# plot_summs(actions_diff.model.augment.sparse, omit.coefs = c("has_dxTRUE:noise_level2.0", "(Intercept)"))
+plot_summs(actions_diff.model.augment.sparse, plot.distributions = T)
+
+# Plot the DX and noise fit
+plot_df$fitted = actions_diff.model.augment.sparse$fitted.values
+plot_df$scenario_completed = factor(plot_df$scenario_completed)
+ggplot(plot_df, aes(x = gender, y = num_actions_diff, color = scenario_completed, fill = scenario_completed)) +
+  geom_boxplot(aes(alpha = 0.3)) +
+  geom_jitter() +
+  geom_line(aes(y = fitted, x = gender, color = scenario_completed, group = scenario_completed, size = 2))
 ```
 
 
 ## Action Level Metrics {.tabset}
 
-### Number of Optimal Actions
+### Taking Optimal Actions
 
-One can almost think of this as an inverse of the "reliance" metric mentioned by Jessie Yang et al.
+One can almost think of this as an inverse of the "reliance" metric mentioned by Jessie Yang et al. We're going to need brms to fit all the models here.
+
+```{r}
+gg_df = users
+gg_df$study_condition = factor(gg_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
+ggplot(gg_df, aes(x = study_condition, y = num_ax_optimal, fill = noise_level)) +
+  geom_boxplot(aes(alpha = 0.3)) +
+  # geom_jitter(aes(color = noise_level)) +
+  theme(axis.text.x = element_text(angle = 45))
+
+# This is technically what the binomial regression is checking
+ggplot(gg_df, aes(x = study_condition, y = frac_ax_optimal, fill = noise_level)) +
+  geom_boxplot(aes(alpha = 0.3)) +
+  # geom_jitter(aes(color = noise_level)) +
+  theme(axis.text.x = element_text(angle = 45))
+```
+
+The choice of the model family is informed by the tests in the second markdown file.
+
+```{r}
+plot_df = actions
+
+# Fit the main model
+optimal_action.model = brm(
+  optimal_ax | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data = plot_df,
+  family = "binomial",
+  cores = 4,
+  
+)
+optimal_action.model = add_criterion(optimal_action.model, "waic")
+optimal_action.model = add_criterion(optimal_action.model, "loo")
+print(summary(optimal_action.model))
+print(optimal_action.model$criteria$loo$estimates)
+```
+
+```{r}
+# Plot the effects of the condition (the stuff we care about)
+hyp_to_test = c("has_axTRUE = 0", "has_dxTRUE = 0",
+                "noise_level.Q = 0", "noise_level.L = 0",
+                "has_axTRUE:noise_level.Q = 0", "has_axTRUE:noise_level.L = 0",
+                "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0")
+hyp_results = hypothesis(optimal_action.model, hypothesis = hyp_to_test)
+print(as.matrix(hyp_results$hypothesis))
+plot(hyp_results, ask = F)
+
+mcmc_areas(as.matrix(optimal_action.model), regex_pars = "has_|noise_", prob = 0.95, prob_outer = 1)
+mcmc_intervals(as.matrix(optimal_action.model), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+```
+
+Based on the plots, it seems that a reduced model for this model might include state_idx, robot_experience, age_group, and has_ax.
+
+```{r}
+optimal_action.model.sparse = brm(
+  optimal_ax | trials(num_actions) ~ has_ax + age_group + robot_experience + state_idx + (1 | user_id),
+  data = plot_df,
+  family = "binomial",
+  cores = 4,
+)
+optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "waic")
+optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "loo")
+print(summary(optimal_action.model.sparse))
+print(optimal_action.model.sparse$criteria$loo$estimates)
+print(loo_compare(optimal_action.model, optimal_action.model.sparse))
+
+# Plot the effects of the condition (the stuff we care about)
+hyp_to_test = c("has_axTRUE = 0")
+hyp_results = hypothesis(optimal_action.model.sparse, hypothesis = hyp_to_test)
+print(as.matrix(hyp_results$hypothesis))
+plot(hyp_results, ask = F)
+
+mcmc_areas(as.matrix(optimal_action.model.sparse), regex_pars = "has_|noise_", prob = 0.95, prob_outer = 1)
+mcmc_intervals(as.matrix(optimal_action.model.sparse), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+```
+
+So there are three independent effects; get the conditional plots for those
+
+```{r}
+plot(conditional_effects(optimal_action.model.sparse, effects = "has_ax"), ask = F, points = T)
+plot_df %>%
+  data_grid(num_actions, has_ax, age_group, robot_experience, state_idx, user_id) %>%
+  add_predicted_draws(optimal_action.model.sparse)
+  # ggplot(aes(y = study_condition, x = .prediction)) +
+  # stat_intervalh(.width = c(.50, .80, .95, .99)) +
+  # geom_point(aes(x = optimal_ax), data = plot_df)
+
+# ggplot() +
+#   conditional_effects(optimal_action.model, effects = "has_ax", re_formula = NULL) +
+#   conditional_effects(optimal_action.model, effects = "has_dx", re_formula = NULL) +
+#   conditional_effects(optimal_action.model, effects = "noise_level", re_formula = NULL) +
+#   facet_grid(rows = 1, cols = 3, scales = "free_x")
+```
 

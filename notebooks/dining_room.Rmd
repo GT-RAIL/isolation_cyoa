@@ -460,12 +460,31 @@ summary(optimal_action.model)
 ```
 
 ```{r message=FALSE}
+# Making the variable a factor makes inference take much longer
+# plot_df$state_idx = factor(plot_df$state_idx)
+
+# Random tests
+plot_df = actions
+# Lower loo score if the noise is treated as numeric
+# plot_df$noise_level = as.numeric(plot_df$noise_level)
+optimal_action_test.model = brm(
+  optimal_ax | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data = plot_df,
+  family = "binomial",
+  cores = 4,
+  
+)
+optimal_action_test.model = add_criterion(optimal_action_test.model, "waic")
+optimal_action_test.model = add_criterion(optimal_action_test.model, "loo")
+print(summary(optimal_action_test.model))
+print(optimal_action_test.model$criteria$loo)
+
 # MCMC estimation
 optimal_action.model1 = brm(
   optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
   data=plot_df,
   family = 'bernoulli',
-  cores = 8
+  cores = 4
 )
 summary(optimal_action.model1)
 optimal_action.model1 = add_criterion(optimal_action.model1, "waic")
