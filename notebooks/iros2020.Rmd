@@ -10,6 +10,12 @@ output:
     toc_float: true
 ---
 
+TODO: Create better response plots such as the ones seen in:
+
+1. [Example plots](https://mjskay.github.io/tidybayes/articles/tidy-brms.html#posterior-predictions-kruschke-style)
+1. [Responses for multilevel models](https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/multilevel-models.html)
+1. [Responses for count/binary models](https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/counting-and-classification.html#binomial-regression)
+
 ```{r message=FALSE, warning=FALSE}
 library(readr)
 library(ggplot2)
@@ -39,10 +45,14 @@ library(tidybayes)
 # library(future)
 # plan(multiprocess)
 ```
+```{r}
+train_models = F
+```
 ```{r, message=FALSE, warning=FALSE}
+data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
 # Load the CSV files
 users = read_csv(
-  "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/users.csv",
+  file.path(data_folder, "users.csv"),
   col_types = cols(
     study_condition = col_factor(),
     noise_level = col_factor(ordered = T),
@@ -52,7 +62,7 @@ users = read_csv(
 )
 
 actions = read_csv(
-  "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/actions.csv",
+  file.path(data_folder, "actions.csv"),
   col_types = cols(
     study_condition = col_factor(),
     noise_level = col_factor(ordered = T),
@@ -212,13 +222,20 @@ plotFunGLM <- function(x, eta, y, n = 200, ind = 1, fam = "poisson") {
   
 }
 
-
 # Computation of the R^2 with a function -- useful for repetitive computations
 r2glm <- function(model) {
-
   summaryLog <- summary(model)
   1 - summaryLog$deviance / summaryLog$null.deviance
+}
 
+# Save a model
+saveModel = function(model, folder = data_folder) {
+  saveRDS(model, file = file.path(folder, paste(substitute(model), ".RDS", sep = '')))
+}
+
+# Load a model
+loadModel = function(model_name, folder = data_folder) {
+  return(readRDS(file.path(folder, paste(model_name, '.RDS', sep = ''))))
 }
 ```
 
@@ -236,23 +253,37 @@ We use the family of Binomial models based on the results in the other notebook 
 
 ```{r}
 plot_df = users;
+```
+```{r, eval=train_models}
 scenario_completed.model = glm(
   scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
   data = plot_df,
   family = binomial()
 )
+saveModel(scenario_completed.model)
+```
+```{r, eval=!train_models}
+scenario_completed.model = loadModel("scenario_completed.model")
+```
+```{r}
 print(with(scenario_completed.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(scenario_completed.model))
 ```
 
 Based on the data, only the effect of the ax variable matters
 
-```{r}
+```{r, eval=train_models}
 scenario_completed.model.sparse = glm(
   scenario_completed ~ has_ax,
   data = plot_df,
   family = binomial()
 )
+saveModel(scenario_completed.model.sparse)
+```
+```{r, eval=!train_models}
+scenario_completed.model.sparse = loadModel("scenario_completed.model.sparse")
+```
+```{r}
 print(with(scenario_completed.model.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(scenario_completed.model.sparse))
 ```
@@ -279,6 +310,11 @@ ggplot(gg_df %>% count(study_condition, scenario_completed),
   geom_bar(stat="identity") +
   theme(axis.text.x = element_text(angle = 45))
 ```
+```{r, message=F, warning=F}
+rm(scenario_completed.model)
+rm(scenario_completed.model.sparse)
+gc()
+```
 
 
 ### Num Actions Diff {.tabset}
@@ -298,21 +334,35 @@ We use a negative binomial distribution to estimate the params, based on tests i
 ```{r}
 plot_df = users;
 plot_df$scenario_completed = factor(plot_df$scenario_completed)
+```
+```{r, eval=train_models}
 actions_diff.model = glm.nb(
   num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
   data = plot_df
 )
+saveModel(actions_diff.model)
+```
+```{r, eval=!train_models}
+actions_diff.model = loadModel("actions_diff.model")
+```
+```{r}
 print(with(actions_diff.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model))
 ```
 
 There is a high effect of robot experience and of action suggestions. How does a reduced model fare?
 
-```{r}
+```{r, eval=train_models}
 actions_diff.model.sparse = glm.nb(
   num_actions_diff ~ robot_experience + has_ax,
   data = plot_df
 )
+saveModel(actions_diff.model.sparse)
+```
+```{r, eval=!train_models}
+actions_diff.model.sparse = loadModel("actions_diff.model.sparse")
+```
+```{r}
 print(with(actions_diff.model.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model.sparse))
 
@@ -366,34 +416,53 @@ ggplot(gg_df, aes(x = study_condition, y = num_actions_diff, fill = noise_level)
 ```{r}
 plot_df = users;
 plot_df$scenario_completed = factor(plot_df$scenario_completed)
+```
+```{r, eval=train_models}
 actions_diff.model.augmented = glm.nb(
   num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
   data = plot_df
 )
+saveModel(actions_diff.model.augmented)
+```
+```{r, eval=!train_models}
+actions_diff.model.augmented = loadModel("actions_diff.model.augmented")
+```
+```{r}
 print(with(actions_diff.model.augmented, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model.augmented))
 ```
 
 There is indeed a large effect of the scenario completed; and controlling for it seems to negate the effect of whether action suggestions are present. Creating the sparser model from this full(er) model based on the factors that are deemed significant
 
-```{r}
-actions_diff.model.augment.sparse = glm.nb(
+```{r, eval=train_models}
+actions_diff.model.augmented.sparse = glm.nb(
   num_actions_diff ~ gender + robot_experience + scenario_completed + has_dx*noise_level,
   data = plot_df
 )
-print(with(actions_diff.model.augment.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
-print(summ(actions_diff.model.augment.sparse))
+saveModel(actions_diff.model.augmented.sparse)
+```
+```{r, eval=!train_models}
+actions_diff.model.augmented.sparse = loadModel("actions_diff.model.augmented.sparse")
+```
+```{r}
+print(with(actions_diff.model.augmented.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
+print(summ(actions_diff.model.augmented.sparse))
 
 # Plot the coefficients. For some unknown reason, we cannot plot this model either
-plot_summs(actions_diff.model.augment.sparse, plot.distributions = T)
+plot_summs(actions_diff.model.augmented.sparse, plot.distributions = T)
 
 # Plot the DX and noise fit
-plot_df$fitted = actions_diff.model.augment.sparse$fitted.values
+plot_df$fitted = actions_diff.model.augmented.sparse$fitted.values
 plot_df$scenario_completed = factor(plot_df$scenario_completed)
 ggplot(plot_df, aes(x = gender, y = num_actions_diff, color = scenario_completed, fill = scenario_completed)) +
   geom_boxplot(aes(alpha = 0.3)) +
   geom_jitter() +
   geom_line(aes(y = fitted, x = gender, color = scenario_completed, group = scenario_completed, size = 2))
+```
+
+```{r, message=F, warning=F}
+rm(actions_diff.model, actions_diff.model.sparse, actions_diff.model.augmented, actions_diff.model.augmented.sparse)
+gc()
 ```
 
 
@@ -423,19 +492,22 @@ The choice of the model family is informed by the tests in the second markdown f
 ```{r}
 plot_df = actions
 ```
-```{r}
+```{r, eval=train_models}
 # Fit the main model
 optimal_action.model = brm(
   optimal_ax | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
   data = plot_df,
   family = "binomial",
-  cores = 4,
-  
+  cores = 4
 )
-```
-```{r}
 optimal_action.model = add_criterion(optimal_action.model, "waic")
 optimal_action.model = add_criterion(optimal_action.model, "loo")
+saveModel(optimal_action.model)
+```
+```{r, eval=!train_models}
+optimal_action.model = loadModel("optimal_action.model")
+```
+```{r}
 print(summary(optimal_action.model))
 print(optimal_action.model$criteria$loo$estimates)
 ```
@@ -456,17 +528,21 @@ mcmc_intervals(as.matrix(optimal_action.model), regex_pars = "b_", prob = 0.90, 
 
 Based on the plots, it seems that a reduced model for this model might include state_idx, robot_experience, age_group, and has_ax.
 
-```{r}
+```{r, eval=train_models}
 optimal_action.model.sparse = brm(
   optimal_ax | trials(num_actions) ~ has_ax + age_group + robot_experience + state_idx + (1 | user_id),
   data = plot_df,
   family = "binomial",
   cores = 4,
 )
-```
-```{r}
 optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "waic")
 optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "loo")
+saveModel(optimal_action.model.sparse)
+```
+```{r, eval=!train_models}
+optimal_action.model.sparse = loadModel("optimal_action.model.sparse")
+```
+```{r}
 print(summary(optimal_action.model.sparse))
 print(optimal_action.model.sparse$criteria$loo$estimates)
 print(loo_compare(optimal_action.model, optimal_action.model.sparse))
@@ -496,25 +572,159 @@ g = subset(plot_df, age_group == 0 | age_group == 8) %>%
 fits = g %>% add_fitted_draws(optimal_action.model.sparse, n=10)
 preds = g %>% add_predicted_draws(optimal_action.model.sparse, n=10)
 
-subset(plot_df, age_group == 0 | age_group == 8) %>%
-  ggplot(aes(y = has_ax, x = optimal_ax)) +
-  stat_halfeyeh(aes(x = .value), relative_scale = 0.7, position = position_nudge(y = 0.1), data = fits) +
-  stat_intervalh(aes(x = .prediction), data = preds) +
-  geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
+# Binary responses are obvious
+plot_df %>%
+  ggplot(aes(y = has_ax, x = optimal_ax / num_actions)) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  geom_point(data = plot_df, color = 'gray')
 
-subset(plot_df, age_group == 0 | age_group == 8) %>%
-  ggplot(aes(y = robot_experience, x = optimal_ax)) +
-  stat_halfeyeh(aes(x = .value), relative_scale = 0.7, position = position_nudge(y = 0.1), data = fits) +
-  stat_intervalh(aes(x = .prediction), data = preds) +
-  geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
+# For multi-level responses, we should do a pairwise comparison
+plot_df %>%
+  ggplot(aes(y = robot_experience, x = optimal_ax / num_actions)) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  geom_point(data = plot_df, color = 'gray')
 
 # I don't understand why there are more than 2 age groups... is it because of the sampling process?
-subset(plot_df, age_group == 0 | age_group == 8) %>%
-  ggplot(aes(y = age_group, x = optimal_ax)) +
-  stat_halfeyeh(aes(x = .value), relative_scale = 0.7, position = position_nudge(y = 0.1), data = fits) +
-  stat_intervalh(aes(x = .prediction), data = preds) +
-  geom_point(data = subset(plot_df, age_group == 0 | age_group == 8))
+plot_df %>%
+  ggplot(aes(y = age_group, x = optimal_ax / num_actions)) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  geom_point(data = plot_df, color = 'gray')
+```
+
+```{r, message=F, warning=F}
+rm(optimal_action.model, optimal_action.model.sparse)
+gc()
 ```
 
 
-### 
+### Following Suggestions of Actions
+
+
+```{r}
+gg_df = subset(users, has_ax)
+gg_df$study_condition = factor(gg_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
+ggplot(gg_df, aes(x = study_condition, y = num_ax_followed, fill = noise_level)) +
+  geom_boxplot(aes(alpha = 0.3)) +
+  # geom_jitter(aes(color = noise_level)) +
+  theme(axis.text.x = element_text(angle = 45))
+
+# This is technically what the binomial regression is checking
+ggplot(gg_df, aes(x = study_condition, y = frac_ax_followed, fill = noise_level)) +
+  geom_boxplot(aes(alpha = 0.3)) +
+  # geom_jitter(aes(color = noise_level)) +
+  theme(axis.text.x = element_text(angle = 45))
+```
+
+The choice of the model family is informed by the tests in the second markdown file.
+
+```{r}
+plot_df = subset(actions, has_ax)
+```
+```{r, eval=train_models}
+# Fit the main model
+follow_action.model = brm(
+  chose_ax | trials(num_actions) ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data = plot_df,
+  family = "binomial",
+  cores = 4
+)
+follow_action.model = add_criterion(follow_action.model, "waic")
+follow_action.model = add_criterion(follow_action.model, "loo")
+saveModel(follow_action.model)
+```
+```{r, eval=!train_models}
+follow_action.model = loadModel("follow_action.model")
+```
+```{r}
+print(summary(follow_action.model))
+print(follow_action.model$criteria$loo$estimates)
+```
+
+```{r}
+# Plot the effects of the condition (the stuff we care about)
+hyp_to_test = c("has_dxTRUE = 0",
+                "noise_level.Q = 0", "noise_level.L = 0",
+                "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0")
+hyp_results = hypothesis(follow_action.model, hypothesis = hyp_to_test)
+print(as.matrix(hyp_results$hypothesis))
+plot(hyp_results, ask = F)
+
+mcmc_areas(as.matrix(follow_action.model), regex_pars = "has_|noise_", prob = 0.95, prob_outer = 1)
+mcmc_intervals(as.matrix(follow_action.model), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+```
+
+Based on the plots, it seems that a reduced model for this model might include state_idx, robot_experience, age_group, and gender
+
+```{r, eval=train_models}
+follow_action.model.sparse = brm(
+  chose_ax | trials(num_actions) ~ gender + age_group + robot_experience + state_idx + (1 | user_id),
+  data = plot_df,
+  family = "binomial",
+  cores = 4,
+)
+follow_action.model.sparse = add_criterion(follow_action.model.sparse, "waic")
+follow_action.model.sparse = add_criterion(follow_action.model.sparse, "loo")
+saveModel(follow_action.model.sparse)
+```
+```{r, eval=!train_models}
+follow_action.model.sparse = loadModel("follow_action.model.sparse")
+```
+```{r}
+print(summary(follow_action.model.sparse))
+print(follow_action.model.sparse$criteria$loo$estimates)
+print(loo_compare(follow_action.model, follow_action.model.sparse))
+
+# Our IV is not part of this condition
+# hyp_to_test = c("has_axTRUE = 0")
+# hyp_results = hypothesis(follow_action.model.sparse, hypothesis = hyp_to_test)
+# print(as.matrix(hyp_results$hypothesis))
+# plot(hyp_results, ask = F)
+
+# mcmc_areas(as.matrix(follow_action.model.sparse), regex_pars = "has_|noise_", prob = 0.95, prob_outer = 1)
+mcmc_intervals(as.matrix(follow_action.model.sparse), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+```
+
+So there are three independent effects; get the conditional plots for those
+
+```{r}
+plot(conditional_effects(follow_action.model.sparse, effects = "gender"), ask = F, points = T)
+plot(conditional_effects(follow_action.model.sparse, effects = "robot_experience"), ask = F, points = T)
+plot(conditional_effects(follow_action.model.sparse, effects = "age_group"), ask = F, points = T)
+```
+```{r}
+# We want to create our own conditional sample, but don't want to kill our machine
+plot_df$state_idx = mean(plot_df$state_idx)
+g = subset(plot_df, age_group == 0 | age_group == 8) %>%
+  data_grid(num_actions, gender, age_group, robot_experience, state_idx, user_id)
+fits = g %>% add_fitted_draws(follow_action.model.sparse, n=10)
+preds = g %>% add_predicted_draws(follow_action.model.sparse, n=10)
+
+# Binary responses are obvious
+plot_df %>%
+  ggplot(aes(y = gender, x = chose_ax / num_actions)) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  geom_point(data = plot_df, color = 'gray')
+
+# For multi-level responses, we should do a pairwise comparison
+plot_df %>%
+  ggplot(aes(y = robot_experience, x = chose_ax / num_actions)) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  geom_point(data = plot_df, color = 'gray')
+
+# I don't understand why there are more than 2 age groups... is it because of the sampling process?
+plot_df %>%
+  ggplot(aes(y = age_group, x = chose_ax / num_actions)) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  geom_point(data = plot_df, color = 'gray')
+```
+
+```{r, message=F, warning=F}
+rm(follow_action.model, follow_action.model.sparse)
+gc()
+```
