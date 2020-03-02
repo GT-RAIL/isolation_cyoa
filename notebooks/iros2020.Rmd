@@ -22,7 +22,6 @@ library(ggplot2)
 library(broom)
 library(reshape)
 library(car)
-library(interplot)
 library(multcomp)
 library(pastecs)
 library(nlme)
@@ -35,8 +34,6 @@ library(lme4)
 library(dplyr)
 library(brms)
 library(jtools)
-library(ggiraph)
-library(ggiraphExtra)
 library(modelr)
 library(bayesplot)
 library(tidybayes)
@@ -47,6 +44,7 @@ library(tidybayes)
 ```
 ```{r}
 train_models = F
+default_seed = 0x1331
 ```
 ```{r, message=FALSE, warning=FALSE}
 data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
@@ -255,12 +253,24 @@ We use the family of Binomial models based on the results in the other notebook 
 plot_df = users;
 ```
 ```{r, eval=train_models}
-scenario_completed.model = glm(
-  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+# scenario_completed.model = glm(
+#   scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+#   data = plot_df,
+#   family = binomial()
+# )
+# saveModel(scenario_completed.model)
+
+# Incrementally build up the scenario completed models
+scenario_completed.model.1 = brm(
+  scenario_completed | trials(1) ~ 1,
+  family = binomial,
   data = plot_df,
-  family = binomial()
+  cores = 4,
+  seed = default_seed
 )
-saveModel(scenario_completed.model)
+scenario_completed.model.1 = add_criterion(scenario_completed.model.1, "waic")
+scenario_completed.model.1 = add_criterion(scenario_completed.model.1, "loo")
+saveModel(scenario_completed.model.1)
 ```
 ```{r, eval=!train_models}
 scenario_completed.model = loadModel("scenario_completed.model")
@@ -295,7 +305,7 @@ plot_summs(scenario_completed.model, scenario_completed.model.sparse,
            omit.coefs = c("age_group.L", "age_group.Q", "age_group.C", "age_group^4",
                           "age_group^5", "age_group^6", "age_group^7", "(Intercept)"))
 plot_summs(scenario_completed.model.sparse, omit.coefs = NULL, plot.distributions = T)
-ggPredict(scenario_completed.model.sparse, se = T)
+# ggPredict(scenario_completed.model.sparse, se = T)
 ```
 
 Then plot the data itself:
