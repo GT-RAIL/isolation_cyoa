@@ -19,93 +19,35 @@ TODO: Create better response plots such as the ones seen in:
 ```{r message=FALSE, warning=FALSE}
 library(readr)
 library(ggplot2)
+library(tidyr)
 library(broom)
-library(reshape)
 library(car)
-library(multcomp)
-library(pastecs)
-library(nlme)
 library(stats)
-library(plyr)
 library(ggsignif)
-library(PMCMR)
-library(lmtest)
-library(lme4)
+library(ggthemes)
 library(dplyr)
+library(tibble)
 library(brms)
 library(jtools)
 library(modelr)
 library(bayesplot)
 library(tidybayes)
+library(stringr)
 
-# # Setup for multiprocessing
+# Setup for multiprocessing
 # library(future)
 # plan(multiprocess)
 ```
+
 ```{r}
+# Script execution globals
 train_models = F
 default_seed = 0x1331
-```
-```{r, message=FALSE, warning=FALSE}
 data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
-# Load the CSV files
-users = read_csv(
-  file.path(data_folder, "users.csv"),
-  col_types = cols(
-    study_condition = col_factor(),
-    noise_level = col_factor(ordered = T),
-    age_group = col_factor(levels = seq(from = 0, to = 8), ordered = T),
-    robot_experience = col_factor(levels = seq(from = 0, to = 4), ordered = T)
-  )
-)
-
-actions = read_csv(
-  file.path(data_folder, "actions.csv"),
-  col_types = cols(
-    study_condition = col_factor(),
-    noise_level = col_factor(ordered = T),
-    age_group = col_factor(levels = seq(from = 0, to = 8), ordered = T),
-    robot_experience = col_factor(levels = seq(from = 0, to = 4), ordered = T)
-  )
-)
-
-# Relabel the factors
-users$study_condition = mapvalues(users$study_condition,
-                                  from = seq(from = 1, to = 10),
-                                  to = c("1"="BASELINE",
-                                         "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
-                                         "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
-                                         "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
-actions$study_condition = mapvalues(actions$study_condition,
-                                    from = seq(from = 1, to = 10),
-                                    to = c("1"="BASELINE",
-                                           "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
-                                           "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
-                                           "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
-
-# # Relevel the non-binary age
-users$gender[users$gender == 'U'] = 'M'
-actions$gender[actions$gender == 'U'] = 'M'
-
-# Change binary responses to integers
-users$scenario_completed = as.integer(users$scenario_completed)
-actions$scenario_completed = as.integer(actions$scenario_completed)
-
-actions$optimal_ax = as.integer(actions$optimal_ax)
-actions$chose_ax = as.integer(actions$chose_ax)
-
-actions$optimal_dx = as.integer(actions$optimal_dx)
-actions$chose_dx = as.integer(actions$optimal_dx)
-
-# Relabel user ids
-actions$user_id = actions %>% group_indices(user_id)
-
-# Relevel the age group factor to remove unused values
-actions$age_group = droplevels(actions$age_group)
 ```
+
 ```{r, message=FALSE, warning=FALSE}
 # Helper functions copied from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
-
 ## Gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
 ##   data: a data frame.
 ##   measurevar: the name of a column that contains the variable to be summariezed
@@ -114,7 +56,7 @@ actions$age_group = droplevels(actions$age_group)
 ##   conf.interval: the percent range of the confidence interval (default is 95%)
 summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
                       conf.interval=.95, .drop=TRUE) {
-    # library(plyr)
+    library(plyr)
 
     # New version of length which can handle NA's: if na.rm==T, don't count them
     length2 <- function (x, na.rm=FALSE) {
@@ -148,83 +90,20 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
     return(datac)
 }
 
-powerTransform <- function(y, lambda1, lambda2 = NULL, method = "boxcox") {
-
-  boxcoxTrans <- function(x, lam1, lam2 = NULL) {
-    # if we set lambda2 to zero, it becomes the one parameter transformation
-    lam2 <- ifelse(is.null(lam2), 0, lam2)
-  
-    if (lam1 == 0L) {
-      log(y + lam2)
-    } else {
-      (((y + lam2)^lam1) - 1) / lam1
-    }
-  }
-
-  switch(method
-  , boxcox = boxcoxTrans(y, lambda1, lambda2)
-  , tukey = y^lambda1
-  )
+# Create a simple coding contrasts matrix
+contr.deviation = function(nlevels) {
+  x1 = contr.treatment(nlevels)
+  x2 = matrix(rep(1/nlevels, (nlevels-1) * nlevels), ncol = (nlevels-1))
+  return(x1-x2)
 }
 
-# Function for computing the predictions and CIs for the conditional probability
-predictCIsLogistic <- function(object, newdata, level = 0.95) {
-  # Compute predictions in the log-odds
-  pred <- predict(object = object, newdata = newdata, se.fit = TRUE)
-
-  # CI in the log-odds
-  za <- qnorm(p = (1 - level) / 2)
-  lwr <- pred$fit + za * pred$se.fit
-  upr <- pred$fit - za * pred$se.fit
-
-  # Transform to probabilities
-  fit <- 1 / (1 + exp(-pred$fit))
-  lwr <- 1 / (1 + exp(-lwr))
-  upr <- 1 / (1 + exp(-upr))
-
-  # Return a matrix with column names "fit", "lwr" and "upr"
-  result <- cbind(fit, lwr, upr)
-  colnames(result) <- c("fit", "lwr", "upr")
-  return(result)
-}
-
-# -loglik(beta)
-minusLogLik <- function(beta) {
-  p <- 1 / (1 + exp(-(beta[1] + beta[2] * x)))
-  -sum(y1 * log(p) + (1 - y1) * log(1 - p))
-}
-
-# Plotting function
-plotFunGLM <- function(x, eta, y, n = 200, ind = 1, fam = "poisson") {
-  
-  if (missing(y)) {
-    y <- switch(fam,
-                "poisson" = rpois(n, lambda = exp(eta)),
-                "binomial" = rbinom(n, prob = 1 / (1 + exp(-eta)), size = 1))
-  }
-  mod <- glm(y ~ x, family = fam)
-  if (ind < 7) {
-    plot(mod, which = ind,
-         main = list("Residuals vs Fitted", "Normal Q-Q", "Scale-Location", 
-                     "Cook's distance", "Residuals vs Leverage", 
-                     expression("Cook's dist vs Leverage  " 
-                                * h[ii]/(1 - h[ii])))[ind], caption = "")
-  } else {
-    plot(mod$residuals, type = "o", ylab = "Residuals", 
-         main = "Residuals series")
-  }
-  plot(x, y, pch = 16, main = "Data scatterplot")
-  t <- seq(-100, 100, l = 1e4)
-  lines(t, predict(mod, newdata = data.frame(x = t), type = "response"), 
-        col = 2)
-  
-}
-
-# Computation of the R^2 with a function -- useful for repetitive computations
-r2glm <- function(model) {
-  summaryLog <- summary(model)
-  1 - summaryLog$deviance / summaryLog$null.deviance
-}
+# NOTE: For now we're ignoring this advice
+# # Use a simple coding contrasts matrix to add our own contrasts columns
+# # Explained in: http://talklab.psy.gla.ac.uk/tvw/catpred/
+# create_simple_contrasts = function(d, column_name) {
+#  factor_column = d %>% pull(column_name)
+#  contrast_matrix = contr.deviation(length(levels(factor_column)))
+# }
 
 # Save a model
 saveModel = function(model, folder = data_folder) {
@@ -237,17 +116,105 @@ loadModel = function(model_name, folder = data_folder) {
 }
 ```
 
+```{r}
+# Load the CSV files
+users = read_csv(
+  file.path(data_folder, "users.csv"),
+  col_types = cols(
+    study_condition = col_factor(),
+    noise_level = col_factor(ordered = T),
+    age_group = col_factor(levels = seq(from = 0, to = 8)),
+    robot_experience = col_factor(levels = seq(from = 0, to = 4))
+  )
+)
+
+actions = read_csv(
+  file.path(data_folder, "actions.csv"),
+  col_types = cols(
+    study_condition = col_factor(),
+    noise_level = col_factor(ordered = T),
+    age_group = col_factor(levels = seq(from = 0, to = 8)),
+    robot_experience = col_factor(levels = seq(from = 0, to = 4))
+  )
+)
+
+# Relabel the factors
+users$study_condition = mapvalues(users$study_condition,
+                                  from = seq(from = 1, to = 10),
+                                  to = c("1"="BASELINE",
+                                         "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
+                                         "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
+                                         "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
+actions$study_condition = mapvalues(actions$study_condition,
+                                    from = seq(from = 1, to = 10),
+                                    to = c("1"="BASELINE",
+                                           "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
+                                           "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
+                                           "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
+
+# Relevel the non-binary age
+users$gender[users$gender == 'U'] = 'M'
+actions$gender[actions$gender == 'U'] = 'M'
+
+# Change binary responses to integers
+users$scenario_completed = as.integer(users$scenario_completed)
+actions$scenario_completed = as.integer(actions$scenario_completed)
+
+actions$optimal_ax = as.integer(actions$optimal_ax)
+actions$chose_ax = as.integer(actions$chose_ax)
+
+actions$optimal_dx = as.integer(actions$optimal_dx)
+actions$chose_dx = as.integer(actions$optimal_dx)
+
+# Relabel user ids to be in the range 1-200. Otherwise, we're using DB ids
+# The user ID column in the users table that we can now join on is X1
+actions$user_id = actions %>% group_indices(user_id)
+
+# Relevel the age group factor to remove unused levels. Also, predict the
+# value of the 1 unknown age from the other indicators of demographics
+# NOTE: If we retrain the model and the output doesn't match the hardcoded
+# values, then update those values
+if (train_models) {
+  plot_df = subset(users, users$age_group != 0)
+  plot_df$age_group = factor(plot_df$age_group, levels = seq(from = 0, to = 8), ordered = T)
+  plot_df$age_group = droplevels(plot_df$age_group)
+  age_group_model = brm(age_group, gender + robot_experience, data = plot_df, family = "cumulative")
+  data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
+  as_tibble(predict(age_group_model, data_to_predict))
+# # A tibble: 1 x 7
+#   `P(Y = 2)` `P(Y = 3)` `P(Y = 4)` `P(Y = 5)` `P(Y = 6)` `P(Y = 7)` `P(Y = 8)`
+#        <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
+# 1     0.0707      0.230      0.218      0.174      0.105       0.09      0.113
+  rm(age_group_model)
+}
+users[users$age_group == 0,]$age_group = 3
+actions[actions$age_group == 0,]$age_group = 3
+
+users$age_group = droplevels(users$age_group)
+actions$age_group = droplevels(actions$age_group)
+
+# Code the factor contrasts
+contrasts(users$age_group) = contr.deviation(length(levels(users$age_group)))
+contrasts(actions$age_group) = contr.deviation(length(levels(actions$age_group)))
+contrasts(users$robot_experience) = contr.deviation(length(levels(users$robot_experience)))
+contrasts(actions$robot_experience) = contr.deviation(length(levels(actions$robot_experience)))
+
+# Create a non-polynomial noise level factor column
+users$noise_level_f = factor(users$noise_level, ordered = F)
+contrasts(users$noise_level_f) = contr.deviation(length(levels(users$noise_level_f)))
+actions$noise_level_f = factor(actions$noise_level, ordered = F)
+contrasts(actions$noise_level_f) = contr.deviation(length(levels(actions$noise_level_f)))
+```
+
 ## User Level Metrics {.tabset}
 
 ### Scenario Completed?
 
 We assume the following structural model
 
-```
-scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal
-```
+$scenario\_completed \sim ((has\_dx + has\_ax) * noise\_level) + (gender + age\_group + robot\_experience) + num\_optimal$
 
-We use the family of Binomial models based on the results in the other notebook where we focused on finding the right distribution for the data.
+We use the family of Bernoulli models based on the results in the other notebook where we focused on finding the right distribution for the data.
 
 ```{r}
 plot_df = users;
@@ -260,18 +227,89 @@ plot_df = users;
 # )
 # saveModel(scenario_completed.model)
 
-# Incrementally build up the scenario completed models
+# Create the null model and the model that we're interested in for Bernoulli
+# We should not be doing model selection on parameters; model selection on the distributions
+# is OK though, I think
 scenario_completed.model.1 = brm(
-  scenario_completed | trials(1) ~ 1,
-  family = binomial,
+  scenario_completed ~ 1,
+  family = "bernoulli",
   data = plot_df,
   cores = 4,
-  seed = default_seed
+  seed = default_seed,
+  save_all_pars = T
 )
 scenario_completed.model.1 = add_criterion(scenario_completed.model.1, "waic")
 scenario_completed.model.1 = add_criterion(scenario_completed.model.1, "loo")
 saveModel(scenario_completed.model.1)
+
+scenario_completed.model.2 = brm(
+  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  family = "bernoulli",
+  data = plot_df,
+  cores = 4,
+  seed = default_seed,
+  save_all_pars = T
+)
+scenario_completed.model.2 = add_criterion(scenario_completed.model.2, "waic")
+scenario_completed.model.2 = add_criterion(scenario_completed.model.2, "loo")
+saveModel(scenario_completed.model.2)
+
+# Print the summary and the comparison of the models
+summary(scenario_completed.model.1)
+summary(scenario_completed.model.2)
+scenario_completed.model.comparison = loo_compare(scenario_completed.model.1,
+                                                  scenario_completed.model.2)
+scenario_completed.model.comparison %>%
+  data.frame() %>%
+  rownames_to_column(var = "model") %>%
+  ggplot() +
+    geom_pointrange(aes(x = reorder(model, -looic), y = looic,
+                        ymin = looic - se_looic,
+                        ymax = looic + se_looic,
+                        color = model),
+                    shape = 16) +
+    coord_flip() +
+    labs(x = NULL, y = NULL, title = "LOO") +
+    theme(axis.ticks.y = element_blank(), legend.position = "none")
 ```
+```{r}
+ppa =
+  pp_average(scenario_completed.model.2, weights = "loo", method = "fitted") %>%
+  as_tibble() %>%
+  bind_cols(scenario_completed.model.2$data) %>%
+  distinct(Estimate, Q2.5, Q97.5, has_ax, noise_level) %>%
+  mutate(x_axis = str_c(has_ax, noise_level, sep = "/")) %>%
+  mutate(x_axis = factor(x_axis)) %>%
+  rename(scenario_completed = Estimate)
+
+d_plot =
+  plot_df %>%
+  group_by(has_ax, noise_level, id) %>%
+  summarise(scenario_completed = mean(scenario_completed)) %>%
+  mutate(x_axis = str_c(has_ax, noise_level, sep = "/")) %>%
+  mutate(x_axis = factor(x_axis))
+
+ppa %>%
+  ggplot(aes(x = x_axis)) +
+  geom_smooth(aes(y = scenario_completed, ymin = Q2.5, ymax = Q97.5, group = 0),
+              stat = "identity",
+              color = "black",
+              alpha = 1, size = 1/2) +
+  geom_line(data = d_plot,
+            aes(y = scenario_completed, group = id),
+            size = 1/3) +
+  scale_x_discrete(expand = c(.03, .03)) +
+  coord_cartesian(ylim = 0:1) +
+  labs(x = "has_ax/noise_level", y = "proportion completed") +
+  theme(axis.ticks.x = element_blank())
+
+mcmc_pairs(x = posterior_samples(scenario_completed.model.2),
+           pars = c("b_Intercept", "b_has_axTRUE", "b_has_axTRUE:noise_level.L", "b_has_axTRUE:noise_level.Q",
+                    "b_has_dxTRUE", "b_has_dxTRUE:noise_level.L", "b_has_dxTRUE:noise_level.Q"),
+           off_diag_args = list(size = 1/10, alpha = 1/6),
+           diag_fun = "dens")
+```
+
 ```{r, eval=!train_models}
 scenario_completed.model = loadModel("scenario_completed.model")
 ```
