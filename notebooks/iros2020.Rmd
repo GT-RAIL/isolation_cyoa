@@ -16,31 +16,41 @@ TODO: Create better response plots such as the ones seen in:
 1. [Responses for multilevel models](https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/multilevel-models.html)
 1. [Responses for count/binary models](https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/counting-and-classification.html#binomial-regression)
 
+For each of our dependent variables, there are 2 models:
+
+1. With the noise variable as an ordered factor, so that we can make inferences on the trends in the variable
+1. With the noise variable as an unordered factor, so that we can make inferences on the values of the variable
+
 ```{r message=FALSE, warning=FALSE}
-library(readr)
-library(ggplot2)
-library(grid)
-library(gridExtra)
-library(tidyr)
-library(broom)
 library(car)
 library(stats)
+library(grid)
+library(gridExtra)
+# library(dplyr)
+# library(forcats)
+# library(tibble)
+# library(tidyr)
+# library(readr)
+# library(ggplot2)
+# library(stringr)
+library(tidyverse)
 library(ggsignif)
 library(ggthemes)
-library(dplyr)
-library(forcats)
-library(tibble)
-library(brms)
 library(jtools)
+library(broom)
 library(modelr)
+library(loo)
+library(brms)
 library(bayesplot)
 library(tidybayes)
-library(stringr)
 
 # Setup for multiprocessing
+options(mc.cores = 4)
 # library(future)
 # plan(multiprocess)
 ```
+
+Options for running the code here:
 
 ```{r}
 # Script execution globals
@@ -48,6 +58,8 @@ train_models = F
 default_seed = 0x1331
 data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
 ```
+
+Helper functions:
 
 ```{r, message=FALSE, warning=FALSE}
 # Create a simple coding contrasts matrix
@@ -67,14 +79,16 @@ contr.deviation = function(nlevels) {
 
 # Save a model
 saveModel = function(model, folder = data_folder) {
-  saveRDS(model, file = file.path(folder, paste(substitute(model), ".RDS", sep = '')))
+  saveRDS(model, file = file.path(folder, paste(substitute(model), ".rds", sep = '')))
 }
 
 # Load a model
 loadModel = function(model_name, folder = data_folder) {
-  return(readRDS(file.path(folder, paste(model_name, '.RDS', sep = ''))))
+  return(readRDS(file.path(folder, paste(model_name, '.rds', sep = ''))))
 }
 ```
+
+Data loading:
 
 ```{r}
 # Load the CSV files
@@ -173,18 +187,21 @@ actions$noise_level_f = factor(actions$noise_level, ordered = F)
 contrasts(actions$noise_level_f) = contr.deviation(length(levels(actions$noise_level_f)))
 ```
 
+
 ## User Level Metrics {.tabset}
+
+These are metrics where an individual unit of analysis is the user.
 
 ### Scenario Completed?
 
-We assume the following structural model
-
-$scenario\_completed \sim ((has\_dx + has\_ax) * noise\_level) + (gender + age\_group + robot\_experience) + num\_optimal$
-
-We use the family of Bernoulli models based on the results in the other notebook where we focused on finding the right distribution for the data.
+Did the person complete the scenario or not?
 
 ```{r}
-plot_df = users;
+plot_df = users %>%
+  select(X1, id, study_condition, start_condition, num_optimal,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed)
 ```
 
 ```{r fig.height=7, fig.width=15}
@@ -194,7 +211,8 @@ plot_df %>%
   mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
   count(study_condition, scenario_completed) %>%
   ggplot(aes(study_condition, n, fill=scenario_completed)) +
-    geom_bar(stat="identity")
+    geom_bar(stat="identity") +
+    labs(y = "Number completed")
 
 # Visualize the data by the three variables that we care about
 gg_df = plot_df %>%
@@ -227,124 +245,130 @@ p3 = gg_df %>%
 grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
+We assume the following structural model:
+
+$scenario\_completed \sim ((has\_dx + has\_ax) * noise\_level) + (gender + age\_group + robot\_experience) + num\_optimal$
+
+Given the nature of the response variable, the family of distributions is assumed to be Bernoulli.
+
 ```{r, eval=train_models}
-# scenario_completed.model = glm(
-#   scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
-#   data = plot_df,
-#   family = binomial()
-# )
-# saveModel(scenario_completed.model)
-
-# Create the null model and the model that we're interested in for Bernoulli
-# We should not be doing model selection on parameters; model selection on the distributions
-# is OK though, I think
-scenario_completed.model.1 = brm(
-  scenario_completed ~ 1,
-  family = "bernoulli",
-  data = plot_df,
-  cores = 4,
-  seed = default_seed,
-  save_all_pars = T
-)
-scenario_completed.model.1 = add_criterion(scenario_completed.model.1, "waic")
-scenario_completed.model.1 = add_criterion(scenario_completed.model.1, "loo")
-saveModel(scenario_completed.model.1)
-
-scenario_completed.model.2 = brm(
+# The trend model to see if there is a trend in the noise level variable
+scenario_completed.model.t = brm(
   scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
   family = "bernoulli",
   data = plot_df,
-  cores = 4,
   seed = default_seed,
   save_all_pars = T
 )
-scenario_completed.model.2 = add_criterion(scenario_completed.model.2, "waic")
-scenario_completed.model.2 = add_criterion(scenario_completed.model.2, "loo")
-saveModel(scenario_completed.model.2)
+scenario_completed.model.t = add_criterion(scenario_completed.model.t, "waic")
+scenario_completed.model.t = add_criterion(scenario_completed.model.t, "loo", reloo = T)
+saveModel(scenario_completed.model.t)
 
-# Print the summary and the comparison of the models
-summary(scenario_completed.model.1)
-summary(scenario_completed.model.2)
-scenario_completed.model.comparison = loo_compare(scenario_completed.model.1,
-                                                  scenario_completed.model.2)
-scenario_completed.model.comparison %>%
-  data.frame() %>%
-  rownames_to_column(var = "model") %>%
-  ggplot() +
-    geom_pointrange(aes(x = reorder(model, -looic), y = looic,
-                        ymin = looic - se_looic,
-                        ymax = looic + se_looic,
-                        color = model),
-                    shape = 16) +
-    coord_flip() +
-    labs(x = NULL, y = NULL, title = "LOO") +
-    theme(axis.ticks.y = element_blank(), legend.position = "none")
+# The values model, to see if specific values of the noise level variable are significant
+scenario_completed.model.v = brm(
+  scenario_completed ~ ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
+  family = "bernoulli",
+  data = plot_df,
+  seed = default_seed,
+  save_all_pars = T
+)
+scenario_completed.model.v = add_criterion(scenario_completed.model.v, "waic")
+scenario_completed.model.v = add_criterion(scenario_completed.model.v, "loo", reloo = T)
+saveModel(scenario_completed.model.v)
+# More model plots are available at:
+# https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/counting-and-classification.html
 ```
-```{r}
-ppa =
-  pp_average(scenario_completed.model.2, weights = "loo", method = "fitted") %>%
-  as_tibble() %>%
-  bind_cols(scenario_completed.model.2$data) %>%
-  distinct(Estimate, Q2.5, Q97.5, has_ax, noise_level) %>%
-  mutate(x_axis = str_c(has_ax, noise_level, sep = "/")) %>%
-  mutate(x_axis = factor(x_axis)) %>%
-  rename(scenario_completed = Estimate)
-
-d_plot =
-  plot_df %>%
-  group_by(has_ax, noise_level, id) %>%
-  summarise(scenario_completed = mean(scenario_completed)) %>%
-  mutate(x_axis = str_c(has_ax, noise_level, sep = "/")) %>%
-  mutate(x_axis = factor(x_axis))
-
-ppa %>%
-  ggplot(aes(x = x_axis)) +
-  geom_smooth(aes(y = scenario_completed, ymin = Q2.5, ymax = Q97.5, group = 0),
-              stat = "identity",
-              color = "black",
-              alpha = 1, size = 1/2) +
-  geom_line(data = d_plot,
-            aes(y = scenario_completed, group = id),
-            size = 1/3) +
-  scale_x_discrete(expand = c(.03, .03)) +
-  coord_cartesian(ylim = 0:1) +
-  labs(x = "has_ax/noise_level", y = "proportion completed") +
-  theme(axis.ticks.x = element_blank())
-
-mcmc_pairs(x = posterior_samples(scenario_completed.model.2),
-           pars = c("b_Intercept", "b_has_axTRUE", "b_has_axTRUE:noise_level.L", "b_has_axTRUE:noise_level.Q",
-                    "b_has_dxTRUE", "b_has_dxTRUE:noise_level.L", "b_has_dxTRUE:noise_level.Q"),
-           off_diag_args = list(size = 1/10, alpha = 1/6),
-           diag_fun = "dens")
-```
-
 ```{r, eval=!train_models}
-scenario_completed.model = loadModel("scenario_completed.model")
+# Load the models
+scenario_completed.model.t = loadModel("scenario_completed.model.t")
+scenario_completed.model.v = loadModel("scenario_completed.model.v")
 ```
+
 ```{r}
-print(with(scenario_completed.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
-print(summ(scenario_completed.model))
+# The results of training
+print(scenario_completed.model.t)
+print(scenario_completed.model.t$criteria$loo$estimates)
+
+print(scenario_completed.model.v)
+print(scenario_completed.model.v$criteria$loo$estimates)
+
+print(loo_compare(scenario_completed.model.t, scenario_completed.model.v))
+```
+
+```{r}
+# Check the significance of each hypothesis
+# Plot the effects of the condition (the stuff we care about)
+hyp_to_test = c("has_axTRUE = 0", "has_dxTRUE = 0")
+noise_trend_hyp_to_test = c(
+  "noise_level.Q = 0", "noise_level.L = 0",
+  "has_axTRUE:noise_level.Q = 0", "has_axTRUE:noise_level.L = 0",
+  "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0"
+)
+noise_levels_hyp_to_test = c(
+  "noise_level_f2 = 0", "noise_level_f3 = 0", "Intercept"
+  "has_axTRUE:noise_level_f2 = 0", "has_axTRUE:noise_level_f3 = 0",
+  "has_dxTRUE:noise_level_f2 = 0", "has_dxTRUE:noise_level_f3 = 0"
+)
+
+hyp_results = hypothesis(scenario_completed.model.t, hypothesis = c(hyp_to_test, noise_trend_hyp_to_test))
+print(as_tibble(hyp_results$hypothesis))
+mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+
+hyp_results = hypothesis(scenario_completed.model.v, hypothesis = c(hyp_to_test, noise_levels_hyp_to_test))
+print(as_tibble(hyp_results$hypothesis))
+mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+```
+
+So here are the following plots:
+
+```{r}
+# Generate our own posterior predictions
+p_df =
+  plot_df %>%
+  data_grid(scenario_completed, has_ax, has_dx, noise_level_f, gender, age_group, robot_experience, num_optimal)
+
+fits_p_df = p_df %>% add_fitted_draws(scenario_completed.model.v)
+preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
+
+
+
+# Binary responses are obvious
+plot_df %>%
+  ggplot(aes(y = gender, x = chose_ax / num_actions)) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  geom_point(data = plot_df, color = 'gray')
+
+gg_df = plot_df %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  count(has_ax, has_dx, noise_level, scenario_completed)
+
+p1 = gg_df %>%
+  ggplot(aes(has_ax, n, fill=scenario_completed)) +
+    geom_bar(stat = "identity") +
+    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Number completed")
+
+
+# # For multi-level responses, we should do a pairwise comparison
+# plot_df %>%
+#   ggplot(aes(y = robot_experience, x = chose_ax / num_actions)) +
+#   stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+#   stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+#   geom_point(data = plot_df, color = 'gray')
+# 
+# # I don't understand why there are more than 2 age groups... is it because of the sampling process?
+# plot_df %>%
+#   ggplot(aes(y = age_group, x = chose_ax / num_actions)) +
+#   stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
+#   stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+#   geom_point(data = plot_df, color = 'gray')
+
 ```
 
 Based on the data, only the effect of the ax variable matters
-
-```{r, eval=train_models}
-scenario_completed.model.sparse = glm(
-  scenario_completed ~ has_ax,
-  data = plot_df,
-  family = binomial()
-)
-saveModel(scenario_completed.model.sparse)
-```
-```{r, eval=!train_models}
-scenario_completed.model.sparse = loadModel("scenario_completed.model.sparse")
-```
-```{r}
-print(with(scenario_completed.model.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
-print(summ(scenario_completed.model.sparse))
-```
-
-So now, we can plot the effects:
 
 ```{r}
 plot_summs(scenario_completed.model, scenario_completed.model.sparse,
