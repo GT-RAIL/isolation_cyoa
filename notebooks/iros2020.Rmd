@@ -19,6 +19,8 @@ TODO: Create better response plots such as the ones seen in:
 ```{r message=FALSE, warning=FALSE}
 library(readr)
 library(ggplot2)
+library(grid)
+library(gridExtra)
 library(tidyr)
 library(broom)
 library(car)
@@ -26,6 +28,7 @@ library(stats)
 library(ggsignif)
 library(ggthemes)
 library(dplyr)
+library(forcats)
 library(tibble)
 library(brms)
 library(jtools)
@@ -47,49 +50,6 @@ data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
 ```
 
 ```{r, message=FALSE, warning=FALSE}
-# Helper functions copied from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
-## Gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
-##   data: a data frame.
-##   measurevar: the name of a column that contains the variable to be summariezed
-##   groupvars: a vector containing names of columns that contain grouping variables
-##   na.rm: a boolean that indicates whether to ignore NA's
-##   conf.interval: the percent range of the confidence interval (default is 95%)
-summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
-                      conf.interval=.95, .drop=TRUE) {
-    library(plyr)
-
-    # New version of length which can handle NA's: if na.rm==T, don't count them
-    length2 <- function (x, na.rm=FALSE) {
-        if (na.rm) sum(!is.na(x))
-        else       length(x)
-    }
-
-    # This does the summary. For each group's data frame, return a vector with
-    # N, mean, and sd
-    datac <- ddply(data, groupvars, .drop=.drop,
-      .fun = function(xx, col) {
-        c(N    = length2(xx[[col]], na.rm=na.rm),
-          mean = mean   (xx[[col]], na.rm=na.rm),
-          sd   = sd     (xx[[col]], na.rm=na.rm)
-        )
-      },
-      measurevar
-    )
-
-    # Rename the "mean" column    
-    datac <- rename(datac, c("mean" = measurevar))
-
-    datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
-
-    # Confidence interval multiplier for standard error
-    # Calculate t-statistic for confidence interval: 
-    # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
-    ciMult <- qt(conf.interval/2 + .5, datac$N-1)
-    datac$ci <- datac$se * ciMult
-
-    return(datac)
-}
-
 # Create a simple coding contrasts matrix
 contr.deviation = function(nlevels) {
   x1 = contr.treatment(nlevels)
@@ -139,18 +99,25 @@ actions = read_csv(
 )
 
 # Relabel the factors
-users$study_condition = mapvalues(users$study_condition,
-                                  from = seq(from = 1, to = 10),
-                                  to = c("1"="BASELINE",
-                                         "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
-                                         "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
-                                         "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
-actions$study_condition = mapvalues(actions$study_condition,
-                                    from = seq(from = 1, to = 10),
-                                    to = c("1"="BASELINE",
-                                           "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
-                                           "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
-                                           "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
+users = users %>%
+  mutate(study_condition = fct_recode(study_condition,
+                                      BASELINE="1",
+                                      DX_100="2", AX_100="3", DXAX_100="4",
+                                      DX_90="5", AX_90="6", DXAX_90="7",
+                                      DX_80="8", AX_80="9", DXAX_80="10")) %>%
+  mutate(study_condition = fct_relevel(study_condition, c("DX_100", "AX_100", "DXAX_100",
+                                                          "DX_90", "AX_90", "DXAX_90",
+                                                          "DX_80", "AX_80", "DXAX_80")))
+
+actions = actions %>%
+  mutate(study_condition = fct_recode(study_condition,
+                                      BASELINE="1",
+                                      DX_100="2", AX_100="3", DXAX_100="4",
+                                      DX_90="5", AX_90="6", DXAX_90="7",
+                                      DX_80="8", AX_80="9", DXAX_80="10")) %>%
+  mutate(study_condition = fct_relevel(study_condition, c("DX_100", "AX_100", "DXAX_100",
+                                                          "DX_90", "AX_90", "DXAX_90",
+                                                          "DX_80", "AX_80", "DXAX_80")))
 
 # Relevel the non-binary age
 users$gender[users$gender == 'U'] = 'M'
@@ -219,6 +186,47 @@ We use the family of Bernoulli models based on the results in the other notebook
 ```{r}
 plot_df = users;
 ```
+
+```{r fig.height=7, fig.width=15}
+# Plot by the study condition
+plot_df %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
+  count(study_condition, scenario_completed) %>%
+  ggplot(aes(study_condition, n, fill=scenario_completed)) +
+    geom_bar(stat="identity")
+
+# Visualize the data by the three variables that we care about
+gg_df = plot_df %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  count(has_ax, has_dx, noise_level, scenario_completed)
+
+p1 = gg_df %>%
+  ggplot(aes(has_ax, n, fill=scenario_completed)) +
+    geom_bar(stat = "identity") +
+    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Number completed")
+
+p2 = gg_df %>%
+  ggplot(aes(has_dx, n, fill=scenario_completed)) +
+    geom_bar(stat = "identity") +
+    facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
+    labs(y = "Number completed")
+
+p3 = gg_df %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  mutate(has_ax = factor(has_ax)) %>%
+  mutate(has_ax = fct_rev(has_ax)) %>%
+  ggplot(aes(noise_level, n, fill=scenario_completed)) +
+    geom_bar(stat = "identity") +
+    facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Number completed")
+
+grid.arrange(p1, p2, p3, ncol = 3)
+```
+
 ```{r, eval=train_models}
 # scenario_completed.model = glm(
 #   scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
