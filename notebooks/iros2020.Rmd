@@ -48,6 +48,9 @@ library(tidybayes)
 options(mc.cores = 4)
 # library(future)
 # plan(multiprocess)
+
+# Make the default coding of contrasts sum-coding; just in case
+options(contrasts = c("contr.sum", "contr.poly"))
 ```
 
 Options for running the code here:
@@ -91,59 +94,68 @@ loadModel = function(model_name, folder = data_folder) {
 Data loading:
 
 ```{r}
-# Load the CSV files
-users = read_csv(
-  file.path(data_folder, "users.csv"),
-  col_types = cols(
-    study_condition = col_factor(),
-    noise_level = col_factor(ordered = T),
-    age_group = col_factor(levels = seq(from = 0, to = 8)),
-    robot_experience = col_factor(levels = seq(from = 0, to = 4))
+# Load the CSV files. If the age_group fill model is run again and we get a different output,
+# then remember to update the value here
+loadCSV = function(filename, age_group_fill) {
+  dat = read_csv(
+    file.path(data_folder, filename),
+    col_types = cols(
+      study_condition = col_factor(),
+      noise_level = col_factor(ordered = T),
+      gender = col_factor(levels = c("F", "M", "U")),
+      age_group = col_factor(levels = seq(from = 0, to = 8)),
+      robot_experience = col_factor(levels = seq(from = 0, to = 4))
+    )
   )
-)
 
-actions = read_csv(
-  file.path(data_folder, "actions.csv"),
-  col_types = cols(
-    study_condition = col_factor(),
-    noise_level = col_factor(ordered = T),
-    age_group = col_factor(levels = seq(from = 0, to = 8)),
-    robot_experience = col_factor(levels = seq(from = 0, to = 4))
-  )
-)
+  # Relabel the factors
+  dat = dat %>%
+    mutate(study_condition = fct_recode(study_condition,
+                                        BASELINE="1",
+                                        DX_100="2", AX_100="3", DXAX_100="4",
+                                        DX_90="5", AX_90="6", DXAX_90="7",
+                                        DX_80="8", AX_80="9", DXAX_80="10")) %>%
+    mutate(study_condition = fct_relevel(study_condition, c("DX_100", "AX_100", "DXAX_100",
+                                                            "DX_90", "AX_90", "DXAX_90",
+                                                            "DX_80", "AX_80", "DXAX_80")))
 
-# Relabel the factors
-users = users %>%
-  mutate(study_condition = fct_recode(study_condition,
-                                      BASELINE="1",
-                                      DX_100="2", AX_100="3", DXAX_100="4",
-                                      DX_90="5", AX_90="6", DXAX_90="7",
-                                      DX_80="8", AX_80="9", DXAX_80="10")) %>%
-  mutate(study_condition = fct_relevel(study_condition, c("DX_100", "AX_100", "DXAX_100",
-                                                          "DX_90", "AX_90", "DXAX_90",
-                                                          "DX_80", "AX_80", "DXAX_80")))
+  # Relevel the non-binary gender
+  dat$gender[dat$gender == 'U'] = 'M'
 
-actions = actions %>%
-  mutate(study_condition = fct_recode(study_condition,
-                                      BASELINE="1",
-                                      DX_100="2", AX_100="3", DXAX_100="4",
-                                      DX_90="5", AX_90="6", DXAX_90="7",
-                                      DX_80="8", AX_80="9", DXAX_80="10")) %>%
-  mutate(study_condition = fct_relevel(study_condition, c("DX_100", "AX_100", "DXAX_100",
-                                                          "DX_90", "AX_90", "DXAX_90",
-                                                          "DX_80", "AX_80", "DXAX_80")))
+  # Change binary responses to integers
+  dat$scenario_completed = as.integer(dat$scenario_completed)
+  
+  # Relevel age_group
+  dat[dat$age_group == 0,]$age_group = age_group_fill
+  
+  # Create an unordered noise_level. Also drop unused levels
+  dat$age_group = droplevels(dat$age_group)
+  dat$gender = droplevels(dat$gender)
+  dat$noise_level_f = factor(dat$noise_level, ordered = F)
 
-# Relevel the non-binary age
-users$gender[users$gender == 'U'] = 'M'
-actions$gender[actions$gender == 'U'] = 'M'
+  # Set the contrasts for everything
+  contrasts(dat$age_group) = contr.deviation(length(levels(dat$age_group)))
+  contrasts(dat$robot_experience) = contr.deviation(length(levels(dat$robot_experience)))
+  contrasts(dat$gender) = contr.deviation(length(levels(dat$gender)))
 
-# Change binary responses to integers
-users$scenario_completed = as.integer(users$scenario_completed)
-actions$scenario_completed = as.integer(actions$scenario_completed)
+  contrasts(dat$has_ax) = contr.deviation(2)
+  contrasts(dat$has_dx) = contr.deviation(2)
+  contrasts(dat$has_noise) = contr.deviation(2)
+  contrasts(dat$has_dxax) = contr.deviation(2)
 
+  contrasts(dat$noise_level_f) = contr.deviation(length(levels(dat$noise_level_f)))
+  
+  # Return the data frame
+  return(dat)
+}
+
+# Get the users df and the actions df
+users = loadCSV("users.csv", 3)
+actions = loadCSV("actions.csv", 3)
+
+# Change more binary responses to integers
 actions$optimal_ax = as.integer(actions$optimal_ax)
 actions$chose_ax = as.integer(actions$chose_ax)
-
 actions$optimal_dx = as.integer(actions$optimal_dx)
 actions$chose_dx = as.integer(actions$optimal_dx)
 
@@ -151,7 +163,7 @@ actions$chose_dx = as.integer(actions$optimal_dx)
 # The user ID column in the users table that we can now join on is X1
 actions$user_id = actions %>% group_indices(user_id)
 
-# Relevel the age group factor to remove unused levels. Also, predict the
+# Code to relevel the age group factor to remove unused levels. Also, predict the
 # value of the 1 unknown age from the other indicators of demographics
 # NOTE: If we retrain the model and the output doesn't match the hardcoded
 # values, then update those values
@@ -159,7 +171,7 @@ if (train_models) {
   plot_df = subset(users, users$age_group != 0)
   plot_df$age_group = factor(plot_df$age_group, levels = seq(from = 0, to = 8), ordered = T)
   plot_df$age_group = droplevels(plot_df$age_group)
-  age_group_model = brm(age_group, gender + robot_experience, data = plot_df, family = "cumulative")
+  age_group_model = brm(age_group ~ gender + robot_experience, data = plot_df, family = "cumulative")
   data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
   as_tibble(predict(age_group_model, data_to_predict))
 # # A tibble: 1 x 7
@@ -168,23 +180,6 @@ if (train_models) {
 # 1     0.0707      0.230      0.218      0.174      0.105       0.09      0.113
   rm(age_group_model)
 }
-users[users$age_group == 0,]$age_group = 3
-actions[actions$age_group == 0,]$age_group = 3
-
-users$age_group = droplevels(users$age_group)
-actions$age_group = droplevels(actions$age_group)
-
-# Code the factor contrasts
-contrasts(users$age_group) = contr.deviation(length(levels(users$age_group)))
-contrasts(actions$age_group) = contr.deviation(length(levels(actions$age_group)))
-contrasts(users$robot_experience) = contr.deviation(length(levels(users$robot_experience)))
-contrasts(actions$robot_experience) = contr.deviation(length(levels(actions$robot_experience)))
-
-# Create a non-polynomial noise level factor column
-users$noise_level_f = factor(users$noise_level, ordered = F)
-contrasts(users$noise_level_f) = contr.deviation(length(levels(users$noise_level_f)))
-actions$noise_level_f = factor(actions$noise_level, ordered = F)
-contrasts(actions$noise_level_f) = contr.deviation(length(levels(actions$noise_level_f)))
 ```
 
 
@@ -305,7 +300,7 @@ noise_trend_hyp_to_test = c(
   "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0"
 )
 noise_levels_hyp_to_test = c(
-  "noise_level_f2 = 0", "noise_level_f3 = 0", "Intercept"
+  "noise_level_f2 = 0", "noise_level_f3 = 0", "Intercept",
   "has_axTRUE:noise_level_f2 = 0", "has_axTRUE:noise_level_f3 = 0",
   "has_dxTRUE:noise_level_f2 = 0", "has_dxTRUE:noise_level_f3 = 0"
 )
@@ -329,8 +324,6 @@ p_df =
 
 fits_p_df = p_df %>% add_fitted_draws(scenario_completed.model.v)
 preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
-
-
 
 # Binary responses are obvious
 plot_df %>%
