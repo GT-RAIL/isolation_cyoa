@@ -1,27 +1,44 @@
 ---
-title: "IROS 2020"
+title: "RO-MAN 2020"
 output:
   html_document:
-    theme: readable
+    # theme: readable
     code_folding: hide
-    df_print: kable
+    df_print: tibble
     toc: true
     toc_depth: 2
-    toc_float: true
+    number_sections: true
 ---
-
-TODO: Create better response plots such as the ones seen in:
-
-1. [Example plots](https://mjskay.github.io/tidybayes/articles/tidy-brms.html#posterior-predictions-kruschke-style)
-1. [Responses for multilevel models](https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/multilevel-models.html)
-1. [Responses for count/binary models](https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/counting-and-classification.html#binomial-regression)
 
 For each of our dependent variables, there are 2 models:
 
 1. With the noise variable as an ordered factor, so that we can make inferences on the trends in the variable
 1. With the noise variable as an unordered factor, so that we can make inferences on the values of the variable
 
-```{r message=FALSE, warning=FALSE}
+We use Deviation / Sum coding in the coding of non-ordered factors so that we can test the influence of individual factor levels over and above the grand mean.
+
+In all our models:
+
+- $\beta_0$ is assumed to be the intercept. In a mixed effects model, this might be indexed by $i$, the user.
+- $\mathbf{X_{demo,i}}$ is a vector of demographic information
+- $\text{ax}_i$ denotes if sample $i$ received AX suggestions or not
+- $\text{dx}_i$ denotes if sample $i$ received DX suggestions or not
+- $\text{noise}_i$ denotes the level of noise in the suggestions that sample $i$ received. 0 if none was present.
+- $\text{no}_i$ denotes the number of optimal actions for the scenario presented to user $i$. This is a proxy for a factor encoding of the start scenario
+
+We test the following hypotheses (the explanations are a statement of the null hypotheses):
+
+- $(\beta_0 - \beta_{ax_0}) - (\beta_0 + \beta_{ax_0}) = -2\beta_{ax_0} = 0 \Rightarrow \beta_{ax_0} = 0$: The main difference in effects from having action suggestions vs. not is not negligible (ceterus paribus)
+- $(\beta_0 - \beta_{dx_0}) - (\beta_0 + \beta_{dx_0}) = -2\beta_{dx_0} = 0 \Rightarrow \beta_{dx_0} = 0$: The main difference in effects from having diagnosis suggestions vs. not is not neglible (ceterus paribus)
+- $(\beta_0 - \beta_{noise_0}) = 0$: The main effect of no noise in suggestions is not different from averaging the effects of noise.
+- $(\beta_0 - \beta_{noise_1}) = 0$: The main effect of level 1 noise in suggestions is not different from averaging the effects of noise.
+- $(\beta_0 - \beta_{noise_0} - \beta_{noise_1}) = 0$: The main effect of level 2 noise in suggestions is not different from averaging the effect of noise.
+- $\beta_{noise_L} = 0; \beta_{noise_Q} = 0$: Noise does not have a linear / quadratic effect on the outcome.
+
+We also test the interaction terms for significance (relative to the grand mean).
+
+
+```{r, message=F, warning=F}
 library(car)
 library(stats)
 library(grid)
@@ -43,6 +60,8 @@ library(loo)
 library(brms)
 library(bayesplot)
 library(tidybayes)
+library(bayestestR)
+library(sjstats)
 
 # Setup for multiprocessing
 options(mc.cores = 4)
@@ -53,7 +72,7 @@ options(mc.cores = 4)
 options(contrasts = c("contr.sum", "contr.poly"))
 ```
 
-Options for running the code here:
+Global options:
 
 ```{r}
 # Script execution globals
@@ -96,7 +115,7 @@ Data loading:
 ```{r}
 # Load the CSV files. If the age_group fill model is run again and we get a different output,
 # then remember to update the value here
-loadCSV = function(filename, age_group_fill) {
+loadCSV = function(filename, age_group_fill, contrast_func) {
   dat = read_csv(
     file.path(data_folder, filename),
     col_types = cols(
@@ -134,24 +153,24 @@ loadCSV = function(filename, age_group_fill) {
   dat$noise_level_f = factor(dat$noise_level, ordered = F)
 
   # Set the contrasts for everything
-  contrasts(dat$age_group) = contr.deviation(length(levels(dat$age_group)))
-  contrasts(dat$robot_experience) = contr.deviation(length(levels(dat$robot_experience)))
-  contrasts(dat$gender) = contr.deviation(length(levels(dat$gender)))
+  contrasts(dat$age_group) = contrast_func(length(levels(dat$age_group)))
+  contrasts(dat$robot_experience) = contrast_func(length(levels(dat$robot_experience)))
+  contrasts(dat$gender) = contrast_func(length(levels(dat$gender)))
 
-  contrasts(dat$has_ax) = contr.deviation(2)
-  contrasts(dat$has_dx) = contr.deviation(2)
-  contrasts(dat$has_noise) = contr.deviation(2)
-  contrasts(dat$has_dxax) = contr.deviation(2)
+  contrasts(dat$has_ax) = contrast_func(2)
+  contrasts(dat$has_dx) = contrast_func(2)
+  contrasts(dat$has_noise) = contrast_func(2)
+  contrasts(dat$has_dxax) = contrast_func(2)
 
-  contrasts(dat$noise_level_f) = contr.deviation(length(levels(dat$noise_level_f)))
+  contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
   
   # Return the data frame
   return(dat)
 }
 
 # Get the users df and the actions df
-users = loadCSV("users.csv", 3)
-actions = loadCSV("actions.csv", 3)
+users = loadCSV("users.csv", 3, contr.sum)
+actions = loadCSV("actions.csv", 3, contr.sum)
 
 # Change more binary responses to integers
 actions$optimal_ax = as.integer(actions$optimal_ax)
@@ -183,13 +202,13 @@ if (train_models) {
 ```
 
 
-## User Level Metrics {.tabset}
+# User Level Metrics {.tabset}
 
 These are metrics where an individual unit of analysis is the user.
 
-### Scenario Completed?
+## Scenario Completed?
 
-Did the person complete the scenario or not?
+**Did the person complete the scenario or not?**
 
 ```{r}
 plot_df = users %>%
@@ -240,20 +259,28 @@ p3 = gg_df %>%
 grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
-We assume the following structural model:
+Based on the data, we assume the following structural model:
 
-$scenario\_completed \sim ((has\_dx + has\_ax) * noise\_level) + (gender + age\_group + robot\_experience) + num\_optimal$
+$$scenario\_completed_i = Bernoulli(p_i)$$
+$$\begin{aligned}
+logit(p_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i +\\ &\beta_{ax:noise}\text{ax}_i\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
+&\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
+\end{aligned}$$
+$$\beta_{.} \sim Normal(0, 10)$$
+~~(the exact prior on the parameters is left unspecified so that `brms` can choose intelligent defaults).~~
 
-Given the nature of the response variable, the family of distributions is assumed to be Bernoulli.
+Model fitting:
 
 ```{r, eval=train_models}
 # The trend model to see if there is a trend in the noise level variable
 scenario_completed.model.t = brm(
-  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  scenario_completed ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
   family = "bernoulli",
+  prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
   seed = default_seed,
-  save_all_pars = T
+  save_all_pars = T,
+  sample_prior = T
 )
 scenario_completed.model.t = add_criterion(scenario_completed.model.t, "waic")
 scenario_completed.model.t = add_criterion(scenario_completed.model.t, "loo", reloo = T)
@@ -261,11 +288,13 @@ saveModel(scenario_completed.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 scenario_completed.model.v = brm(
-  scenario_completed ~ ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
+  scenario_completed ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
   family = "bernoulli",
+  prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
   seed = default_seed,
-  save_all_pars = T
+  save_all_pars = T,
+  sample_prior = T
 )
 scenario_completed.model.v = add_criterion(scenario_completed.model.v, "waic")
 scenario_completed.model.v = add_criterion(scenario_completed.model.v, "loo", reloo = T)
@@ -279,44 +308,71 @@ scenario_completed.model.t = loadModel("scenario_completed.model.t")
 scenario_completed.model.v = loadModel("scenario_completed.model.v")
 ```
 
+Model fitting results:
+
 ```{r}
-# The results of training
-print(scenario_completed.model.t)
-print(scenario_completed.model.t$criteria$loo$estimates)
-
-print(scenario_completed.model.v)
-print(scenario_completed.model.v$criteria$loo$estimates)
-
-print(loo_compare(scenario_completed.model.t, scenario_completed.model.v))
+# Print the HDI, ESS, Rhat, etc.
+print(tidy_stan(scenario_completed.model.t))
+print(tidy_stan(scenario_completed.model.v))
 ```
 
+Diagnostics of the fit:
+
 ```{r}
+# LOO cross-validation results
+print(scenario_completed.model.t$criteria$loo$estimates)
+print(scenario_completed.model.v$criteria$loo$estimates)
+print(loo_compare(scenario_completed.model.t, scenario_completed.model.v))
+
+# Diagnostics of the sampling process
+par(mfrow=c(1,2))
+plot(scenario_completed.model.t$criteria$loo, main = "Trend Model")
+plot(scenario_completed.model.v$criteria$loo, main = "Values Model")
+```
+
+Inferences from the fitting:
+
+```{r, eval=F}
 # Check the significance of each hypothesis
 # Plot the effects of the condition (the stuff we care about)
-hyp_to_test = c("has_axTRUE = 0", "has_dxTRUE = 0")
-noise_trend_hyp_to_test = c(
-  "noise_level.Q = 0", "noise_level.L = 0",
-  "has_axTRUE:noise_level.Q = 0", "has_axTRUE:noise_level.L = 0",
-  "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0"
-)
+# hyp_to_test = c("has_axTRUE = 0", "has_dxTRUE = 0")
+# noise_trend_hyp_to_test = c(
+#   "noise_level.Q = 0", "noise_level.L = 0",
+#   "has_axTRUE:noise_level.Q = 0", "has_axTRUE:noise_level.L = 0",
+#   "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0"
+# )
+# noise_levels_hyp_to_test = c(
+#   "noise_level_f2 = 0", "noise_level_f3 = 0", "Intercept",
+#   "has_axTRUE:noise_level_f2 = 0", "has_axTRUE:noise_level_f3 = 0",
+#   "has_dxTRUE:noise_level_f2 = 0", "has_dxTRUE:noise_level_f3 = 0"
+# )
+
+# If -2 * X = 0, then X = 0; and vice versa
+common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
 noise_levels_hyp_to_test = c(
-  "noise_level_f2 = 0", "noise_level_f3 = 0", "Intercept",
-  "has_axTRUE:noise_level_f2 = 0", "has_axTRUE:noise_level_f3 = 0",
-  "has_dxTRUE:noise_level_f2 = 0", "has_dxTRUE:noise_level_f3 = 0"
+  "Intercept-noise_level_f1 = 0", "Intercept-noise_level_f2 = 0", "Intercept-noise_level_f1-noise_level_f2 = 0",
+  "Intercept-has_ax1:noise_level_f1 = 0", "Intercept-has_dx1:noise_level_f1 = 0",
+  "Intercept-has_ax1:noise_level_f2 = 0", "Intercept-has_dx1:noise_level_f2 = 0",
+  "Intercept-has_ax1:noise_level_f1-has_ax1:noise_level_f2 = 0",
+  "Intercept-has_dx1:noise_level_f1-has_dx1:noise_level_f2 = 0"
 )
 
-hyp_results = hypothesis(scenario_completed.model.t, hypothesis = c(hyp_to_test, noise_trend_hyp_to_test))
-print(as_tibble(hyp_results$hypothesis))
-mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+# hyp_results = hypothesis(scenario_completed.model.t, hypothesis = c(hyp_to_test, noise_trend_hyp_to_test))
+# print(as_tibble(hyp_results$hypothesis))
+# mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
 
-hyp_results = hypothesis(scenario_completed.model.v, hypothesis = c(hyp_to_test, noise_levels_hyp_to_test))
+hyp_to_test = c(common_hyp_to_test, noise_levels_hyp_to_test)
+hyp_results = hypothesis(scenario_completed.model.v,
+                         hypothesis = c(hyp_to_test, noise_levels_hyp_to_test),
+                         seed = default_seed)
 print(as_tibble(hyp_results$hypothesis))
+plot(hyp_results, ask = F, ignore_prior = T)
 mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
 ```
 
 So here are the following plots:
 
-```{r}
+```{r, eval=F}
 # Generate our own posterior predictions
 p_df =
   plot_df %>%
@@ -328,8 +384,8 @@ preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
 # Binary responses are obvious
 plot_df %>%
   ggplot(aes(y = gender, x = chose_ax / num_actions)) +
-  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
-  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
+  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits_p_df) +
+  stat_intervalh(aes(x = .prediction / num_actions), data = preds_p_df) +
   geom_point(data = plot_df, color = 'gray')
 
 gg_df = plot_df %>%
@@ -363,7 +419,7 @@ p1 = gg_df %>%
 
 Based on the data, only the effect of the ax variable matters
 
-```{r}
+```{r, eval=F}
 plot_summs(scenario_completed.model, scenario_completed.model.sparse,
            omit.coefs = c("age_group.L", "age_group.Q", "age_group.C", "age_group^4",
                           "age_group^5", "age_group^6", "age_group^7", "(Intercept)"))
@@ -371,26 +427,14 @@ plot_summs(scenario_completed.model.sparse, omit.coefs = NULL, plot.distribution
 # ggPredict(scenario_completed.model.sparse, se = T)
 ```
 
-Then plot the data itself:
-
-```{r}
-gg_df = plot_df
-gg_df$study_condition = factor(plot_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
-gg_df$scenario_completed = factor(plot_df$scenario_completed)
-levels(gg_df$scenario_completed) = c("incomplete", "complete")
-ggplot(gg_df %>% count(study_condition, scenario_completed),
-       aes(study_condition, n, fill=scenario_completed)) +
-  geom_bar(stat="identity") +
-  theme(axis.text.x = element_text(angle = 45))
-```
 ```{r, message=F, warning=F}
-rm(scenario_completed.model)
-rm(scenario_completed.model.sparse)
+rm(scenario_completed.model.t, scenario_completed.model.v)
+# rm(fits_p_df, preds_p_df, p_df, gg_df, plot_df)
 gc()
 ```
 
 
-### Num Actions Diff {.tabset}
+## Num Actions Diff {.tabset}
 
 We assume a structural model where we remove the effect that the action suggestions might have on the number of actions over the number of optimal actions taken by using the prediction of action completion based on the action suggestions
 
@@ -402,40 +446,37 @@ num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + rob
 
 We use a negative binomial distribution to estimate the params, based on tests in the other notebook. First, let's examine without a control for scenario completed.
 
-#### Naive Model
+### Naive Model
 
-```{r}
+```{r, eval=F}
 plot_df = users;
 plot_df$scenario_completed = factor(plot_df$scenario_completed)
 ```
-```{r, eval=train_models}
+```{r, eval=F}
 actions_diff.model = glm.nb(
   num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
   data = plot_df
 )
 saveModel(actions_diff.model)
 ```
-```{r, eval=!train_models}
+```{r, eval=F}
 actions_diff.model = loadModel("actions_diff.model")
 ```
-```{r}
+```{r, eval=F}
 print(with(actions_diff.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model))
 ```
 
 There is a high effect of robot experience and of action suggestions. How does a reduced model fare?
 
-```{r, eval=train_models}
+```{r, eval=F}
 actions_diff.model.sparse = glm.nb(
   num_actions_diff ~ robot_experience + has_ax,
   data = plot_df
 )
 saveModel(actions_diff.model.sparse)
 ```
-```{r, eval=!train_models}
-actions_diff.model.sparse = loadModel("actions_diff.model.sparse")
-```
-```{r}
+```{r, eval=F}
 print(with(actions_diff.model.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model.sparse))
 
@@ -455,7 +496,7 @@ ggplot(plot_df, aes(x = robot_experience, y = num_actions_diff, color = has_ax, 
 
 Unfortunately, while AIC is lower, the R^2 has also gone lower. Let's look at the data.
 
-```{r}
+```{r, eval=F}
 gg_df = plot_df
 gg_df$study_condition = factor(plot_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
 ggplot(gg_df, aes(x = study_condition, y = num_actions_diff, fill = noise_level)) +
@@ -473,11 +514,11 @@ ggplot(gg_df, aes(x = study_condition, y = frac_actions_diff, fill = noise_level
 So according to the second plot, there is a significant difference of whether a participant completed the scenario or not (fraction of people at max is its own distribution). So we're going to add that as a factor
 
 
-#### Augmented Model
+### Augmented Model
 
 This time, we plot the data first:
 
-```{r}
+```{r, eval=F}
 gg_df = subset(plot_df, scenario_completed == "1")
 gg_df$study_condition = factor(gg_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
 ggplot(gg_df, aes(x = study_condition, y = num_actions_diff, fill = noise_level)) +
@@ -486,38 +527,38 @@ ggplot(gg_df, aes(x = study_condition, y = num_actions_diff, fill = noise_level)
   theme(axis.text.x = element_text(angle = 45))
 ```
 
-```{r}
+```{r, eval=F}
 plot_df = users;
 plot_df$scenario_completed = factor(plot_df$scenario_completed)
 ```
-```{r, eval=train_models}
+```{r, eval=F}
 actions_diff.model.augmented = glm.nb(
   num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
   data = plot_df
 )
 saveModel(actions_diff.model.augmented)
 ```
-```{r, eval=!train_models}
+```{r, eval=F}
 actions_diff.model.augmented = loadModel("actions_diff.model.augmented")
 ```
-```{r}
+```{r, eval=F}
 print(with(actions_diff.model.augmented, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model.augmented))
 ```
 
 There is indeed a large effect of the scenario completed; and controlling for it seems to negate the effect of whether action suggestions are present. Creating the sparser model from this full(er) model based on the factors that are deemed significant
 
-```{r, eval=train_models}
+```{r, eval=F}
 actions_diff.model.augmented.sparse = glm.nb(
   num_actions_diff ~ gender + robot_experience + scenario_completed + has_dx*noise_level,
   data = plot_df
 )
 saveModel(actions_diff.model.augmented.sparse)
 ```
-```{r, eval=!train_models}
+```{r, eval=F}
 actions_diff.model.augmented.sparse = loadModel("actions_diff.model.augmented.sparse")
 ```
-```{r}
+```{r, eval=F}
 print(with(actions_diff.model.augmented.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
 print(summ(actions_diff.model.augmented.sparse))
 
@@ -533,15 +574,15 @@ ggplot(plot_df, aes(x = gender, y = num_actions_diff, color = scenario_completed
   geom_line(aes(y = fitted, x = gender, color = scenario_completed, group = scenario_completed, size = 2))
 ```
 
-```{r, message=F, warning=F}
+```{r, message=F, warning=F, eval=F}
 rm(actions_diff.model, actions_diff.model.sparse, actions_diff.model.augmented, actions_diff.model.augmented.sparse)
 gc()
 ```
 
 
-## Action Level Metrics {.tabset}
+# Action Level Metrics {.tabset}
 
-### Taking Optimal Actions
+## Taking Optimal Actions
 
 One can almost think of this as an inverse of the "reliance" metric mentioned by Jessie Yang et al. We're going to need brms to fit all the models here.
 
@@ -562,10 +603,10 @@ ggplot(gg_df, aes(x = study_condition, y = frac_ax_optimal, fill = noise_level))
 
 The choice of the model family is informed by the tests in the second markdown file.
 
-```{r}
+```{r, eval=F}
 plot_df = actions
 ```
-```{r, eval=train_models}
+```{r, eval=F}
 # Fit the main model
 optimal_action.model = brm(
   optimal_ax | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
@@ -577,15 +618,15 @@ optimal_action.model = add_criterion(optimal_action.model, "waic")
 optimal_action.model = add_criterion(optimal_action.model, "loo")
 saveModel(optimal_action.model)
 ```
-```{r, eval=!train_models}
+```{r, eval=F}
 optimal_action.model = loadModel("optimal_action.model")
 ```
-```{r}
+```{r, eval=F}
 print(summary(optimal_action.model))
 print(optimal_action.model$criteria$loo$estimates)
 ```
 
-```{r}
+```{r, eval=F}
 # Plot the effects of the condition (the stuff we care about)
 hyp_to_test = c("has_axTRUE = 0", "has_dxTRUE = 0",
                 "noise_level.Q = 0", "noise_level.L = 0",
@@ -601,7 +642,7 @@ mcmc_intervals(as.matrix(optimal_action.model), regex_pars = "b_", prob = 0.90, 
 
 Based on the plots, it seems that a reduced model for this model might include state_idx, robot_experience, age_group, and has_ax.
 
-```{r, eval=train_models}
+```{r, eval=F}
 optimal_action.model.sparse = brm(
   optimal_ax | trials(num_actions) ~ has_ax + age_group + robot_experience + state_idx + (1 | user_id),
   data = plot_df,
@@ -612,10 +653,10 @@ optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "waic")
 optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "loo")
 saveModel(optimal_action.model.sparse)
 ```
-```{r, eval=!train_models}
+```{r, eval=F}
 optimal_action.model.sparse = loadModel("optimal_action.model.sparse")
 ```
-```{r}
+```{r, eval=F}
 print(summary(optimal_action.model.sparse))
 print(optimal_action.model.sparse$criteria$loo$estimates)
 print(loo_compare(optimal_action.model, optimal_action.model.sparse))
@@ -632,12 +673,12 @@ mcmc_intervals(as.matrix(optimal_action.model.sparse), regex_pars = "b_", prob =
 
 So there are three independent effects; get the conditional plots for those
 
-```{r}
+```{r, eval=F}
 plot(conditional_effects(optimal_action.model.sparse, effects = "has_ax"), ask = F, points = T)
 plot(conditional_effects(optimal_action.model.sparse, effects = "robot_experience"), ask = F, points = T)
 plot(conditional_effects(optimal_action.model.sparse, effects = "age_group"), ask = F, points = T)
 ```
-```{r}
+```{r, eval=F}
 # We want to create our own conditional sample, but don't want to kill our machine
 plot_df$state_idx = mean(plot_df$state_idx)
 g = subset(plot_df, age_group == 0 | age_group == 8) %>%
@@ -667,16 +708,16 @@ plot_df %>%
   geom_point(data = plot_df, color = 'gray')
 ```
 
-```{r, message=F, warning=F}
+```{r, message=F, warning=F, eval=F}
 rm(optimal_action.model, optimal_action.model.sparse)
 gc()
 ```
 
 
-### Following Suggestions of Actions
+## Following Suggestions of Actions
 
 
-```{r}
+```{r, eval=F}
 gg_df = subset(users, has_ax)
 gg_df$study_condition = factor(gg_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
 ggplot(gg_df, aes(x = study_condition, y = num_ax_followed, fill = noise_level)) +
@@ -693,10 +734,10 @@ ggplot(gg_df, aes(x = study_condition, y = frac_ax_followed, fill = noise_level)
 
 The choice of the model family is informed by the tests in the second markdown file.
 
-```{r}
+```{r, eval=F}
 plot_df = subset(actions, has_ax)
 ```
-```{r, eval=train_models}
+```{r, eval=F}
 # Fit the main model
 follow_action.model = brm(
   chose_ax | trials(num_actions) ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
@@ -708,15 +749,15 @@ follow_action.model = add_criterion(follow_action.model, "waic")
 follow_action.model = add_criterion(follow_action.model, "loo")
 saveModel(follow_action.model)
 ```
-```{r, eval=!train_models}
+```{r, eval=F}
 follow_action.model = loadModel("follow_action.model")
 ```
-```{r}
+```{r, eval=F}
 print(summary(follow_action.model))
 print(follow_action.model$criteria$loo$estimates)
 ```
 
-```{r}
+```{r, eval=F}
 # Plot the effects of the condition (the stuff we care about)
 hyp_to_test = c("has_dxTRUE = 0",
                 "noise_level.Q = 0", "noise_level.L = 0",
@@ -731,7 +772,7 @@ mcmc_intervals(as.matrix(follow_action.model), regex_pars = "b_", prob = 0.90, p
 
 Based on the plots, it seems that a reduced model for this model might include state_idx, robot_experience, age_group, and gender
 
-```{r, eval=train_models}
+```{r, eval=F}
 follow_action.model.sparse = brm(
   chose_ax | trials(num_actions) ~ gender + age_group + robot_experience + state_idx + (1 | user_id),
   data = plot_df,
@@ -742,10 +783,10 @@ follow_action.model.sparse = add_criterion(follow_action.model.sparse, "waic")
 follow_action.model.sparse = add_criterion(follow_action.model.sparse, "loo")
 saveModel(follow_action.model.sparse)
 ```
-```{r, eval=!train_models}
+```{r, eval=F}
 follow_action.model.sparse = loadModel("follow_action.model.sparse")
 ```
-```{r}
+```{r, eval=F}
 print(summary(follow_action.model.sparse))
 print(follow_action.model.sparse$criteria$loo$estimates)
 print(loo_compare(follow_action.model, follow_action.model.sparse))
@@ -762,12 +803,12 @@ mcmc_intervals(as.matrix(follow_action.model.sparse), regex_pars = "b_", prob = 
 
 So there are three independent effects; get the conditional plots for those
 
-```{r}
+```{r, eval=F}
 plot(conditional_effects(follow_action.model.sparse, effects = "gender"), ask = F, points = T)
 plot(conditional_effects(follow_action.model.sparse, effects = "robot_experience"), ask = F, points = T)
 plot(conditional_effects(follow_action.model.sparse, effects = "age_group"), ask = F, points = T)
 ```
-```{r}
+```{r, eval=F}
 # We want to create our own conditional sample, but don't want to kill our machine
 plot_df$state_idx = mean(plot_df$state_idx)
 g = subset(plot_df, age_group == 0 | age_group == 8) %>%
@@ -797,7 +838,7 @@ plot_df %>%
   geom_point(data = plot_df, color = 'gray')
 ```
 
-```{r, message=F, warning=F}
+```{r, message=F, warning=F, eval=F}
 rm(follow_action.model, follow_action.model.sparse)
 gc()
 ```
