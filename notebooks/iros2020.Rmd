@@ -57,11 +57,13 @@ library(jtools)
 library(broom)
 library(modelr)
 library(loo)
+# library(rstanarm)
 library(brms)
 library(bayesplot)
 library(tidybayes)
 library(bayestestR)
 library(sjstats)
+library(see)
 
 # Setup for multiprocessing
 options(mc.cores = 4)
@@ -301,6 +303,17 @@ scenario_completed.model.v = add_criterion(scenario_completed.model.v, "loo", re
 saveModel(scenario_completed.model.v)
 # More model plots are available at:
 # https://bookdown.org/ajkurz/Statistical_Rethinking_recoded/counting-and-classification.html
+
+# Attempted RStanarm models: The estimate contrasts doesn't seem to be as helpful?
+# scenario_completed.model.v = stan_glm(
+#   scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+#   family = binomial(link = "logit"),
+#   prior = normal(0, 10),
+#   prior_intercept = normal(0, 10),
+#   data = plot_df,
+#   QR = T,
+#   seed = default_seed
+# )
 ```
 ```{r, eval=!train_models}
 # Load the models
@@ -353,7 +366,7 @@ Inferences from the fitting:
 
 ```{r, eval=F}
 # Test hypotheses. The NULL arguments need to be provided in this case
-test_hypotheses = function(h_df, hypotheses_list = NULL, model = NULL) {
+test_hypotheses = function(h_df = NULL, hypotheses_list = NULL, model = NULL) {
   # # Option 1: Use the hypothesis function in brms
   # hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
   # print(hyp_results$hypothesis)
@@ -369,6 +382,16 @@ test_hypotheses = function(h_df, hypotheses_list = NULL, model = NULL) {
   return(hyp_results)
 }
 
+# # If we're using the brms functions, then use the following
+# common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
+# noise_levels_hyp_to_test = c(
+#   "Intercept-noise_level_f1 = 0", "Intercept-noise_level_f2 = 0", "Intercept-noise_level_f1-noise_level_f2 = 0",
+#   "Intercept-has_ax1:noise_level_f1 = 0", "Intercept-has_dx1:noise_level_f1 = 0",
+#   "Intercept-has_ax1:noise_level_f2 = 0", "Intercept-has_dx1:noise_level_f2 = 0",
+#   "Intercept-has_ax1:noise_level_f1-has_ax1:noise_level_f2 = 0",
+#   "Intercept-has_dx1:noise_level_f1-has_dx1:noise_level_f2 = 0"
+# )
+
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
   transmute(
@@ -382,33 +405,24 @@ h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
     has_dx_noise_levelQ_test = b_has_dx1.noise_level.Q
   )
 
-hyp_results =
-  h_df %>%
-    equivalence_test() %>%
-    as_tibble() %>%
-    bind_cols(h_df %>% pd() %>% select(pd))
-print(hyp_results)
+hyp_results = test_hypotheses(h_df)
 
-# # If -2 * X = 0, then X = 0; and vice versa
-# common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
-# noise_levels_hyp_to_test = c(
-#   "Intercept-noise_level_f1 = 0", "Intercept-noise_level_f2 = 0", "Intercept-noise_level_f1-noise_level_f2 = 0",
-#   "Intercept-has_ax1:noise_level_f1 = 0", "Intercept-has_dx1:noise_level_f1 = 0",
-#   "Intercept-has_ax1:noise_level_f2 = 0", "Intercept-has_dx1:noise_level_f2 = 0",
-#   "Intercept-has_ax1:noise_level_f1-has_ax1:noise_level_f2 = 0",
-#   "Intercept-has_dx1:noise_level_f1-has_dx1:noise_level_f2 = 0"
-# )
-# 
-# # hyp_results = hypothesis(scenario_completed.model.t, hypothesis = c(hyp_to_test, noise_trend_hyp_to_test))
-# # print(as_tibble(hyp_results$hypothesis))
-# # mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
-# 
-# hyp_to_test = c(common_hyp_to_test, noise_levels_hyp_to_test)
-# hyp_results = hypothesis(scenario_completed.model.v,
-#                          hypothesis = c(hyp_to_test, noise_levels_hyp_to_test),
-#                          seed = default_seed)
-# print(hyp_results$hypothesis)
-# plot(hyp_results, ask = F, ignore_prior = T)
+h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
+  transmute(
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_level1_test = b_Intercept - b_noise_level_f1,
+    noise_level2_test = b_Intercept - b_noise_level_f2,
+    noise_level3_test = b_Intercept - b_noise_level_f1 - b_noise_level_f2,
+    has_ax_noise_level_1_test = b_Intercept - b_has_ax1.noise_level_f1,
+    has_ax_noise_level_2_test = b_Intercept - b_has_ax1.noise_level_f2,
+    has_ax_noise_level_3_test = b_Intercept - b_has_ax1.noise_level_f1 - b_has_ax1.noise_level_f2,
+    has_dx_noise_level_1_test = b_Intercept - b_has_dx1.noise_level_f1,
+    has_dx_noise_level_2_test = b_Intercept - b_has_dx1.noise_level_f2,
+    has_dx_noise_level_3_test = b_Intercept - b_has_dx1.noise_level_f1 - b_has_dx1.noise_level_f2,
+  )
+
+hyp_results = test_hypotheses(h_df)
 ```
 
 So here are the following plots:
