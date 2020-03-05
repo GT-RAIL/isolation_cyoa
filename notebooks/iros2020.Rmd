@@ -311,14 +311,19 @@ scenario_completed.model.v = loadModel("scenario_completed.model.v")
 Model fitting results:
 
 ```{r}
-# Print the HDI, ESS, Rhat, etc.
+# Print the parameters, and some initial diagnostics
 print(tidy_stan(scenario_completed.model.t))
+print(performance::r2(scenario_completed.model.t))
+
 print(tidy_stan(scenario_completed.model.v))
+print(performance::r2(scenario_completed.model.v))
 ```
 
 Diagnostics of the fit:
 
 ```{r}
+# Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
+
 # LOO cross-validation results
 print(scenario_completed.model.t$criteria$loo$estimates)
 print(scenario_completed.model.v$criteria$loo$estimates)
@@ -328,46 +333,82 @@ print(loo_compare(scenario_completed.model.t, scenario_completed.model.v))
 par(mfrow=c(1,2))
 plot(scenario_completed.model.t$criteria$loo, main = "Trend Model")
 plot(scenario_completed.model.v$criteria$loo, main = "Values Model")
+
+# Include posterior predictive checks of the sampling (are sampling according
+# to the data that we actually have?)
+p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_ax", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
+p3 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p3, nrow = 3)
+mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+
+p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
+p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
+p3 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p3, nrow = 3)
+mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
 ```
 
 Inferences from the fitting:
 
 ```{r, eval=F}
+# Test hypotheses. The NULL arguments need to be provided in this case
+test_hypotheses = function(h_df, hypotheses_list = NULL, model = NULL) {
+  # # Option 1: Use the hypothesis function in brms
+  # hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
+  # print(hyp_results$hypothesis)
+  # return(hyp_results)
+
+  # Option 2: Use the ROPE & Overlap amount
+  hyp_results =
+    h_df %>%
+      equivalence_test() %>%
+      as_tibble() %>%
+      bind_cols(h_df %>% pd() %>% select(pd))
+  print(hyp_results)
+  return(hyp_results)
+}
+
 # Check the significance of each hypothesis
-# Plot the effects of the condition (the stuff we care about)
-# hyp_to_test = c("has_axTRUE = 0", "has_dxTRUE = 0")
-# noise_trend_hyp_to_test = c(
-#   "noise_level.Q = 0", "noise_level.L = 0",
-#   "has_axTRUE:noise_level.Q = 0", "has_axTRUE:noise_level.L = 0",
-#   "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0"
-# )
+h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
+  transmute(
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_levelL_test = b_noise_level.L,
+    noise_levelQ_test = b_noise_level.Q,
+    has_ax_noise_levelL_test = b_has_ax1.noise_level.L,
+    has_ax_noise_levelQ_test = b_has_ax1.noise_level.Q,
+    has_dx_noise_levelL_test = b_has_dx1.noise_level.L,
+    has_dx_noise_levelQ_test = b_has_dx1.noise_level.Q
+  )
+
+hyp_results =
+  h_df %>%
+    equivalence_test() %>%
+    as_tibble() %>%
+    bind_cols(h_df %>% pd() %>% select(pd))
+print(hyp_results)
+
+# # If -2 * X = 0, then X = 0; and vice versa
+# common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
 # noise_levels_hyp_to_test = c(
-#   "noise_level_f2 = 0", "noise_level_f3 = 0", "Intercept",
-#   "has_axTRUE:noise_level_f2 = 0", "has_axTRUE:noise_level_f3 = 0",
-#   "has_dxTRUE:noise_level_f2 = 0", "has_dxTRUE:noise_level_f3 = 0"
+#   "Intercept-noise_level_f1 = 0", "Intercept-noise_level_f2 = 0", "Intercept-noise_level_f1-noise_level_f2 = 0",
+#   "Intercept-has_ax1:noise_level_f1 = 0", "Intercept-has_dx1:noise_level_f1 = 0",
+#   "Intercept-has_ax1:noise_level_f2 = 0", "Intercept-has_dx1:noise_level_f2 = 0",
+#   "Intercept-has_ax1:noise_level_f1-has_ax1:noise_level_f2 = 0",
+#   "Intercept-has_dx1:noise_level_f1-has_dx1:noise_level_f2 = 0"
 # )
-
-# If -2 * X = 0, then X = 0; and vice versa
-common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
-noise_levels_hyp_to_test = c(
-  "Intercept-noise_level_f1 = 0", "Intercept-noise_level_f2 = 0", "Intercept-noise_level_f1-noise_level_f2 = 0",
-  "Intercept-has_ax1:noise_level_f1 = 0", "Intercept-has_dx1:noise_level_f1 = 0",
-  "Intercept-has_ax1:noise_level_f2 = 0", "Intercept-has_dx1:noise_level_f2 = 0",
-  "Intercept-has_ax1:noise_level_f1-has_ax1:noise_level_f2 = 0",
-  "Intercept-has_dx1:noise_level_f1-has_dx1:noise_level_f2 = 0"
-)
-
-# hyp_results = hypothesis(scenario_completed.model.t, hypothesis = c(hyp_to_test, noise_trend_hyp_to_test))
-# print(as_tibble(hyp_results$hypothesis))
-# mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
-
-hyp_to_test = c(common_hyp_to_test, noise_levels_hyp_to_test)
-hyp_results = hypothesis(scenario_completed.model.v,
-                         hypothesis = c(hyp_to_test, noise_levels_hyp_to_test),
-                         seed = default_seed)
-print(as_tibble(hyp_results$hypothesis))
-plot(hyp_results, ask = F, ignore_prior = T)
-mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+# 
+# # hyp_results = hypothesis(scenario_completed.model.t, hypothesis = c(hyp_to_test, noise_trend_hyp_to_test))
+# # print(as_tibble(hyp_results$hypothesis))
+# # mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+# 
+# hyp_to_test = c(common_hyp_to_test, noise_levels_hyp_to_test)
+# hyp_results = hypothesis(scenario_completed.model.v,
+#                          hypothesis = c(hyp_to_test, noise_levels_hyp_to_test),
+#                          seed = default_seed)
+# print(hyp_results$hypothesis)
+# plot(hyp_results, ask = F, ignore_prior = T)
 ```
 
 So here are the following plots:

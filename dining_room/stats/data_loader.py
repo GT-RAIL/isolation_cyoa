@@ -56,8 +56,10 @@ def get_users_df(*, users=None, use_cache=True):
 
     # Add common information to the data frame
     for user, data in zip(users, _cached_users_df):
-        # Get rid of the AMT worker ID
+        # Get rid of useless columns
         del data['amt_worker_id']
+        del data['password']
+        del data['unique_key']
 
         # Get some indicators
         data['noise_level'] = (user.noise_level * 10)
@@ -178,7 +180,10 @@ def get_actions_df(*, actions=None, use_cache=True):
         # Get data from the user
         data.update(model_to_dict(action.user))
         del data['amt_worker_id']
+        del data['password']
+        del data['unique_key']
         data['id'] = action.pk
+
         data['num_actions'] = action.user.num_actions
         if action.user.studyaction_set.filter(browser_refreshed=True).count() > 0:
             data['scenario_completed'] = False
