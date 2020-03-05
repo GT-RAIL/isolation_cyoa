@@ -283,6 +283,7 @@ grid.arrange(p1, p2, p3, ncol = 3)
 
 # Visualize also the variation in each of the three levels that we care about
 p1 = gg_df %>%
+  filter(scenario_completed == 'complete') %>%
   ggplot(aes(has_ax, n/20)) +
     geom_violin() +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
@@ -294,6 +295,7 @@ p1 = gg_df %>%
     guides(size = F)
 
 p2 = gg_df %>%
+  filter(scenario_completed == 'complete') %>%
   ggplot(aes(has_dx, n/20)) +
     geom_violin() +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
@@ -303,6 +305,7 @@ p2 = gg_df %>%
     legend_none()
 
 p3 = gg_df %>%
+  filter(scenario_completed == 'complete') %>%
   ggplot(aes(noise_level, n/20)) +
     geom_violin() +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
@@ -418,70 +421,34 @@ mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 
   ggtitle("Values Model")
 
 # Plot predictions vs original
-fits_p_df = scenario_completed.model.t %>% fitted() %>% as_tibble()
 preds_p_df = scenario_completed.model.t %>% predict() %>% as_tibble()
-p1 =
-  fits_p_df %>%
-  add_column(scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
-  ggplot(aes(x = Estimate, y = scenario_completed)) +
-    geom_point() +
-    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
-    labs(x = "Fitted values")
-
-p2 =
+p1 = 
   preds_p_df %>%
-  add_column(scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
-  ggplot(aes(x = Estimate, y = scenario_completed)) +
-    geom_point() +
-    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
-    labs(x = "Predicted values")
-
-p3 =
-  fits_p_df %>%
-  select(Estimate) %>%
-  rename(fitted = Estimate) %>%
-  add_column(predicted = preds_p_df$Estimate,
-             scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
-  ggplot(aes(x = fitted, y = predicted, color = scenario_completed)) +
-    geom_point() +
-    ylim(0, 1) +
-    xlim(0, 1) +
-    ggtitle("Trends Model")
-
-grid.arrange(p1, p2, p3, ncol = 3)
+    add_column(scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
+    ggplot(aes(x = Estimate, y = scenario_completed, color = scenario_completed)) +
+      geom_point() +
+      geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
+      geom_text(aes(x = inv_logit_scaled(2.28)-0.01, y = 0.5, label = "Intercept", color = 0, angle=90)) +
+      labs(x = "Predicted values") +
+      ylim(0, 1) +
+      xlim(0, 1) +
+      ggtitle("Trends Model")
 
 # Plot predictions vs original
-fits_p_df = scenario_completed.model.v %>% fitted() %>% as_tibble()
 preds_p_df = scenario_completed.model.v %>% predict() %>% as_tibble()
-p1 =
-  fits_p_df %>%
-  add_column(scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
-  ggplot(aes(x = Estimate, y = scenario_completed)) +
-    geom_point() +
-    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
-    labs(x = "Fitted values")
-
 p2 =
   preds_p_df %>%
-  add_column(scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
-  ggplot(aes(x = Estimate, y = scenario_completed)) +
-    geom_point() +
-    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
-    labs(x = "Predicted values")
+    add_column(scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
+    ggplot(aes(x = Estimate, y = scenario_completed, color = scenario_completed)) +
+      geom_point() +
+      geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
+      geom_text(aes(x = inv_logit_scaled(2.28)-0.01, y = 0.5, label = "Intercept", color = 0, angle=90)) +
+      labs(x = "Predicted values") +
+      ylim(0, 1) +
+      xlim(0, 1) +
+      ggtitle("Values Model")
 
-p3 =
-  fits_p_df %>%
-  select(Estimate) %>%
-  rename(fitted = Estimate) %>%
-  add_column(predicted = preds_p_df$Estimate,
-             scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
-  ggplot(aes(x = fitted, y = predicted, color = scenario_completed)) +
-    geom_point() +
-    ylim(0, 1) +
-    xlim(0, 1) +
-    ggtitle("Values Model")
-
-grid.arrange(p1, p2, p3, ncol = 3)
+grid.arrange(p1, p2, ncol = 2)
 ```
 
 Inferences from the fitting:
@@ -504,6 +471,7 @@ options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
   transmute(
+    Intercept = b_Intercept,
     has_ax_test = -2 * b_has_ax1,
     has_dx_test = -2 * b_has_dx1,
     noise_levelL_test = b_noise_level.L,
@@ -515,10 +483,11 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
   transmute(
+    Intercept = b_Intercept,
     has_ax_test = -2 * b_has_ax1,
     has_dx_test = -2 * b_has_dx1,
-    noise_level1_test = b_Intercept - b_noise_level_f1,
-    noise_level2_test = b_Intercept - b_noise_level_f2,
+    noise_level1_test = b_Intercept + b_noise_level_f1,
+    noise_level2_test = b_Intercept + b_noise_level_f2,
     noise_level3_test = b_Intercept - b_noise_level_f1 - b_noise_level_f2
     # has_ax_noise_level_1_test = b_Intercept - b_has_ax1 - b_noise_level_f1 + b_has_ax1.noise_level_f1,
     # has_ax_noise_level_2_test = b_Intercept - b_has_ax1 - b_noise_level_f2 + b_has_ax1.noise_level_f2,
@@ -535,9 +504,10 @@ options(digits = 7)
 
 **Results**:
 
-1. The presence of action suggesitons has a significant effect on whether a participant completes or not
-1. There is a possibly significant quadratic relationship of noise to the probability of a participant completing
-1. A noise > 0.0 has a significant effect on the chance of completing compared to when there is no noise
+1. The effect of incorporating action suggestions (AX) has a probability 1.0 of being positive (Median = 2.36, 89% CI [1.43, 3.33]) and can be considered as significant  (0.0% in ROPE).
+1. The noise level has a quadratic relationship to the probability of scenario completed with a positive effect size with probability of 0.99 (Median = 1.37, 89% CI [0.63, 2.24]) and can be considered significant (0.0% in ROPE).
+1. The effect of no noise (100% accurate suggestions or no suggestions at all) has a probability 1.0 of a positive effect on the probability of completing the scenario (Median = 3.07, 89% CI [1.51, 4.52]) and can be considered significant (0.0% in ROPE).
+1. The effect of 20% noise (80% accurate suggestions) has a probability 0.99 of a positive effect on the probability of completing the scenario (Median = 2.63, 89% CI [0.91, 4.39]) and can be considered significant (0.0% in ROPE).
 
 So here are the following plots:
 
@@ -545,7 +515,15 @@ So here are the following plots:
 # Simulate predictions on new data
 p_df =
   plot_df %>%
-  data_grid(scenario_completed, has_ax, has_dx, noise_level_f, gender, age_group, robot_experience, num_optimal)
+  data_grid(scenario_completed,
+            has_ax,
+            has_dx,
+            noise_level_f,
+            gender,
+            age_group,
+            robot_experience,
+            num_optimal = seq_range(num_optimal, n = 2),
+            .model = scenario_completed.model.v)
 
 fits_p_df = p_df %>% add_fitted_draws(scenario_completed.model.v)
 preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
@@ -553,8 +531,9 @@ preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
 # Binary responses are obvious
 plot_df %>%
   ggplot(aes(x = has_ax, y = scenario_completed)) +
-  stat_halfeyeh(aes(x = .value), position = position_nudge(y = 0.1), data = fits_p_df) +
-  stat_intervalh(aes(x = .prediction), data = preds_p_df)
+  stat_halfeye(aes(y = .value), data = fits_p_df) +
+  geom_count(aes(color = ..n.., size = ..n..)) +
+  guides(color = 'legend')
 
 # plot_df %>%
 #   ggplot(aes(y = gender, x = chose_ax / num_actions)) +
