@@ -63,6 +63,7 @@ library(bayesplot)
 library(tidybayes)
 library(bayestestR)
 library(sjstats)
+library(report)
 library(see)
 
 # Setup for multiprocessing
@@ -109,6 +110,25 @@ saveModel = function(model, folder = data_folder) {
 # Load a model
 loadModel = function(model_name, folder = data_folder) {
   return(readRDS(file.path(folder, paste(model_name, '.rds', sep = ''))))
+}
+
+# Test hypotheses. The NULL arguments need to be provided in this case
+test_hypotheses = function(h_df = NULL, hypotheses_list = NULL, model = NULL) {
+  # Option 1: Use the hypothesis function in brms
+  if (!is.null(hypotheses_list)) {
+    hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
+    return(hyp_results)
+  }
+
+  # Option 2: Use the ROPE & Overlap amount
+  else {
+    hyp_results =
+      h_df %>%
+        equivalence_test() %>%
+        as_tibble() %>%
+        bind_cols(h_df %>% pd() %>% select(pd))
+    return(hyp_results)
+  }
 }
 ```
 
@@ -218,6 +238,7 @@ plot_df = users %>%
          age_group, gender, robot_experience,
          noise_level, noise_level_f, has_noise, has_dx, has_ax,
          scenario_completed)
+text_short(report(plot_df))
 ```
 
 ```{r fig.height=7, fig.width=15}
@@ -226,9 +247,9 @@ plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
   count(study_condition, scenario_completed) %>%
-  ggplot(aes(study_condition, n, fill=scenario_completed)) +
+  ggplot(aes(study_condition, n / 20, fill=scenario_completed)) +
     geom_bar(stat="identity") +
-    labs(y = "Number completed")
+    labs(y = "Fraction completed")
 
 # Visualize the data by the three variables that we care about
 gg_df = plot_df %>%
@@ -238,25 +259,58 @@ gg_df = plot_df %>%
   count(has_ax, has_dx, noise_level, scenario_completed)
 
 p1 = gg_df %>%
-  ggplot(aes(has_ax, n, fill=scenario_completed)) +
+  ggplot(aes(has_ax, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Number completed")
+    labs(y = "Fraction completed")
 
 p2 = gg_df %>%
-  ggplot(aes(has_dx, n, fill=scenario_completed)) +
+  ggplot(aes(has_dx, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
-    labs(y = "Number completed")
+    labs(y = "Fraction completed")
 
 p3 = gg_df %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
   mutate(has_ax = factor(has_ax)) %>%
   mutate(has_ax = fct_rev(has_ax)) %>%
-  ggplot(aes(noise_level, n, fill=scenario_completed)) +
+  ggplot(aes(noise_level, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Number completed")
+    labs(y = "Fraction completed")
+
+grid.arrange(p1, p2, p3, ncol = 3)
+
+# Visualize also the variation in each of the three levels that we care about
+p1 = gg_df %>%
+  ggplot(aes(has_ax, n/20)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    labs(color = "AX:DX:Noise") +
+    theme(legend.position = "left") +
+    guides(size = F)
+
+p2 = gg_df %>%
+  ggplot(aes(has_dx, n/20)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    legend_none()
+
+p3 = gg_df %>%
+  ggplot(aes(noise_level, n/20)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    scale_x_discrete(limits = rev(levels(gg_df$noise_level))) +
+    legend_none()
 
 grid.arrange(p1, p2, p3, ncol = 3)
 ```
@@ -334,7 +388,7 @@ print(performance::r2(scenario_completed.model.v))
 
 Diagnostics of the fit:
 
-```{r}
+```{r fig.height=7, fig.width=15}
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
@@ -353,35 +407,86 @@ p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_ax
 p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
 p3 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
 grid.arrange(p1, p2, p3, nrow = 3)
-mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Trends Model")
 
 p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
 p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
 p3 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
 grid.arrange(p1, p2, p3, nrow = 3)
-mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
+mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Values Model")
+
+# Plot predictions vs original
+fits_p_df = scenario_completed.model.t %>% fitted() %>% as_tibble()
+preds_p_df = scenario_completed.model.t %>% predict() %>% as_tibble()
+p1 =
+  fits_p_df %>%
+  add_column(scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
+  ggplot(aes(x = Estimate, y = scenario_completed)) +
+    geom_point() +
+    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
+    labs(x = "Fitted values")
+
+p2 =
+  preds_p_df %>%
+  add_column(scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
+  ggplot(aes(x = Estimate, y = scenario_completed)) +
+    geom_point() +
+    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
+    labs(x = "Predicted values")
+
+p3 =
+  fits_p_df %>%
+  select(Estimate) %>%
+  rename(fitted = Estimate) %>%
+  add_column(predicted = preds_p_df$Estimate,
+             scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
+  ggplot(aes(x = fitted, y = predicted, color = scenario_completed)) +
+    geom_point() +
+    ylim(0, 1) +
+    xlim(0, 1) +
+    ggtitle("Trends Model")
+
+grid.arrange(p1, p2, p3, ncol = 3)
+
+# Plot predictions vs original
+fits_p_df = scenario_completed.model.v %>% fitted() %>% as_tibble()
+preds_p_df = scenario_completed.model.v %>% predict() %>% as_tibble()
+p1 =
+  fits_p_df %>%
+  add_column(scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
+  ggplot(aes(x = Estimate, y = scenario_completed)) +
+    geom_point() +
+    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
+    labs(x = "Fitted values")
+
+p2 =
+  preds_p_df %>%
+  add_column(scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
+  ggplot(aes(x = Estimate, y = scenario_completed)) +
+    geom_point() +
+    geom_vline(xintercept = inv_logit_scaled(2.28)) + # Intercept estimate in the model
+    labs(x = "Predicted values")
+
+p3 =
+  fits_p_df %>%
+  select(Estimate) %>%
+  rename(fitted = Estimate) %>%
+  add_column(predicted = preds_p_df$Estimate,
+             scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
+  ggplot(aes(x = fitted, y = predicted, color = scenario_completed)) +
+    geom_point() +
+    ylim(0, 1) +
+    xlim(0, 1) +
+    ggtitle("Values Model")
+
+grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
 Inferences from the fitting:
 
-```{r, eval=F}
-# Test hypotheses. The NULL arguments need to be provided in this case
-test_hypotheses = function(h_df = NULL, hypotheses_list = NULL, model = NULL) {
-  # # Option 1: Use the hypothesis function in brms
-  # hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
-  # print(hyp_results$hypothesis)
-  # return(hyp_results)
-
-  # Option 2: Use the ROPE & Overlap amount
-  hyp_results =
-    h_df %>%
-      equivalence_test() %>%
-      as_tibble() %>%
-      bind_cols(h_df %>% pd() %>% select(pd))
-  print(hyp_results)
-  return(hyp_results)
-}
-
+```{r}
 # # If we're using the brms functions, then use the following
 # common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
 # noise_levels_hyp_to_test = c(
@@ -391,21 +496,22 @@ test_hypotheses = function(h_df = NULL, hypotheses_list = NULL, model = NULL) {
 #   "Intercept-has_ax1:noise_level_f1-has_ax1:noise_level_f2 = 0",
 #   "Intercept-has_dx1:noise_level_f1-has_dx1:noise_level_f2 = 0"
 # )
+# hyp_results = test_hypotheses(hypotheses_list = c(common_hyp_to_test, noise_levels_hyp_to_test), model = scenario_completed.model.v)
+# print(hyp_results$hypothesis)
+# plot(hyp_results, ask=F)
 
+options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
   transmute(
     has_ax_test = -2 * b_has_ax1,
     has_dx_test = -2 * b_has_dx1,
     noise_levelL_test = b_noise_level.L,
-    noise_levelQ_test = b_noise_level.Q,
-    has_ax_noise_levelL_test = b_has_ax1.noise_level.L,
-    has_ax_noise_levelQ_test = b_has_ax1.noise_level.Q,
-    has_dx_noise_levelL_test = b_has_dx1.noise_level.L,
-    has_dx_noise_levelQ_test = b_has_dx1.noise_level.Q
+    noise_levelQ_test = b_noise_level.Q
   )
 
 hyp_results = test_hypotheses(h_df)
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
 
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
   transmute(
@@ -413,22 +519,30 @@ h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
     has_dx_test = -2 * b_has_dx1,
     noise_level1_test = b_Intercept - b_noise_level_f1,
     noise_level2_test = b_Intercept - b_noise_level_f2,
-    noise_level3_test = b_Intercept - b_noise_level_f1 - b_noise_level_f2,
-    has_ax_noise_level_1_test = b_Intercept - b_has_ax1.noise_level_f1,
-    has_ax_noise_level_2_test = b_Intercept - b_has_ax1.noise_level_f2,
-    has_ax_noise_level_3_test = b_Intercept - b_has_ax1.noise_level_f1 - b_has_ax1.noise_level_f2,
-    has_dx_noise_level_1_test = b_Intercept - b_has_dx1.noise_level_f1,
-    has_dx_noise_level_2_test = b_Intercept - b_has_dx1.noise_level_f2,
-    has_dx_noise_level_3_test = b_Intercept - b_has_dx1.noise_level_f1 - b_has_dx1.noise_level_f2,
+    noise_level3_test = b_Intercept - b_noise_level_f1 - b_noise_level_f2
+    # has_ax_noise_level_1_test = b_Intercept - b_has_ax1 - b_noise_level_f1 + b_has_ax1.noise_level_f1,
+    # has_ax_noise_level_2_test = b_Intercept - b_has_ax1 - b_noise_level_f2 + b_has_ax1.noise_level_f2,
+    # has_ax_noise_level_3_test = b_Intercept - b_has_ax1.noise_level_f1 - b_has_ax1.noise_level_f2,
+    # has_dx_noise_level_1_test = b_Intercept - b_has_dx1.noise_level_f1,
+    # has_dx_noise_level_2_test = b_Intercept - b_has_dx1.noise_level_f2,
+    # has_dx_noise_level_3_test = b_Intercept - b_has_dx1.noise_level_f1 - b_has_dx1.noise_level_f2,
   )
 
 hyp_results = test_hypotheses(h_df)
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+options(digits = 7)
 ```
+
+**Results**:
+
+1. The presence of action suggesitons has a significant effect on whether a participant completes or not
+1. There is a possibly significant quadratic relationship of noise to the probability of a participant completing
+1. A noise > 0.0 has a significant effect on the chance of completing compared to when there is no noise
 
 So here are the following plots:
 
 ```{r, eval=F}
-# Generate our own posterior predictions
+# Simulate predictions on new data
 p_df =
   plot_df %>%
   data_grid(scenario_completed, has_ax, has_dx, noise_level_f, gender, age_group, robot_experience, num_optimal)
@@ -438,22 +552,27 @@ preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
 
 # Binary responses are obvious
 plot_df %>%
-  ggplot(aes(y = gender, x = chose_ax / num_actions)) +
-  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits_p_df) +
-  stat_intervalh(aes(x = .prediction / num_actions), data = preds_p_df) +
-  geom_point(data = plot_df, color = 'gray')
+  ggplot(aes(x = has_ax, y = scenario_completed)) +
+  stat_halfeyeh(aes(x = .value), position = position_nudge(y = 0.1), data = fits_p_df) +
+  stat_intervalh(aes(x = .prediction), data = preds_p_df)
 
-gg_df = plot_df %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
-  mutate(noise_level = fct_rev(noise_level)) %>%
-  count(has_ax, has_dx, noise_level, scenario_completed)
-
-p1 = gg_df %>%
-  ggplot(aes(has_ax, n, fill=scenario_completed)) +
-    geom_bar(stat = "identity") +
-    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Number completed")
+# plot_df %>%
+#   ggplot(aes(y = gender, x = chose_ax / num_actions)) +
+#   stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits_p_df) +
+#   stat_intervalh(aes(x = .prediction / num_actions), data = preds_p_df) +
+#   geom_point(data = plot_df, color = 'gray')
+# 
+# gg_df = plot_df %>%
+#   mutate(scenario_completed = factor(scenario_completed)) %>%
+#   mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
+#   mutate(noise_level = fct_rev(noise_level)) %>%
+#   count(has_ax, has_dx, noise_level, scenario_completed)
+# 
+# p1 = gg_df %>%
+#   ggplot(aes(has_ax, n, fill=scenario_completed)) +
+#     geom_bar(stat = "identity") +
+#     facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+#     labs(y = "Number completed")
 
 
 # # For multi-level responses, we should do a pairwise comparison
@@ -470,16 +589,6 @@ p1 = gg_df %>%
 #   stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
 #   geom_point(data = plot_df, color = 'gray')
 
-```
-
-Based on the data, only the effect of the ax variable matters
-
-```{r, eval=F}
-plot_summs(scenario_completed.model, scenario_completed.model.sparse,
-           omit.coefs = c("age_group.L", "age_group.Q", "age_group.C", "age_group^4",
-                          "age_group^5", "age_group^6", "age_group^7", "(Intercept)"))
-plot_summs(scenario_completed.model.sparse, omit.coefs = NULL, plot.distributions = T)
-# ggPredict(scenario_completed.model.sparse, se = T)
 ```
 
 ```{r, message=F, warning=F}
