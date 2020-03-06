@@ -268,13 +268,15 @@ p1 = gg_df %>%
   ggplot(aes(has_ax, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Fraction completed")
+    labs(y = "Fraction completed") +
+    legend_none()
 
 p2 = gg_df %>%
   ggplot(aes(has_dx, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
-    labs(y = "Fraction completed")
+    labs(y = "Fraction completed") +
+    theme(legend.position = "bottom")
 
 p3 = gg_df %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
@@ -283,7 +285,8 @@ p3 = gg_df %>%
   ggplot(aes(noise_level, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Fraction completed")
+    labs(y = "Fraction completed") +
+    legend_none()
 
 grid.arrange(p1, p2, p3, ncol = 3)
 
@@ -332,7 +335,6 @@ logit(p_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{n
 &\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
 \end{aligned}$$
 $$\beta_{.} \sim Normal(0, 10)$$
-~~(the exact prior on the parameters is left unspecified so that `brms` can choose intelligent defaults).~~
 
 Model fitting:
 
@@ -614,6 +616,98 @@ gc()
 
 
 ## Num Actions Diff {.tabset}
+
+**The number of non-optimal actions that a person took; given their scenario**
+
+```{r}
+plot_df = users %>%
+  select(X1, id, study_condition, start_condition, num_optimal,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, num_actions_diff, frac_actions_diff)
+text_short(report(plot_df))
+```
+
+```{r fig.height=7, fig.width=15}
+# Plot by the study condition
+plot_df %>%
+  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+  ggplot(aes(study_condition, num_actions_diff, fill = .fill_column)) +
+    geom_boxplot() +
+    geom_count() +
+    labs(y = "Number unnecessary actions", fill = "noise:has_suggestions") +
+    scale_fill_economist()
+
+# Visualize the data by the three variables that we care about
+gg_df = plot_df %>%
+  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+  mutate(noise_level = fct_rev(noise_level))
+
+p1 = gg_df %>%
+  ggplot(aes(has_ax, num_actions_diff, fill=.fill_column)) +
+    geom_boxplot() +
+    geom_count() +
+    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Number unnecessary actions") +
+    scale_fill_economist()
+
+p2 = gg_df %>%
+  ggplot(aes(has_dx, num_actions_diff, fill=.fill_column)) +
+    geom_boxplot() +
+    geom_count() +
+    facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
+    labs(y = "Number unnecessary actions") +
+    scale_fill_economist()
+
+p3 = gg_df %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  mutate(has_ax = factor(has_ax)) %>%
+  mutate(has_ax = fct_rev(has_ax)) %>%
+  ggplot(aes(noise_level, num_actions_diff, fill=.fill_column)) +
+    geom_boxplot() +
+    geom_count() +
+    facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Number unnecessary actions") +
+    scale_fill_economist()
+
+grid.arrange(p1, p2, p3, ncol = 3)
+
+# Visualize also the variation in each of the three levels that we care about
+p1 = gg_df %>%
+  ggplot(aes(num_actions_diff)) +
+    geom_histogram() +
+    facet_grid(rows = 2) +
+    # geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    # stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    # scale_color_metro() +
+    # labs(color = "AX:DX:Noise") +
+    # theme(legend.position = "left") +
+    guides(size = F)
+p1
+
+p2 = gg_df %>%
+  filter(scenario_completed == 'complete') %>%
+  ggplot(aes(has_dx, n/20)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    legend_none()
+
+p3 = gg_df %>%
+  filter(scenario_completed == 'complete') %>%
+  ggplot(aes(noise_level, n/20)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    scale_x_discrete(limits = rev(levels(gg_df$noise_level))) +
+    legend_none()
+
+grid.arrange(p1, p2, p3, ncol = 3)
+```
 
 We assume a structural model where we remove the effect that the action suggestions might have on the number of actions over the number of optimal actions taken by using the prediction of action completion based on the action suggestions
 
