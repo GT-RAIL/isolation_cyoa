@@ -10,34 +10,6 @@ output:
     number_sections: true
 ---
 
-For each of our dependent variables, there are 2 models:
-
-1. With the noise variable as an ordered factor, so that we can make inferences on the trends in the variable
-1. With the noise variable as an unordered factor, so that we can make inferences on the values of the variable
-
-We use Deviation / Sum coding in the coding of non-ordered factors so that we can test the influence of individual factor levels over and above the grand mean.
-
-In all our models:
-
-- $\beta_0$ is assumed to be the intercept. In a mixed effects model, this might be indexed by $i$, the user.
-- $\mathbf{X_{demo,i}}$ is a vector of demographic information
-- $\text{ax}_i$ denotes if sample $i$ received AX suggestions or not
-- $\text{dx}_i$ denotes if sample $i$ received DX suggestions or not
-- $\text{noise}_i$ denotes the level of noise in the suggestions that sample $i$ received. 0 if none was present.
-- $\text{no}_i$ denotes the number of optimal actions for the scenario presented to user $i$. This is a proxy for a factor encoding of the start scenario
-
-We test the following hypotheses (the explanations are a statement of the null hypotheses):
-
-- $(\beta_0 - \beta_{ax_0}) - (\beta_0 + \beta_{ax_0}) = -2\beta_{ax_0} = 0 \Rightarrow \beta_{ax_0} = 0$: The main difference in effects from having action suggestions vs. not is not negligible (ceterus paribus)
-- $(\beta_0 - \beta_{dx_0}) - (\beta_0 + \beta_{dx_0}) = -2\beta_{dx_0} = 0 \Rightarrow \beta_{dx_0} = 0$: The main difference in effects from having diagnosis suggestions vs. not is not neglible (ceterus paribus)
-- $(\beta_0 - \beta_{noise_0}) = 0$: The main effect of no noise in suggestions is not different from averaging the effects of noise.
-- $(\beta_0 - \beta_{noise_1}) = 0$: The main effect of level 1 noise in suggestions is not different from averaging the effects of noise.
-- $(\beta_0 - \beta_{noise_0} - \beta_{noise_1}) = 0$: The main effect of level 2 noise in suggestions is not different from averaging the effect of noise.
-- $\beta_{noise_L} = 0; \beta_{noise_Q} = 0$: Noise does not have a linear / quadratic effect on the outcome.
-
-We also test the interaction terms for significance (relative to the grand mean).
-
-
 ```{r, message=F, warning=F}
 library(car)
 library(stats)
@@ -134,7 +106,7 @@ test_hypotheses = function(h_df = NULL, hypotheses_list = NULL, model = NULL) {
 
 Data loading:
 
-```{r}
+```{r, message=F, warning=F}
 # Load the CSV files. If the age_group fill model is run again and we get a different output,
 # then remember to update the value here
 loadCSV = function(filename, age_group_fill, contrast_func) {
@@ -222,6 +194,40 @@ if (train_models) {
   rm(age_group_model)
 }
 ```
+
+For each of our dependent variables, there are 2 models:
+
+1. With the noise variable as an ordered factor, so that we can make inferences on the trends in the variable
+1. With the noise variable as an unordered factor, so that we can make inferences on the values of the variable
+
+We use Deviation / Sum coding in the coding of non-ordered factors so that we can test the influence of individual factor levels over and above the grand mean.
+
+In all our models:
+
+- $\beta_0$ is assumed to be the intercept. In a mixed effects model, this might be indexed by $i$, the user.
+- $\mathbf{X_{demo,i}}$ is a vector of demographic information
+- $\text{ax}_i$ denotes if sample $i$ received AX suggestions or not
+- $\text{dx}_i$ denotes if sample $i$ received DX suggestions or not
+- $\text{noise}_i$ denotes the level of noise in the suggestions that sample $i$ received. 0 if none was present.
+- $\text{no}_i$ denotes the number of optimal actions for the scenario presented to user $i$. This is a proxy for a factor encoding of the start scenario
+
+We test the following hypotheses (the explanations are a statement of the null hypotheses):
+
+- $(\beta_0 - \beta_{ax_0}) - (\beta_0 + \beta_{ax_0}) = -2\beta_{ax_0} = 0 \Rightarrow \beta_{ax_0} = 0$: The main difference in effects from having action suggestions vs. not is not negligible (ceterus paribus)
+- $(\beta_0 - \beta_{dx_0}) - (\beta_0 + \beta_{dx_0}) = -2\beta_{dx_0} = 0 \Rightarrow \beta_{dx_0} = 0$: The main difference in effects from having diagnosis suggestions vs. not is not neglible (ceterus paribus)
+- $(\beta_0 - \beta_{noise_0}) = 0$: The main effect of no noise in suggestions is not different from averaging the effects of noise.
+- $(\beta_0 - \beta_{noise_1}) = 0$: The main effect of level 1 noise in suggestions is not different from averaging the effects of noise.
+- $(\beta_0 - \beta_{noise_0} - \beta_{noise_1}) = 0$: The main effect of level 2 noise in suggestions is not different from averaging the effect of noise.
+- $\beta_{noise_L} = 0; \beta_{noise_Q} = 0$: Noise does not have a linear / quadratic effect on the outcome.
+
+We do not test the interaction effects (because it's hard to make sense of what those mean).
+
+The method of reporting and testing is based on the following papers:
+
+1. [A protocol for conducting and presenting results of regression‐type analyses](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12577)
+1. [Indices of Effect Existence and Significance in the Bayesian Framework](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02767/full). This one is also associated with [this package](https://easystats.github.io/bayestestR/articles/guidelines.html), which has useful links on reporting, presenting data, etc.
+
+Note, that unlike the previous version of this HTML page, and some of the references, we are NOT going to perform model-selection here. Based on what I've read, we're doing confirmatory hypothesis testing, which is not where one should use model selection paradigms.
 
 
 # User Level Metrics {.tabset}
@@ -511,7 +517,14 @@ options(digits = 7)
 
 So here are the following plots:
 
-```{r, eval=F}
+```{r}
+# A visualization data frame
+gg_df = plot_df %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  count(has_ax, has_dx, noise_level, scenario_completed)
+
 # Simulate predictions on new data
 p_df =
   plot_df %>%
@@ -522,57 +535,80 @@ p_df =
             gender,
             age_group,
             robot_experience,
-            num_optimal = seq_range(num_optimal, n = 2),
+            num_optimal,
             .model = scenario_completed.model.v)
 
 fits_p_df = p_df %>% add_fitted_draws(scenario_completed.model.v)
-preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
+pars_p_df = scenario_completed.model.t %>% extract_draws(newdata = p_df %>% rename(noise_level = noise_level_f))
+# We don't want predicted draws because that's a raw count of ones and zeros; not the
+# probability distribution
+# preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
 
-# Binary responses are obvious
-plot_df %>%
-  ggplot(aes(x = has_ax, y = scenario_completed)) +
-  stat_halfeye(aes(y = .value), data = fits_p_df) +
-  geom_count(aes(color = ..n.., size = ..n..)) +
-  guides(color = 'legend')
+# Plot the posterior distributions
+gg_df %>%
+  filter(scenario_completed == 'complete') %>%
+  ggplot(aes(x = has_ax, y = n / 20)) +
+    stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
+    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    labs(y = "scenario_completed", color = "AX:DX:Noise")
 
-# plot_df %>%
-#   ggplot(aes(y = gender, x = chose_ax / num_actions)) +
-#   stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits_p_df) +
-#   stat_intervalh(aes(x = .prediction / num_actions), data = preds_p_df) +
-#   geom_point(data = plot_df, color = 'gray')
-# 
-# gg_df = plot_df %>%
-#   mutate(scenario_completed = factor(scenario_completed)) %>%
-#   mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
-#   mutate(noise_level = fct_rev(noise_level)) %>%
-#   count(has_ax, has_dx, noise_level, scenario_completed)
-# 
-# p1 = gg_df %>%
-#   ggplot(aes(has_ax, n, fill=scenario_completed)) +
-#     geom_bar(stat = "identity") +
-#     facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
-#     labs(y = "Number completed")
+gg_df %>%
+  filter(scenario_completed == 'complete') %>%
+  ggplot(aes(x = has_dx, y = n / 20)) +
+    stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
+    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    labs(y = "scenario_completed", color = "AX:DX:Noise")
 
+gg_df %>%
+  filter(scenario_completed == 'complete') %>%
+  ggplot(aes(x = noise_level, y = n / 20)) +
+    stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
+    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    labs(y = "scenario_completed", color = "AX:DX:Noise")
 
-# # For multi-level responses, we should do a pairwise comparison
-# plot_df %>%
-#   ggplot(aes(y = robot_experience, x = chose_ax / num_actions)) +
-#   stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
-#   stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
-#   geom_point(data = plot_df, color = 'gray')
-# 
-# # I don't understand why there are more than 2 age groups... is it because of the sampling process?
-# plot_df %>%
-#   ggplot(aes(y = age_group, x = chose_ax / num_actions)) +
-#   stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
-#   stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
-#   geom_point(data = plot_df, color = 'gray')
+# Create a plot to show the trend
+pars_p_df_X = pars_p_df$dpars$mu$fe$X[,c("Intercept", "noise_level.Q")]
+pars_p_df_b = pars_p_df$dpars$mu$fe$b[,c("b_Intercept", "b_noise_level.Q")]
+pars_p_df_y = pars_p_df_X %*% t(pars_p_df_b)[,as.integer(seq(from = 1, to = 4000, length.out = 100))]
+pars_p_df_y = inv_logit_scaled(pars_p_df_y)
+p_df =
+  p_df %>%
+  bind_cols(as_tibble(pars_p_df_y)) %>%
+  gather(key = ".sample", value = ".value", V1:V100) %>%
+  rename(noise_level = noise_level_f)
 
+# p_df %>%
+#   ggplot(aes(noise_level, .value, group = .sample)) +
+#     geom_line() +
+#     ylim(0, 1)
+
+gg_df %>%
+  filter(scenario_completed == 'complete') %>%
+  ggplot(aes(x = noise_level, y = n / 20)) +
+    stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
+    geom_line(aes(y = .value, group = .sample, alpha = 0.3), data = p_df) +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
+    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    labs(y = "scenario_completed", color = "AX:DX:Noise") +
+    guides(alpha = F)
+
+# Remove the giant fits data frames
+rm(fits_p_df, pars_p_df, pars_p_df_b, pars_p_df_X, pars_p_df_y, p_df, gg_df)
 ```
 
-```{r, message=F, warning=F}
+```{r, echo=F}
 rm(scenario_completed.model.t, scenario_completed.model.v)
-# rm(fits_p_df, preds_p_df, p_df, gg_df, plot_df)
 gc()
 ```
 
