@@ -15,6 +15,7 @@ library(car)
 library(stats)
 library(grid)
 library(gridExtra)
+library(fitdistrplus)
 # library(dplyr)
 # library(forcats)
 # library(tibble)
@@ -51,7 +52,8 @@ Global options:
 
 ```{r}
 # Script execution globals
-train_models = F
+train_models = F     # Retrain the MCMC models
+plot_posteriors = F  # Plot the posterior distributions
 default_seed = 0x1331
 data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
 ```
@@ -85,7 +87,7 @@ loadModel = function(model_name, folder = data_folder) {
 }
 
 # Test hypotheses. The NULL arguments need to be provided in this case
-test_hypotheses = function(h_df = NULL, hypotheses_list = NULL, model = NULL) {
+test_hypotheses = function(h_df = NULL, rope_values = NULL, hypotheses_list = NULL, model = NULL) {
   # Option 1: Use the hypothesis function in brms
   if (!is.null(hypotheses_list)) {
     hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
@@ -94,13 +96,23 @@ test_hypotheses = function(h_df = NULL, hypotheses_list = NULL, model = NULL) {
 
   # Option 2: Use the ROPE & Overlap amount
   else {
+    if (is.null(rope_values)) {
+      rope_values = c(-0.1, 0.1)
+    }
     hyp_results =
       h_df %>%
-        equivalence_test() %>%
+        equivalence_test(range = rope_values) %>%
         as_tibble() %>%
         bind_cols(h_df %>% pd() %>% select(pd))
     return(hyp_results)
   }
+}
+
+# Fit distributions to vectors and print the results. Also return the fit, if necessary
+fit_and_print_dist = function(vec, distr, string) {
+  f = fitdist(vec, distr)
+  print(paste(string, f$loglik, f$aic))
+  return(f)
 }
 ```
 
@@ -211,13 +223,13 @@ In all our models:
 - $\text{noise}_i$ denotes the level of noise in the suggestions that sample $i$ received. 0 if none was present.
 - $\text{no}_i$ denotes the number of optimal actions for the scenario presented to user $i$. This is a proxy for a factor encoding of the start scenario
 
-We test the following hypotheses (the explanations are a statement of the null hypotheses):
+We test the following hypotheses (the explanations are a statement of the null hypotheses; the coefficients are from the expected regression parameters, given sum coding):
 
 - $(\beta_0 - \beta_{ax_0}) - (\beta_0 + \beta_{ax_0}) = -2\beta_{ax_0} = 0 \Rightarrow \beta_{ax_0} = 0$: The main difference in effects from having action suggestions vs. not is not negligible (ceterus paribus)
 - $(\beta_0 - \beta_{dx_0}) - (\beta_0 + \beta_{dx_0}) = -2\beta_{dx_0} = 0 \Rightarrow \beta_{dx_0} = 0$: The main difference in effects from having diagnosis suggestions vs. not is not neglible (ceterus paribus)
-- $(\beta_0 - \beta_{noise_0}) = 0$: The main effect of no noise in suggestions is not different from averaging the effects of noise.
-- $(\beta_0 - \beta_{noise_1}) = 0$: The main effect of level 1 noise in suggestions is not different from averaging the effects of noise.
-- $(\beta_0 - \beta_{noise_0} - \beta_{noise_1}) = 0$: The main effect of level 2 noise in suggestions is not different from averaging the effect of noise.
+- $\beta_{noise_0} = 0$: The main effect of no noise in suggestions is not different from averaging the effects of noise.
+- $\beta_{noise_1} = 0$: The main effect of level 1 noise in suggestions is not different from averaging the effects of noise.
+- $- \beta_{noise_0} - \beta_{noise_1} = 0$: The main effect of level 2 noise in suggestions is not different from averaging the effect of noise.
 - $\beta_{noise_L} = 0; \beta_{noise_Q} = 0$: Noise does not have a linear / quadratic effect on the outcome.
 
 We do not test the interaction effects (because it's hard to make sense of what those mean).
@@ -225,7 +237,7 @@ We do not test the interaction effects (because it's hard to make sense of what 
 The method of reporting and testing is based on the following papers:
 
 1. [A protocol for conducting and presenting results of regression‐type analyses](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12577)
-1. [Indices of Effect Existence and Significance in the Bayesian Framework](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02767/full). This one is also associated with [this package](https://easystats.github.io/bayestestR/articles/guidelines.html), which has useful links on reporting, presenting data, etc.
+1. [Indices of Effect Existence and Significance in the Bayesian Framework](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02767/full). The paper is associated with [this post](https://easystats.github.io/bayestestR/articles/guidelines.html) on how to present results, and [this post](https://easystats.github.io/bayestestR/articles/region_of_practical_equivalence.html) giving a quick overview of terms (the posts are part of a package I'm using heavily in these analyses)
 
 Note, that unlike the previous version of this HTML page, and some of the references, we are NOT going to perform model-selection here. Based on what I've read, we're doing confirmatory hypothesis testing, which is not where one should use model selection paradigms.
 
@@ -462,7 +474,18 @@ grid.arrange(p1, p2, ncol = 2)
 Inferences from the fitting:
 
 ```{r}
-# # If we're using the brms functions, then use the following
+# Compute the bayes factor for each parameter value. Note: we compare
+# here against the ROPE, and not the degenerate null hypothesis of 0
+# Bayes-Factor values would be more significant in the latter case
+# According to the Raftery, 1995 rules
+# bf = 1 - 3: Weak
+# bf = 3 - 20: Positive
+# bf = 20 - 150: Strong
+# bf > 150: Very strong
+print(bayesfactor_rope(scenario_completed.model.t, null = c(-0.055, 0.055)), n = 30)
+print(bayesfactor_rope(scenario_completed.model.v, null = c(-0.055, 0.055)), n = 30)
+
+# # If we're using the brms functions, then use the following (make sure to update!)
 # common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
 # noise_levels_hyp_to_test = c(
 #   "Intercept-noise_level_f1 = 0", "Intercept-noise_level_f2 = 0", "Intercept-noise_level_f1-noise_level_f2 = 0",
@@ -486,7 +509,7 @@ h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
     noise_levelQ_test = b_noise_level.Q
   )
 
-hyp_results = test_hypotheses(h_df)
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
 print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
 
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
@@ -494,18 +517,12 @@ h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
     Intercept = b_Intercept,
     has_ax_test = -2 * b_has_ax1,
     has_dx_test = -2 * b_has_dx1,
-    noise_level1_test = b_Intercept + b_noise_level_f1,
-    noise_level2_test = b_Intercept + b_noise_level_f2,
-    noise_level3_test = b_Intercept - b_noise_level_f1 - b_noise_level_f2
-    # has_ax_noise_level_1_test = b_Intercept - b_has_ax1 - b_noise_level_f1 + b_has_ax1.noise_level_f1,
-    # has_ax_noise_level_2_test = b_Intercept - b_has_ax1 - b_noise_level_f2 + b_has_ax1.noise_level_f2,
-    # has_ax_noise_level_3_test = b_Intercept - b_has_ax1.noise_level_f1 - b_has_ax1.noise_level_f2,
-    # has_dx_noise_level_1_test = b_Intercept - b_has_dx1.noise_level_f1,
-    # has_dx_noise_level_2_test = b_Intercept - b_has_dx1.noise_level_f2,
-    # has_dx_noise_level_3_test = b_Intercept - b_has_dx1.noise_level_f1 - b_has_dx1.noise_level_f2,
+    noise_level1_test = b_noise_level_f1,
+    noise_level2_test = b_noise_level_f2,
+    noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
   )
 
-hyp_results = test_hypotheses(h_df)
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
 print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
 options(digits = 7)
 ```
@@ -514,12 +531,13 @@ options(digits = 7)
 
 1. The effect of incorporating action suggestions (AX) has a probability 1.0 of being positive (Median = 2.36, 89% CI [1.43, 3.33]) and can be considered as significant  (0.0% in ROPE).
 1. The noise level has a quadratic relationship to the probability of scenario completed with a positive effect size with probability of 0.99 (Median = 1.37, 89% CI [0.63, 2.24]) and can be considered significant (0.0% in ROPE).
-1. The effect of no noise (100% accurate suggestions or no suggestions at all) has a probability 1.0 of a positive effect on the probability of completing the scenario (Median = 3.07, 89% CI [1.51, 4.52]) and can be considered significant (0.0% in ROPE).
-1. The effect of 20% noise (80% accurate suggestions) has a probability 0.99 of a positive effect on the probability of completing the scenario (Median = 2.63, 89% CI [0.91, 4.39]) and can be considered significant (0.0% in ROPE).
+1. The effect of 10% noise (90% accurate suggestions) has a probability 0.99 of a negative effect on the probability of completing the scenario (Median = -1.14, 89% CI [-1.81, -0.49]) and can be considered significant (0.0% in ROPE).
+
+(ROPE is defined as [-0.055, 0.055], the range is suggested by the literature for logistic models corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
 So here are the following plots:
 
-```{r}
+```{r, eval=plot_posteriors}
 # A visualization data frame
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
@@ -588,11 +606,6 @@ p_df =
   gather(key = ".sample", value = ".value", V1:V100) %>%
   rename(noise_level = noise_level_f)
 
-# p_df %>%
-#   ggplot(aes(noise_level, .value, group = .sample)) +
-#     geom_line() +
-#     ylim(0, 1)
-
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
   ggplot(aes(x = noise_level, y = n / 20)) +
@@ -615,16 +628,18 @@ gc()
 ```
 
 
-## Num Actions Diff {.tabset}
+## Num Actions Diff
 
-**The number of non-optimal actions that a person took; given their scenario**
+**The number of unnecessary actions that a person took; given the scenario they were assigned**
 
 ```{r}
 plot_df = users %>%
   select(X1, id, study_condition, start_condition, num_optimal,
          age_group, gender, robot_experience,
          noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, num_actions_diff, frac_actions_diff)
+         scenario_completed, num_actions, num_actions_diff, frac_actions_diff) %>%
+  mutate(scenario_completed = factor(scenario_completed))
+
 text_short(report(plot_df))
 ```
 
@@ -674,181 +689,297 @@ grid.arrange(p1, p2, p3, ncol = 3)
 
 # Visualize also the variation in each of the three levels that we care about
 p1 = gg_df %>%
-  ggplot(aes(num_actions_diff)) +
-    geom_histogram() +
-    facet_grid(rows = 2) +
-    # geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
-    # stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
-    # scale_color_metro() +
-    # labs(color = "AX:DX:Noise") +
-    # theme(legend.position = "left") +
-    guides(size = F)
-p1
-
-p2 = gg_df %>%
-  filter(scenario_completed == 'complete') %>%
-  ggplot(aes(has_dx, n/20)) +
-    geom_violin() +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
-    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
-    scale_color_metro() +
-    ylim(0, 1) +
+  ggplot(aes(num_actions_diff, group = scenario_completed, fill = scenario_completed)) +
+    geom_histogram(binwidth = 1) +
+    facet_grid(rows = vars(has_ax)) +
+    ylim(0, 30) +
+    scale_fill_economist() +
     legend_none()
 
+p2 = gg_df %>%
+  ggplot(aes(num_actions_diff, group = scenario_completed, fill = scenario_completed)) +
+    geom_histogram(binwidth = 1) +
+    facet_grid(rows = vars(has_dx)) +
+    ylim(0, 30) +
+    scale_fill_economist() +
+    theme(legend.position = "bottom")
+
 p3 = gg_df %>%
-  filter(scenario_completed == 'complete') %>%
-  ggplot(aes(noise_level, n/20)) +
-    geom_violin() +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
-    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
-    scale_color_metro() +
-    ylim(0, 1) +
-    scale_x_discrete(limits = rev(levels(gg_df$noise_level))) +
+  ggplot(aes(num_actions_diff, group = scenario_completed, fill = scenario_completed)) +
+    geom_histogram(binwidth = 1) +
+    facet_grid(rows = vars(noise_level)) +
+    ylim(0, 30) +
+    scale_fill_economist() +
     legend_none()
 
 grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
-We assume a structural model where we remove the effect that the action suggestions might have on the number of actions over the number of optimal actions taken by using the prediction of action completion based on the action suggestions
+Checking some probability distributions of the action counts (given the above plots):
 
+```{r}
+# Run a few simple distribution fitting tests using the action
+x = fit_and_print_dist(plot_df %>% filter(has_ax == T, scenario_completed == 1) %>% pull(num_actions_diff),
+                       "pois", "AX = T, SC = T; pois:")
+x = fit_and_print_dist(plot_df %>% filter(has_ax == T, scenario_completed == 1) %>% pull(num_actions_diff),
+                       "nbinom", "AX = T, SC = T; nbinom:")
+x = fit_and_print_dist(plot_df %>% filter(has_ax == T) %>% pull(num_actions_diff),
+                       "pois", "AX = T, NSC; pois:")
+x = fit_and_print_dist(plot_df %>% filter(has_ax == T) %>% pull(num_actions_diff),
+                       "nbinom", "AX = T, NSC; nbinom:")
+
+# Try a couple of other predictor variables
+x = fit_and_print_dist(plot_df %>% filter(has_dx == T, scenario_completed == 1) %>% pull(num_actions_diff),
+                       "nbinom", "DX = T, SC == T; nbinom:")
+x = fit_and_print_dist(plot_df %>% filter(noise_level == "0.0", scenario_completed == 1) %>% pull(num_actions_diff),
+                       "nbinom", "Noise = 0, SC == T; nbinom:")
+x = fit_and_print_dist(plot_df %>% filter(noise_level == "1.0", scenario_completed == 1) %>% pull(num_actions_diff),
+                       "nbinom", "Noise = 1, SC == T; nbinom:")
+x = fit_and_print_dist(plot_df %>% filter(noise_level == "2.0", scenario_completed == 1) %>% pull(num_actions_diff),
+                       "nbinom", "Noise = 2, SC == T; nbinom:")
+x = fit_and_print_dist(plot_df %>% filter(has_dx == T, scenario_completed == 1) %>% pull(num_actions_diff),
+                       "pois", "DX = T, SC == T; pois:")
+x = fit_and_print_dist(plot_df %>% filter(noise_level == "0.0", scenario_completed == 1) %>% pull(num_actions_diff),
+                       "pois", "Noise = 0, SC == T; pois:")
+x = fit_and_print_dist(plot_df %>% filter(noise_level == "1.0", scenario_completed == 1) %>% pull(num_actions_diff),
+                       "pois", "Noise = 1, SC == T; pois:")
+x = fit_and_print_dist(plot_df %>% filter(noise_level == "2.0", scenario_completed == 1) %>% pull(num_actions_diff),
+                       "pois", "Noise = 2, SC == T; pois:")
+rm(x)
 ```
-num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal
-# Optionally
-num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed
-```
 
-We use a negative binomial distribution to estimate the params, based on tests in the other notebook. First, let's examine without a control for scenario completed.
+From this, we can take away that:
 
-### Naive Model
+1. The distribution of counts is more akin to a Negative Binomial distribution than a Poisson distribution
+1. The truncation-effect of whether a person completed the scenario affects the distribution of counts, and therefore, that should be considered as a filter before our regression
 
-```{r, eval=F}
-plot_df = users;
-plot_df$scenario_completed = factor(plot_df$scenario_completed)
-```
-```{r, eval=F}
-actions_diff.model = glm.nb(
-  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
-  data = plot_df
+Therefore, we assume the following structural model:
+
+$$num\_actions\_diff_i = NegBinomial(\mu_i, \phi)$$
+$$\begin{aligned}
+log(\mu_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i +\\ &\beta_{ax:noise}\text{ax}_i\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
+&\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
+\end{aligned}$$
+$$\begin{aligned}
+\beta_{.} &\sim Normal(0, 10)\\
+\phi &\sim Gamma(0.01, 0.01)
+\end{aligned}$$
+
+The prior for the $\phi$ parameter is the default used in `brms`; I see no need to change it.
+
+Model fitting:
+
+```{r, eval=train_models}
+# The trend model to see if there is a trend in the noise level variable
+num_actions_diff.model.t = brm(
+  num_actions_diff ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  family = negbinomial,
+  prior = c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("gamma(0.01, 0.01)", class = "shape")),
+  data = plot_df %>% filter(scenario_completed == 1),
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
 )
-saveModel(actions_diff.model)
-```
-```{r, eval=F}
-actions_diff.model = loadModel("actions_diff.model")
-```
-```{r, eval=F}
-print(with(actions_diff.model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
-print(summ(actions_diff.model))
-```
+num_actions_diff.model.t = add_criterion(num_actions_diff.model.t, "waic")
+num_actions_diff.model.t = add_criterion(num_actions_diff.model.t, "loo", reloo = T)
+saveModel(num_actions_diff.model.t)
 
-There is a high effect of robot experience and of action suggestions. How does a reduced model fare?
-
-```{r, eval=F}
-actions_diff.model.sparse = glm.nb(
-  num_actions_diff ~ robot_experience + has_ax,
-  data = plot_df
+# The values model, to see if specific values of the noise level variable are significant
+num_actions_diff.model.v = brm(
+  num_actions_diff ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
+  family = negbinomial,
+  prior = c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("gamma(0.01, 0.01)", class = "shape")),
+  data = plot_df %>% filter(scenario_completed == 1),
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
 )
-saveModel(actions_diff.model.sparse)
+num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "waic")
+num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "loo", reloo = T)
+saveModel(num_actions_diff.model.v)
+
+# The number of data points that we're actually using per condition:
+# A tibble: 10 x 3
+# Groups:   study_condition, scenario_completed [10]
+#    study_condition scenario_completed     n
+#    <fct>           <fct>              <int>
+#  1 DX_100          1                     14
+#  2 AX_100          1                     20
+#  3 DXAX_100        1                     18
+#  4 DX_90           1                     11
+#  5 AX_90           1                     16
+#  6 DXAX_90         1                     18
+#  7 DX_80           1                     13
+#  8 AX_80           1                     19
+#  9 DXAX_80         1                     17
+# 10 BASELINE        1                     15
+
+# One alternative is to include data where scenario_completed is true, but
+# it is included as a predictor in the regression. I don't think that makes
+# sense because scenario_completed and num_optimal can together determine
+# the num_actions_diff. Also, NOTE: the significance results don't change
+# if we consider only those points where scenario is completed
+# num_actions_diff.model.v = brm(
+#   num_actions_diff ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
+#   family = negbinomial,
+#   prior = c(set_prior("normal(0, 10)", class = "b"),
+#             set_prior("gamma(0.01, 0.01)", class = "shape")),
+#   data = plot_df,
+#   seed = default_seed,
+#   save_all_pars = T,
+#   sample_prior = T
+# )
+# num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "waic")
+# num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "loo", reloo = T)
+
+# Another option is to remove the effect of the baseline condition. This is because Baseline
+# possibly confounds with noise - on the one hand, baseline has no noise and could be
+# considered as a 0 noise condition; on the other hand, it has 100% noise. Again; there
+# doesn't seem to be a significant effect of ignoring baseline
+# num_actions_diff.model.v = brm(
+#   num_actions_diff ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
+#   family = negbinomial,
+#   prior = c(set_prior("normal(0, 10)", class = "b"),
+#             set_prior("gamma(0.01, 0.01)", class = "shape")),
+#   data = plot_df %>% filter(scenario_completed == 1, study_condition != "BASELINE"),
+#   seed = default_seed,
+#   save_all_pars = T,
+#   sample_prior = T
+# )
+# num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "waic")
+# num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "loo", reloo = T)
+
 ```
-```{r, eval=F}
-print(with(actions_diff.model.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
-print(summ(actions_diff.model.sparse))
-
-# Also show comparisons (remove the age factors because there's massive variation in those)
-# Turns out that we can't plot the non-sparse model for some reason.
-# plot_summs(actions_diff.model, actions_diff.model.sparse,
-#            omit.coefs = c("age_group.L", "age_group.Q", "age_group.C", "age_group^4",
-#                           "age_group^5", "age_group^6", "age_group^7", "(Intercept)"))
-plot_summs(actions_diff.model.sparse, omit.coefs = NULL, plot.distributions = T)
-# Cannot plot binomial responses?
-plot_df$fitted = actions_diff.model.sparse$fitted.values
-ggplot(plot_df, aes(x = robot_experience, y = num_actions_diff, color = has_ax, fill = has_ax)) +
-  geom_boxplot(aes(alpha = 0.3)) +
-  geom_jitter() +
-  geom_line(aes(y = fitted, x = robot_experience, color = has_ax, group = has_ax, size = 2))
-```
-
-Unfortunately, while AIC is lower, the R^2 has also gone lower. Let's look at the data.
-
-```{r, eval=F}
-gg_df = plot_df
-gg_df$study_condition = factor(plot_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
-ggplot(gg_df, aes(x = study_condition, y = num_actions_diff, fill = noise_level)) +
-  geom_boxplot(aes(alpha = 0.3)) +
-  geom_jitter(aes(color = noise_level)) +
-  theme(axis.text.x = element_text(angle = 45))
-
-# Normalize by the number of optimal actions...?
-ggplot(gg_df, aes(x = study_condition, y = frac_actions_diff, fill = noise_level)) +
-  geom_boxplot(aes(alpha = 0.3)) +
-  geom_jitter(aes(color = noise_level)) +
-  theme(axis.text.x = element_text(angle = 45))
-```
-
-So according to the second plot, there is a significant difference of whether a participant completed the scenario or not (fraction of people at max is its own distribution). So we're going to add that as a factor
-
-
-### Augmented Model
-
-This time, we plot the data first:
-
-```{r, eval=F}
-gg_df = subset(plot_df, scenario_completed == "1")
-gg_df$study_condition = factor(gg_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
-ggplot(gg_df, aes(x = study_condition, y = num_actions_diff, fill = noise_level)) +
-  geom_boxplot(aes(alpha = 0.3)) +
-  geom_jitter(aes(color = noise_level)) +
-  theme(axis.text.x = element_text(angle = 45))
-```
-
-```{r, eval=F}
-plot_df = users;
-plot_df$scenario_completed = factor(plot_df$scenario_completed)
-```
-```{r, eval=F}
-actions_diff.model.augmented = glm.nb(
-  num_actions_diff ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + scenario_completed,
-  data = plot_df
-)
-saveModel(actions_diff.model.augmented)
-```
-```{r, eval=F}
-actions_diff.model.augmented = loadModel("actions_diff.model.augmented")
-```
-```{r, eval=F}
-print(with(actions_diff.model.augmented, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
-print(summ(actions_diff.model.augmented))
+```{r, eval=!train_models}
+# Load the models
+num_actions_diff.model.t = loadModel("num_actions_diff.model.t")
+num_actions_diff.model.v = loadModel("num_actions_diff.model.v")
 ```
 
-There is indeed a large effect of the scenario completed; and controlling for it seems to negate the effect of whether action suggestions are present. Creating the sparser model from this full(er) model based on the factors that are deemed significant
+Model fitting results:
 
-```{r, eval=F}
-actions_diff.model.augmented.sparse = glm.nb(
-  num_actions_diff ~ gender + robot_experience + scenario_completed + has_dx*noise_level,
-  data = plot_df
-)
-saveModel(actions_diff.model.augmented.sparse)
-```
-```{r, eval=F}
-actions_diff.model.augmented.sparse = loadModel("actions_diff.model.augmented.sparse")
-```
-```{r, eval=F}
-print(with(actions_diff.model.augmented.sparse, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE)))
-print(summ(actions_diff.model.augmented.sparse))
+```{r}
+# Print the parameters, and some initial diagnostics
+print(tidy_stan(num_actions_diff.model.t))
+print(performance::r2(num_actions_diff.model.t))
 
-# Plot the coefficients. For some unknown reason, we cannot plot this model either
-plot_summs(actions_diff.model.augmented.sparse, plot.distributions = T)
-
-# Plot the DX and noise fit
-plot_df$fitted = actions_diff.model.augmented.sparse$fitted.values
-plot_df$scenario_completed = factor(plot_df$scenario_completed)
-ggplot(plot_df, aes(x = gender, y = num_actions_diff, color = scenario_completed, fill = scenario_completed)) +
-  geom_boxplot(aes(alpha = 0.3)) +
-  geom_jitter() +
-  geom_line(aes(y = fitted, x = gender, color = scenario_completed, group = scenario_completed, size = 2))
+print(tidy_stan(num_actions_diff.model.v))
+print(performance::r2(num_actions_diff.model.v))
 ```
 
-```{r, message=F, warning=F, eval=F}
-rm(actions_diff.model, actions_diff.model.sparse, actions_diff.model.augmented, actions_diff.model.augmented.sparse)
+Diagnostics of the fit:
+
+```{r fig.height=7, fig.width=15, eval=F}
+# Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
+
+# LOO cross-validation results
+print(num_actions_diff.model.t$criteria$loo$estimates)
+print(num_actions_diff.model.v$criteria$loo$estimates)
+print(loo_compare(num_actions_diff.model.t, num_actions_diff.model.v))
+
+# Diagnostics of the sampling process
+par(mfrow=c(1,2))
+plot(num_actions_diff.model.t$criteria$loo, main = "Trend Model")
+plot(num_actions_diff.model.v$criteria$loo, main = "Values Model")
+
+# Include posterior predictive checks of the sampling (are sampling according
+# to the data that we actually have?)
+p1 = pp_check(num_actions_diff.model.t, type = "bars_grouped", group = "has_ax", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(num_actions_diff.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
+p3 = pp_check(num_actions_diff.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p3, nrow = 3)
+mcmc_intervals(as.matrix(num_actions_diff.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Trends Model")
+
+p1 = pp_check(num_actions_diff.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
+p2 = pp_check(num_actions_diff.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
+p3 = pp_check(num_actions_diff.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p3, nrow = 3)
+mcmc_intervals(as.matrix(num_actions_diff.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Values Model")
+
+# Plot predictions vs original
+preds_p_df = num_actions_diff.model.t %>% predict() %>% as_tibble()
+p1 = 
+  preds_p_df %>%
+    add_column(num_actions_diff = num_actions_diff.model.t$data$num_actions_diff) %>%
+    ggplot(aes(x = Estimate, y = num_actions_diff)) +
+      geom_point() +
+      geom_abline(slope = 1, intercept = 0) +
+      # geom_text(aes(x = inv_logit_scaled(2.28)-0.01, y = 0.5, lasbel = "Intercept", color = 0, angle=90)) +
+      labs(x = "Predicted values") +
+      ggtitle("Trends Model")
+
+# Plot predictions vs original
+preds_p_df = num_actions_diff.model.v %>% predict() %>% as_tibble()
+p2 =
+  preds_p_df %>%
+    add_column(num_actions_diff = num_actions_diff.model.v$data$num_actions_diff) %>%
+    ggplot(aes(x = Estimate, y = num_actions_diff)) +
+      geom_point() +
+      geom_abline(slope = 1, intercept = 0) +
+      # geom_text(aes(x = inv_logit_scaled(2.28)-0.01, y = 0.5, label = "Intercept", color = 0, angle=90)) +
+      labs(x = "Predicted values") +
+      ggtitle("Values Model")
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+Inferences from the fitting:
+
+```{r}
+# Compute the bayes factor for each parameter value. Note: we compare
+# here against the ROPE, and not the degenerate null hypothesis of 0
+# Bayes-Factor values would be more significant in the latter case
+# According to the Raftery, 1995 rules
+# bf = 1 - 3: Weak
+# bf = 3 - 20: Positive
+# bf = 20 - 150: Strong
+# bf > 150: Very strong
+print(bayesfactor_rope(num_actions_diff.model.t, null = c(-0.55, 0.55)), n = 30)
+print(bayesfactor_rope(num_actions_diff.model.v, null = c(-0.55, 0.55)), n = 30)
+
+options(digits = 3)
+# Check the significance of each hypothesis
+h_df = as_tibble(insight::get_parameters(num_actions_diff.model.t)) %>%
+  transmute(
+    Intercept = b_Intercept,
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_levelL_test = b_noise_level.L,
+    noise_levelQ_test = b_noise_level.Q
+  )
+
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.55, 0.55))
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+
+h_df = as_tibble(insight::get_parameters(num_actions_diff.model.v)) %>%
+  transmute(
+    Intercept = b_Intercept,
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_level1_test = b_noise_level_f1,
+    noise_level2_test = b_noise_level_f2,
+    noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
+  )
+
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.55, 0.55))
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+options(digits = 7)
+```
+
+**Results**:
+
+There is no significant effect of any of the suggestions parameters on the number of actions taken, *once the effect of action suggestions on the completion of the scenario has been controlled for*. The `pd` value for gender suggests that there is an effect of gender exists on the number of actions, but we don't test the significance of that effect.
+
+(ROPE is defined as [-0.55, .55] and the range corresponds to a number of actions of 1.1. Therefore, a change of less than 0.55 actions in either direction is considered no different from a change of 0 in the number of actions)
+
+There are no further plots to show.
+
+```{r, echo=F}
+rm(num_actions_diff.model.t, num_actions_diff.model.v)
 gc()
 ```
 
