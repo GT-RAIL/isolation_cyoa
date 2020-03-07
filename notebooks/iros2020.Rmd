@@ -442,7 +442,7 @@ mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 
 
 # Plot predictions vs original
 preds_p_df = scenario_completed.model.t %>% predict() %>% as_tibble()
-p1 = 
+p1 =
   preds_p_df %>%
     add_column(scenario_completed = scenario_completed.model.t$data$scenario_completed) %>%
     ggplot(aes(x = Estimate, y = scenario_completed, color = scenario_completed)) +
@@ -454,9 +454,20 @@ p1 =
       xlim(0, 1) +
       ggtitle("Trends Model")
 
+preds_p_df = plot_df %>%
+  add_predicted_draws(scenario_completed.model.t) %>%
+  group_by(scenario_completed, .prediction) %>%
+  count()
+p2 =
+  preds_p_df %>%
+    ggplot(aes(x = scenario_completed, y = .prediction, fill = n / sum(preds_p_df$n))) +
+      geom_tile() +
+      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
+      scale_fill_gradient(limits = c(0, 1))
+
 # Plot predictions vs original
 preds_p_df = scenario_completed.model.v %>% predict() %>% as_tibble()
-p2 =
+p3 =
   preds_p_df %>%
     add_column(scenario_completed = scenario_completed.model.v$data$scenario_completed) %>%
     ggplot(aes(x = Estimate, y = scenario_completed, color = scenario_completed)) +
@@ -468,7 +479,18 @@ p2 =
       xlim(0, 1) +
       ggtitle("Values Model")
 
-grid.arrange(p1, p2, ncol = 2)
+preds_p_df = plot_df %>%
+  add_predicted_draws(scenario_completed.model.v) %>%
+  group_by(scenario_completed, .prediction) %>%
+  count()
+p4 =
+  preds_p_df %>%
+    ggplot(aes(x = scenario_completed, y = .prediction, fill = n / sum(preds_p_df$n))) +
+      geom_tile() +
+      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
+      scale_fill_gradient(limits = c(0, 1))
+
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 ```
 
 Inferences from the fitting:
@@ -633,6 +655,24 @@ gc()
 **The number of unnecessary actions that a person took; given the scenario they were assigned**
 
 ```{r}
+# Optional try using predicted values of scenario completed
+# scenario_completed.model.v = loadModel("scenario_completed.model.v")
+# preds_p_df = users %>%
+#   add_predicted_draws(scenario_completed.model.v, n=1) %>%
+#   ungroup() %>%
+#   rename(scenario_completed_pred = .prediction)
+# 
+# plot_df = preds_p_df %>%
+#   select(X1, id, study_condition, start_condition, num_optimal,
+#          age_group, gender, robot_experience,
+#          noise_level, noise_level_f, has_noise, has_dx, has_ax,
+#          scenario_completed, num_actions, num_actions_diff, frac_actions_diff,
+#          scenario_completed_pred) %>%
+#   mutate(scenario_completed = factor(scenario_completed),
+#          scenario_completed_pred = factor(scenario_completed_pred))
+# 
+# rm(scenario_completed.model.v, preds_p_df)
+
 plot_df = users %>%
   select(X1, id, study_condition, start_condition, num_optimal,
          age_group, gender, robot_experience,
@@ -851,6 +891,22 @@ saveModel(num_actions_diff.model.v)
 # num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "waic")
 # num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "loo", reloo = T)
 
+# Yet another option is to use our prediction of the scenario being completed as a metric
+# for filtering. This probably will not work as well because our predictions can be quite
+# iffy. There is a significant effect of adding the predictions, but not enough to really
+# differentiate us in the ROPE
+# num_actions_diff.model.v = brm(
+#   num_actions_diff ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + scenario_completed_pred,
+#   family = negbinomial,
+#   prior = c(set_prior("normal(0, 10)", class = "b"),
+#             set_prior("gamma(0.01, 0.01)", class = "shape")),
+#   data = plot_df,
+#   seed = default_seed,
+#   save_all_pars = T,
+#   sample_prior = T
+# )
+# num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "waic")
+# num_actions_diff.model.v = add_criterion(num_actions_diff.model.v, "loo", reloo = T)
 ```
 ```{r, eval=!train_models}
 # Load the models
