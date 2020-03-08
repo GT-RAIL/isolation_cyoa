@@ -188,6 +188,9 @@ actions$chose_dx = as.integer(actions$optimal_dx)
 # The user ID column in the users table that we can now join on is X1
 actions$user_id = actions %>% group_indices(user_id)
 
+# Rescale state ids
+actions$state_idx_rescaled = scales::rescale(actions$state_idx)
+
 # Code to relevel the age group factor to remove unused levels. Also, predict the
 # value of the 1 unknown age from the other indicators of demographics
 # NOTE: If we retrain the model and the output doesn't match the hardcoded
@@ -216,12 +219,14 @@ We use Deviation / Sum coding in the coding of non-ordered factors so that we ca
 
 In all our models:
 
-- $\beta_0$ is assumed to be the intercept. In a mixed effects model, this might be indexed by $i$, the user.
+- $\beta_0$ is assumed to be the intercept. In a mixed effects model, this is indexed by $i$, the user; i.e. $\beta_{0i}$.
 - $\mathbf{X_{demo,i}}$ is a vector of demographic information
 - $\text{ax}_i$ denotes if sample $i$ received AX suggestions or not
 - $\text{dx}_i$ denotes if sample $i$ received DX suggestions or not
 - $\text{noise}_i$ denotes the level of noise in the suggestions that sample $i$ received. 0 if none was present.
-- $\text{no}_i$ denotes the number of optimal actions for the scenario presented to user $i$. This is a proxy for a factor encoding of the start scenario
+- $\text{no}_i$ denotes the number of optimal actions for the scenario present in sample $i$. This is a proxy for a factor encoding of the start scenario
+- $\text{scenario_completed}_i$ denotes whether sample $i$ completed the scenario or not. When used as a predictor, this is a binary factor; when used as a dependent variable, this is a probability of the user completing the scenario.
+- $\text{state}_{ij}$ denotes the state the user $i$ visited on action number $j$. The sample, in this case, is indexed by $j$. The states are indexed according to the frequency of users visits (0 = most visited state), and then all the indices are rescaled into the range 0-1.
 
 We test the following hypotheses (the explanations are a statement of the null hypotheses; the coefficients are from the expected regression parameters, given sum coding):
 
@@ -632,18 +637,23 @@ p_df =
 
 fits_p_df = p_df %>% add_fitted_draws(scenario_completed.model.v)
 pars_p_df = scenario_completed.model.t %>% extract_draws(newdata = p_df %>% rename(noise_level = noise_level_f))
-rope_value = inv_logit_scaled(fixef(scenario_completed.model.null)["Intercept","Estimate"])
 # We don't want predicted draws because that's a raw count of ones and zeros; not the
 # probability distribution
 # preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
 
 # Plot the posterior distributions
+# rope_value = inv_logit_scaled(fixef(scenario_completed.model.null)["Intercept","Estimate"])
+rope_value = gg_df %>%
+  filter(scenario_completed == 'complete', has_ax == F) %>%
+  summarise(.value = median(n) / 20) %>%
+  pull(.value)
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
   ggplot(aes(x = has_ax, y = n / 20)) +
     geom_rect(ymin = rope_value-0.055, ymax = rope_value+0.055,
               xmin = -Inf, xmax = Inf,
               color = "transparent", fill = "white") +
+    annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
     stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
@@ -651,12 +661,17 @@ gg_df %>%
     ylim(0, 1) +
     labs(y = "scenario_completed", color = "AX:DX:Noise")
 
+rope_value = gg_df %>%
+  filter(scenario_completed == 'complete', has_dx == F) %>%
+  summarise(.value = median(n) / 20) %>%
+  pull(.value)
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
   ggplot(aes(x = has_dx, y = n / 20)) +
     geom_rect(ymin = rope_value-0.055, ymax = rope_value+0.055,
               xmin = -Inf, xmax = Inf,
               color = "transparent", fill = "white") +
+    annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
     stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
@@ -664,12 +679,18 @@ gg_df %>%
     ylim(0, 1) +
     labs(y = "scenario_completed", color = "AX:DX:Noise")
 
+rope_value = gg_df %>%
+  filter(scenario_completed == 'complete', noise_level == "0.0") %>%
+  summarise(.value = median(n) / 20) %>%
+  pull(.value)
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
   ggplot(aes(x = noise_level, y = n / 20)) +
     geom_rect(ymin = rope_value-0.055, ymax = rope_value+0.055,
               xmin = -Inf, xmax = Inf,
               color = "transparent", fill = "white") +
+    annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
     stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
     stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
@@ -688,12 +709,18 @@ p_df =
   gather(key = ".sample", value = ".value", V1:V100) %>%
   rename(noise_level = noise_level_f)
 
+rope_value = gg_df %>%
+  filter(scenario_completed == 'complete', noise_level == "0.0") %>%
+  summarise(.value = median(n) / 20) %>%
+  pull(.value)
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
   ggplot(aes(x = noise_level, y = n / 20)) +
     geom_rect(ymin = rope_value-0.055, ymax = rope_value+0.055,
               xmin = -Inf, xmax = Inf,
               color = "transparent", fill = "white") +
+    annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
     stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_line(aes(y = .value, group = .sample, alpha = 0.3), data = p_df) +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
@@ -707,7 +734,7 @@ gg_df %>%
 rm(fits_p_df, pars_p_df, pars_p_df_b, pars_p_df_X, pars_p_df_y, p_df, gg_df)
 ```
 
-```{r, echo=F}
+```{r, echo=F, results=F, message=F, warning=F}
 rm(scenario_completed.model.null, scenario_completed.model.t, scenario_completed.model.v)
 gc()
 ```
@@ -873,6 +900,8 @@ The prior for the $\phi$ parameter is the default used in `brms`; I see no need 
 Model fitting:
 
 ```{r, eval=train_models}
+# TODO: Add the null model here
+
 # The trend model to see if there is a trend in the noise level variable
 num_actions_diff.model.t = brm(
   num_actions_diff ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
@@ -1095,9 +1124,9 @@ There is no significant effect of any of the suggestions parameters on the numbe
 
 (ROPE is defined as [-0.55, .55] and the range corresponds to a number of actions of 1.1. Therefore, a change of less than 0.55 actions in either direction is considered no different from a change of 0 in the number of actions)
 
-There are no further plots to show.
+There are no plots to show (all effects are supposedly non-existent).
 
-```{r, echo=F}
+```{r, echo=F, results=F, message=F, warning=F}
 rm(num_actions_diff.model.t, num_actions_diff.model.v)
 gc()
 ```
@@ -1105,134 +1134,363 @@ gc()
 
 # Action Level Metrics {.tabset}
 
+These are metrics where an individual unit of analysis is the action of any given user.
+
 ## Taking Optimal Actions
 
-One can almost think of this as an inverse of the "reliance" metric mentioned by Jessie Yang et al. We're going to need brms to fit all the models here.
+**Did the user take an optimal action given the state that they were in**
+
+One can almost think of this as an inverse of the "Reliance" metric mentioned by Jessie Yang et al. - If participants were "reliant" on the suggestions, then those under the noise condition would perform worse.
 
 ```{r}
-gg_df = users
-gg_df$study_condition = factor(gg_df$study_condition, levels = c("DX_100", "AX_100", "DXAX_100", "DX_90", "AX_90", "DXAX_90", "DX_80", "AX_80", "DXAX_80", "BASELINE"))
-ggplot(gg_df, aes(x = study_condition, y = num_ax_optimal, fill = noise_level)) +
-  geom_boxplot(aes(alpha = 0.3)) +
-  # geom_jitter(aes(color = noise_level)) +
-  theme(axis.text.x = element_text(angle = 45))
+plot_df = actions %>%
+  select(X1, id, user_id, study_condition, start_condition, num_optimal,
+         state_idx, state_idx_rescaled,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, optimal_ax)
 
-# This is technically what the binomial regression is checking
-ggplot(gg_df, aes(x = study_condition, y = frac_ax_optimal, fill = noise_level)) +
-  geom_boxplot(aes(alpha = 0.3)) +
-  # geom_jitter(aes(color = noise_level)) +
-  theme(axis.text.x = element_text(angle = 45))
+text_short(report(plot_df))
 ```
 
-The choice of the model family is informed by the tests in the second markdown file.
+```{r fig.height=7, fig.width=15}
+gg_df =
+  plot_df %>%
+    mutate(noise_level = fct_rev(noise_level)) %>%
+    mutate(optimal_ax = factor(optimal_ax)) %>%
+    mutate(user_id = factor(user_id)) %>%
+    mutate(optimal_ax = fct_recode(optimal_ax, incorrect="0", correct = "1")) %>%
+    mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+    count(user_id, study_condition, .fill_column, optimal_ax, num_actions, has_ax, has_dx, noise_level,
+          name = "num_optimal_ax")
 
-```{r, eval=F}
-plot_df = actions
+# Plot by the study condition
+gg_df %>%
+  ggplot(aes(user_id, num_optimal_ax / num_actions, fill=optimal_ax)) +
+    geom_bar(stat="identity") +
+    geom_hline(yintercept = 0.5) +
+    facet_wrap(vars(study_condition), nrow = 1, scales = "free_y") +
+    labs(y = "Fraction correct actions") +
+    coord_flip() +
+    scale_fill_economist()
+
+gg_df %>%
+  filter(optimal_ax == "correct") %>%
+  ggplot(aes(study_condition, num_optimal_ax / num_actions, fill=.fill_column)) +
+    geom_violin() +
+    geom_boxplot(width = 0.1) +
+    labs(y = "Fraction correct actions", fill = "noise:has_suggestions") +
+    scale_fill_economist()
+
+# Visualize the data facetted by the variables that we care about
+p1 = gg_df %>%
+  filter(optimal_ax == "correct") %>%
+  ggplot(aes(has_ax, num_optimal_ax / num_actions, fill=.fill_column)) +
+    geom_boxplot() +
+    geom_count() +
+    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Fraction correct actions") +
+    scale_fill_economist() +
+    theme(legend.position = "left")
+
+p2 = gg_df %>%
+  filter(optimal_ax == "correct") %>%
+  ggplot(aes(has_dx, num_optimal_ax / num_actions, fill=.fill_column)) +
+    geom_boxplot() +
+    geom_count() +
+    facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
+    labs(y = "Fraction correct actions") +
+    scale_fill_economist() +
+    legend_none()
+
+p3 = gg_df %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  mutate(has_ax = factor(has_ax)) %>%
+  mutate(has_ax = fct_rev(has_ax)) %>%
+  ggplot(aes(noise_level, num_optimal_ax / num_actions, fill=.fill_column)) +
+    geom_boxplot() +
+    geom_count() +
+    facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Fraction correct actions") +
+    scale_fill_economist() +
+    legend_none()
+
+grid.arrange(p1, p2, p3, ncol = 3)
+
+# Visualize also the variation in each of the three levels that we care about
+p1 = gg_df %>%
+  filter(optimal_ax == 'correct') %>%
+  ggplot(aes(has_ax, num_optimal_ax/num_actions)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    labs(color = "AX:DX:Noise") +
+    theme(legend.position = "left") +
+    guides(size = F)
+
+p2 = gg_df %>%
+  filter(optimal_ax == 'correct') %>%
+  ggplot(aes(has_dx, num_optimal_ax/num_actions)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    legend_none()
+
+p3 = gg_df %>%
+  filter(optimal_ax == 'correct') %>%
+  ggplot(aes(noise_level, num_optimal_ax/num_actions)) +
+    geom_violin() +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    scale_x_discrete(limits = rev(levels(gg_df$noise_level))) +
+    legend_none()
+
+grid.arrange(p1, p2, p3, ncol = 3)
 ```
-```{r, eval=F}
-# Fit the main model
-optimal_action.model = brm(
-  optimal_ax | trials(num_actions) ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+
+Based on the data, we assume the following structural model:
+
+$$correct\_action_i = Bernoulli(p_i)$$
+$$\begin{aligned}
+logit(p_j) &= \beta_0 + \beta_{0i} + \beta_{ax}\text{ax}_j + \beta_{dx}\text{dx}_j + \beta_{noise}\text{noise}_j +\\
+&\beta_{ax:noise}\text{ax}_j\text{noise}_j + \beta_{dx:noise}\text{dx}_j\text{noise}_j + \\
+&\beta_{no}\text{no}_j + \mathbf{\beta_{demo}X_{demo,j}} + \beta_{state} \text{state}_{ij}
+\end{aligned}$$
+$$\begin{aligned}
+\beta_{.} &\sim Normal(0, 10) \\
+\beta_{0i} &\sim Normal(0, \sigma_i) \\
+\sigma_i &\sim HalfStudent(3, 0, 10)
+\end{aligned}$$
+
+The prior for the $\sigma_i$ parameter is the default used in `brms`; I see no need to change it.
+
+Model fitting:
+
+```{r, eval=train_models}
+# The null model
+optimal_ax.model.null = brm(
+  optimal_ax ~ 0 + Intercept,
+  family = "bernoulli",
+  prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
-  family = "binomial",
-  cores = 4
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
 )
-optimal_action.model = add_criterion(optimal_action.model, "waic")
-optimal_action.model = add_criterion(optimal_action.model, "loo")
-saveModel(optimal_action.model)
-```
-```{r, eval=F}
-optimal_action.model = loadModel("optimal_action.model")
-```
-```{r, eval=F}
-print(summary(optimal_action.model))
-print(optimal_action.model$criteria$loo$estimates)
-```
+optimal_ax.model.null = add_criterion(optimal_ax.model.null, "waic")
+optimal_ax.model.null = add_criterion(optimal_ax.model.null, "loo", reloo = T)
+saveModel(optimal_ax.model.null)
 
-```{r, eval=F}
-# Plot the effects of the condition (the stuff we care about)
-hyp_to_test = c("has_axTRUE = 0", "has_dxTRUE = 0",
-                "noise_level.Q = 0", "noise_level.L = 0",
-                "has_axTRUE:noise_level.Q = 0", "has_axTRUE:noise_level.L = 0",
-                "has_dxTRUE:noise_level.Q = 0", "has_dxTRUE:noise_level.L = 0")
-hyp_results = hypothesis(optimal_action.model, hypothesis = hyp_to_test)
-print(as.matrix(hyp_results$hypothesis))
-plot(hyp_results, ask = F)
-
-mcmc_areas(as.matrix(optimal_action.model), regex_pars = "has_|noise_", prob = 0.95, prob_outer = 1)
-mcmc_intervals(as.matrix(optimal_action.model), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
-```
-
-Based on the plots, it seems that a reduced model for this model might include state_idx, robot_experience, age_group, and has_ax.
-
-```{r, eval=F}
-optimal_action.model.sparse = brm(
-  optimal_ax | trials(num_actions) ~ has_ax + age_group + robot_experience + state_idx + (1 | user_id),
+# The trend model to see if there is a trend in the noise level variable
+optimal_ax.model.t = brm(
+  optimal_ax ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  family = bernoulli,
+  prior = c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("student_t(3, 0, 10)", class = "sd")),
   data = plot_df,
-  family = "binomial",
-  cores = 4,
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
 )
-optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "waic")
-optimal_action.model.sparse = add_criterion(optimal_action.model.sparse, "loo")
-saveModel(optimal_action.model.sparse)
+optimal_ax.model.t = add_criterion(optimal_ax.model.t, "waic")
+optimal_ax.model.t = add_criterion(optimal_ax.model.t, "loo", reloo = T)
+saveModel(optimal_ax.model.t)
+
+# The values model, to see if specific values of the noise level variable are significant
+optimal_ax.model.v = brm(
+  optimal_ax ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  family = bernoulli,
+  prior = c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("student_t(3, 0, 10)", class = "sd")),
+  data = plot_df,
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
+)
+optimal_ax.model.v = add_criterion(optimal_ax.model.v, "waic")
+optimal_ax.model.v = add_criterion(optimal_ax.model.v, "loo", reloo = T)
+saveModel(optimal_ax.model.v)
 ```
-```{r, eval=F}
-optimal_action.model.sparse = loadModel("optimal_action.model.sparse")
-```
-```{r, eval=F}
-print(summary(optimal_action.model.sparse))
-print(optimal_action.model.sparse$criteria$loo$estimates)
-print(loo_compare(optimal_action.model, optimal_action.model.sparse))
-
-# Plot the effects of the condition (the stuff we care about)
-hyp_to_test = c("has_axTRUE = 0")
-hyp_results = hypothesis(optimal_action.model.sparse, hypothesis = hyp_to_test)
-print(as.matrix(hyp_results$hypothesis))
-plot(hyp_results, ask = F)
-
-mcmc_areas(as.matrix(optimal_action.model.sparse), regex_pars = "has_|noise_", prob = 0.95, prob_outer = 1)
-mcmc_intervals(as.matrix(optimal_action.model.sparse), regex_pars = "b_", prob = 0.90, prob_outer = 0.95)
-```
-
-So there are three independent effects; get the conditional plots for those
-
-```{r, eval=F}
-plot(conditional_effects(optimal_action.model.sparse, effects = "has_ax"), ask = F, points = T)
-plot(conditional_effects(optimal_action.model.sparse, effects = "robot_experience"), ask = F, points = T)
-plot(conditional_effects(optimal_action.model.sparse, effects = "age_group"), ask = F, points = T)
-```
-```{r, eval=F}
-# We want to create our own conditional sample, but don't want to kill our machine
-plot_df$state_idx = mean(plot_df$state_idx)
-g = subset(plot_df, age_group == 0 | age_group == 8) %>%
-  data_grid(num_actions, has_ax, age_group, robot_experience, state_idx, user_id)
-fits = g %>% add_fitted_draws(optimal_action.model.sparse, n=10)
-preds = g %>% add_predicted_draws(optimal_action.model.sparse, n=10)
-
-# Binary responses are obvious
-plot_df %>%
-  ggplot(aes(y = has_ax, x = optimal_ax / num_actions)) +
-  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
-  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
-  geom_point(data = plot_df, color = 'gray')
-
-# For multi-level responses, we should do a pairwise comparison
-plot_df %>%
-  ggplot(aes(y = robot_experience, x = optimal_ax / num_actions)) +
-  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
-  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
-  geom_point(data = plot_df, color = 'gray')
-
-# I don't understand why there are more than 2 age groups... is it because of the sampling process?
-plot_df %>%
-  ggplot(aes(y = age_group, x = optimal_ax / num_actions)) +
-  stat_halfeyeh(aes(x = .value / num_actions), position = position_nudge(y = 0.1), data = fits) +
-  stat_intervalh(aes(x = .prediction / num_actions), data = preds) +
-  geom_point(data = plot_df, color = 'gray')
+```{r, eval=!train_models}
+# Load the models
+optimal_ax.model.null = loadModel("optimal_ax.model.null")
+optimal_ax.model.t = loadModel("optimal_ax.model.t")
+optimal_ax.model.v = loadModel("optimal_ax.model.v")
 ```
 
-```{r, message=F, warning=F, eval=F}
-rm(optimal_action.model, optimal_action.model.sparse)
+Model fitting results:
+
+```{r}
+# Print the parameters, and some initial diagnostics
+print(tidy_stan(optimal_ax.model.t))
+print(performance::r2(optimal_ax.model.t))
+
+print(tidy_stan(optimal_ax.model.v))
+print(performance::r2(optimal_ax.model.v))
+```
+
+Diagnostics of the fit:
+
+```{r fig.height=7, fig.width=15, eval=F}
+# Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
+
+# LOO cross-validation results
+print(optimal_ax.model.t$criteria$loo$estimates)
+print(optimal_ax.model.v$criteria$loo$estimates)
+print(loo_compare(optimal_ax.model.null, optimal_ax.model.t, optimal_ax.model.v))
+
+# Diagnostics of the sampling process
+par(mfrow=c(1,2))
+plot(optimal_ax.model.t$criteria$loo, main = "Trend Model")
+plot(optimal_ax.model.v$criteria$loo, main = "Values Model")
+
+# Include posterior predictive checks of the sampling (are sampling according
+# to the data that we actually have?)
+p1 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_ax", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
+p3 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p3, nrow = 3)
+mcmc_intervals(as.matrix(optimal_ax.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Trends Model")
+
+p1 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
+p2 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
+p3 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p3, nrow = 3)
+mcmc_intervals(as.matrix(optimal_ax.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Values Model")
+
+# Plot predictions vs original
+preds_p_df = optimal_ax.model.null %>% predict() %>% as_tibble()
+p1 =
+  preds_p_df %>%
+    add_column(optimal_ax = optimal_ax.model.null$data$optimal_ax) %>%
+    ggplot(aes(x = Estimate, y = optimal_ax, color = optimal_ax)) +
+      geom_point() +
+      labs(x = "Predicted values") +
+      ylim(0, 1) +
+      xlim(0, 1) +
+      ggtitle("Null Model")
+
+preds_p_df = plot_df %>%
+  add_predicted_draws(optimal_ax.model.null) %>%
+  group_by(optimal_ax, .prediction) %>%
+  count()
+p2 =
+  preds_p_df %>%
+    ggplot(aes(x = optimal_ax, y = .prediction, fill = n / sum(preds_p_df$n))) +
+      geom_tile() +
+      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
+      scale_fill_gradient(limits = c(0, 1))
+
+preds_p_df = optimal_ax.model.t %>% predict() %>% as_tibble()
+p3 =
+  preds_p_df %>%
+    add_column(optimal_ax = optimal_ax.model.t$data$optimal_ax) %>%
+    ggplot(aes(x = Estimate, y = optimal_ax, color = optimal_ax)) +
+      geom_point() +
+      labs(x = "Predicted values") +
+      ylim(0, 1) +
+      xlim(0, 1) +
+      ggtitle("Trends Model")
+
+preds_p_df = plot_df %>%
+  add_predicted_draws(optimal_ax.model.t) %>%
+  group_by(optimal_ax, .prediction) %>%
+  count()
+p4 =
+  preds_p_df %>%
+    ggplot(aes(x = optimal_ax, y = .prediction, fill = n / sum(preds_p_df$n))) +
+      geom_tile() +
+      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
+      scale_fill_gradient(limits = c(0, 1))
+
+# Plot predictions vs original
+preds_p_df = optimal_ax.model.v %>% predict() %>% as_tibble()
+p5 =
+  preds_p_df %>%
+    add_column(optimal_ax = optimal_ax.model.v$data$optimal_ax) %>%
+    ggplot(aes(x = Estimate, y = optimal_ax, color = optimal_ax)) +
+      geom_point() +
+      labs(x = "Predicted values") +
+      ylim(0, 1) +
+      xlim(0, 1) +
+      ggtitle("Values Model")
+
+preds_p_df = plot_df %>%
+  add_predicted_draws(optimal_ax.model.v) %>%
+  group_by(optimal_ax, .prediction) %>%
+  count()
+p6 =
+  preds_p_df %>%
+    ggplot(aes(x = optimal_ax, y = .prediction, fill = n / sum(preds_p_df$n))) +
+      geom_tile() +
+      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
+      scale_fill_gradient(limits = c(0, 1))
+
+grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
+```
+
+Inferences from the fitting:
+
+```{r}
+# Compute the bayes factor for each parameter value. Note: we compare
+# here against the ROPE, and not the degenerate null hypothesis of 0
+# Bayes-Factor values would be more significant in the latter case
+# According to the Raftery, 1995 rules
+# bf = 1 - 3: Weak
+# bf = 3 - 20: Positive
+# bf = 20 - 150: Strong
+# bf > 150: Very strong
+print(bayesfactor_rope(optimal_ax.model.null, null = c(-0.055, 0.055)), n = 30)
+print(bayesfactor_rope(optimal_ax.model.t, null = c(-0.055, 0.055)), n = 30)
+print(bayesfactor_rope(optimal_ax.model.v, null = c(-0.055, 0.055)), n = 30)
+
+options(digits = 3)
+# Check the significance of each hypothesis
+h_df = as_tibble(insight::get_parameters(optimal_ax.model.t)) %>%
+  transmute(
+    Intercept = b_Intercept,
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_levelL_test = b_noise_level.L,
+    noise_levelQ_test = b_noise_level.Q
+  )
+
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+
+h_df = as_tibble(insight::get_parameters(optimal_ax.model.v)) %>%
+  transmute(
+    Intercept = b_Intercept,
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_level1_test = b_noise_level_f1,
+    noise_level2_test = b_noise_level_f2,
+    noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
+  )
+
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+options(digits = 7)
+```
+
+**Results**:
+
+There is no significant effect of any of the suggestions parameters on the number of actions taken, *once the effect of action suggestions on the completion of the scenario has been controlled for*. The `pd` value for gender suggests that there is an effect of gender exists on the number of actions, but we don't test the significance of that effect.
+
+(ROPE is defined as [-0.55, .55] and the range corresponds to a number of actions of 1.1. Therefore, a change of less than 0.55 actions in either direction is considered no different from a change of 0 in the number of actions)
+
+There are no plots to show (all effects are supposedly non-existent).
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(optimal_ax.model.null, optimal_ax.model.t, optimal_ax.model.v)
 gc()
 ```
 
