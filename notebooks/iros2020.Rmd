@@ -1868,7 +1868,7 @@ mcmc_intervals(as.matrix(chose_ax.model.t), regex_pars = "b_|^shape", prob = 0.9
 
 p2 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
 p3 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+grid.arrange(p2, p3, nrow = 2)
 mcmc_intervals(as.matrix(chose_ax.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -2423,7 +2423,7 @@ options(digits = 7)
 **Results**:
 
 1. The effect of incorporating diagnosis suggestions (DX) has a probability 0.98 of being positive (Median = 0.56, 89% CI [0.19, 1.00]) and can be considered as significant (0.0% in ROPE).
-1. The noise level has a linear relationship to the probability of choosing the right diagnoses with a negative effect size (slope) with probability of 0.97 (Median = -0.42, 89% CI [-0.76, -0.09]) and can be considered significant (0.0% in ROPE).
+1. The noise level has a linear relationship to the probability of choosing the right diagnoses with a negative effect size (negative slope) with probability of 0.97 (Median = -0.42, 89% CI [-0.76, -0.09]) and can be considered significant (0.0% in ROPE).
 
 (The ROPE is defined as [-0.055, 0.055]. It is the range is suggested in the literature for logistic models and it corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
@@ -2612,9 +2612,9 @@ gg_df %>%
     scale_fill_economist()
 
 # Visualize the data facetted by the variables that we care about
-p2 = gg_df %>%
+p1 = gg_df %>%
   filter(chose_dx == "follow") %>%
-  ggplot(aes(has_dx, num_follow_dx / num_actions, fill=.fill_column)) +
+  ggplot(aes(has_ax, num_follow_dx / num_actions, fill=.fill_column)) +
     geom_boxplot() +
     geom_count() +
     facet_grid(rows = vars(noise_level), labeller = label_both) +
@@ -2623,22 +2623,22 @@ p2 = gg_df %>%
     theme(legend.position = "right")
 
 p3 = gg_df %>%
-  filter(chose_ax == "follow") %>%
+  filter(chose_dx == "follow") %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
-  ggplot(aes(noise_level, num_follow_ax / num_actions, fill=.fill_column)) +
+  ggplot(aes(noise_level, num_follow_dx / num_actions, fill=.fill_column)) +
     geom_boxplot() +
     geom_count() +
-    facet_grid(cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Fraction followed AX") +
+    facet_grid(cols = vars(has_ax), labeller = label_both) +
+    labs(y = "Fraction followed DX") +
     scale_fill_economist() +
     legend_none()
 
-grid.arrange(p2, p3, ncol = 2)
+grid.arrange(p1, p3, ncol = 2)
 
 # Visualize also the variation in each of the three levels that we care about
-p2 = gg_df %>%
-  filter(chose_ax == 'follow') %>%
-  ggplot(aes(has_dx, num_follow_ax/num_actions)) +
+p1 = gg_df %>%
+  filter(chose_dx == 'follow') %>%
+  ggplot(aes(has_ax, num_follow_dx/num_actions)) +
     geom_violin() +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
     stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
@@ -2647,8 +2647,8 @@ p2 = gg_df %>%
     theme(legend.position = "right")
 
 p3 = gg_df %>%
-  filter(chose_ax == 'follow') %>%
-  ggplot(aes(noise_level, num_follow_ax/num_actions)) +
+  filter(chose_dx == 'follow') %>%
+  ggplot(aes(noise_level, num_follow_dx/num_actions)) +
     geom_violin() +
     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
     stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
@@ -2657,14 +2657,14 @@ p3 = gg_df %>%
     scale_x_discrete(limits = rev(levels(gg_df$noise_level))) +
     legend_none()
 
-grid.arrange(p2, p3, ncol = 2)
+grid.arrange(p1, p3, ncol = 2)
 ```
 
 Based on the data, we assume the following structural model:
 
-$$follow\_ax_i = Bernoulli(p_i)$$
+$$follow\_dx_i = Bernoulli(p_i)$$
 $$\begin{aligned}
-logit(p_j) &= \beta_0 + \beta_{0i} + \beta_{dx}\text{dx}_j + \beta_{noise}\text{noise}_j + \beta_{dx:noise}\text{dx}_j\text{noise}_j + \\
+logit(p_j) &= \beta_0 + \beta_{0i} + \beta_{ax}\text{ax}_j + \beta_{noise}\text{noise}_j + \beta_{ax:noise}\text{ax}_j\text{noise}_j + \\
 &\beta_{no}\text{no}_j + \mathbf{\beta_{demo}X_{demo,j}} + \beta_{state} \text{state}_{ij}
 \end{aligned}$$
 $$\begin{aligned}
@@ -2679,8 +2679,8 @@ Model fitting:
 
 ```{r, eval=train_models}
 # The null model
-chose_ax.model.null = brm(
-  chose_ax ~ 0 + Intercept,
+chose_dx.model.null = brm(
+  chose_dx ~ 0 + Intercept,
   family = "bernoulli",
   prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
@@ -2688,13 +2688,13 @@ chose_ax.model.null = brm(
   save_all_pars = T,
   sample_prior = T
 )
-chose_ax.model.null = add_criterion(chose_ax.model.null, "waic")
-chose_ax.model.null = add_criterion(chose_ax.model.null, "loo", reloo = T)
-saveModel(chose_ax.model.null)
+chose_dx.model.null = add_criterion(chose_dx.model.null, "waic")
+chose_dx.model.null = add_criterion(chose_dx.model.null, "loo", reloo = T)
+saveModel(chose_dx.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
-chose_ax.model.t = brm(
-  chose_ax ~ 0 + Intercept + (has_dx * noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+chose_dx.model.t = brm(
+  chose_dx ~ 0 + Intercept + (has_ax * noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -2703,13 +2703,13 @@ chose_ax.model.t = brm(
   save_all_pars = T,
   sample_prior = T
 )
-chose_ax.model.t = add_criterion(chose_ax.model.t, "waic")
-chose_ax.model.t = add_criterion(chose_ax.model.t, "loo", reloo = T)
-saveModel(chose_ax.model.t)
+chose_dx.model.t = add_criterion(chose_dx.model.t, "waic")
+chose_dx.model.t = add_criterion(chose_dx.model.t, "loo", reloo = T)
+saveModel(chose_dx.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
-chose_ax.model.v = brm(
-  chose_ax ~ 0 + Intercept + (has_dx * noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+chose_dx.model.v = brm(
+  chose_dx ~ 0 + Intercept + (has_ax * noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -2718,29 +2718,29 @@ chose_ax.model.v = brm(
   save_all_pars = T,
   sample_prior = T
 )
-chose_ax.model.v = add_criterion(chose_ax.model.v, "waic")
-chose_ax.model.v = add_criterion(chose_ax.model.v, "loo", reloo = T)
-saveModel(chose_ax.model.v)
+chose_dx.model.v = add_criterion(chose_dx.model.v, "waic")
+chose_dx.model.v = add_criterion(chose_dx.model.v, "loo", reloo = T)
+saveModel(chose_dx.model.v)
 ```
 ```{r, eval=!train_models}
 # Load the models
-chose_ax.model.null = loadModel("chose_ax.model.null")
-chose_ax.model.t = loadModel("chose_ax.model.t")
-chose_ax.model.v = loadModel("chose_ax.model.v")
+chose_dx.model.null = loadModel("chose_dx.model.null")
+chose_dx.model.t = loadModel("chose_dx.model.t")
+chose_dx.model.v = loadModel("chose_dx.model.v")
 ```
 
 Model fitting results:
 
 ```{r}
 # print(tidy_stan(chose_ax.model.null))
-print(performance::r2(chose_ax.model.null))
+print(performance::r2(chose_dx.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(chose_ax.model.t))
-print(performance::r2(chose_ax.model.t))
+print(tidy_stan(chose_dx.model.t))
+print(performance::r2(chose_dx.model.t))
 
-print(tidy_stan(chose_ax.model.v))
-print(performance::r2(chose_ax.model.v))
+print(tidy_stan(chose_dx.model.v))
+print(performance::r2(chose_dx.model.v))
 ```
 
 Diagnostics of the fit:
@@ -2749,35 +2749,35 @@ Diagnostics of the fit:
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
-print(chose_ax.model.t$criteria$loo$estimates)
-print(chose_ax.model.v$criteria$loo$estimates)
-print(loo_compare(chose_ax.model.null, chose_ax.model.t, chose_ax.model.v))
+print(chose_dx.model.t$criteria$loo$estimates)
+print(chose_dx.model.v$criteria$loo$estimates)
+print(loo_compare(chose_dx.model.null, chose_dx.model.t, chose_dx.model.v))
 
 # Diagnostics of the sampling process
 par(mfrow=c(1,2))
-plot(chose_ax.model.t$criteria$loo, main = "Trend Model")
-plot(chose_ax.model.v$criteria$loo, main = "Values Model")
+plot(chose_dx.model.t$criteria$loo, main = "Trend Model")
+plot(chose_dx.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-p2 = pp_check(chose_ax.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
-p3 = pp_check(chose_ax.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
-grid.arrange(p2, p3, ncol = 2)
-mcmc_intervals(as.matrix(chose_ax.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
+p1 = pp_check(chose_dx.model.t, type = "bars_grouped", group = "has_ax") + ggtitle("t:has_ax")
+p3 = pp_check(chose_dx.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
+grid.arrange(p1, p3, ncol = 2)
+mcmc_intervals(as.matrix(chose_dx.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p2 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
-p3 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
-mcmc_intervals(as.matrix(chose_ax.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
+p1 = pp_check(chose_dx.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
+p3 = pp_check(chose_dx.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
+grid.arrange(p1, p3, nrow = 2)
+mcmc_intervals(as.matrix(chose_dx.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
 # Plot predictions vs original
-preds_p_df = chose_ax.model.null %>% predict() %>% as_tibble()
+preds_p_df = chose_dx.model.null %>% predict() %>% as_tibble()
 p1 =
   preds_p_df %>%
-    add_column(chose_ax = chose_ax.model.null$data$chose_ax) %>%
-    ggplot(aes(x = Estimate, y = chose_ax, color = chose_ax)) +
+    add_column(chose_dx = chose_dx.model.null$data$chose_dx) %>%
+    ggplot(aes(x = Estimate, y = chose_dx, color = chose_dx)) +
       geom_point() +
       labs(x = "Predicted values") +
       ylim(0, 1) +
@@ -2785,21 +2785,21 @@ p1 =
       ggtitle("Null Model")
 
 preds_p_df = plot_df %>%
-  add_predicted_draws(chose_ax.model.null) %>%
-  group_by(chose_ax, .prediction) %>%
+  add_predicted_draws(chose_dx.model.null) %>%
+  group_by(chose_dx, .prediction) %>%
   count()
 p2 =
   preds_p_df %>%
-    ggplot(aes(x = chose_ax, y = .prediction, fill = n / sum(preds_p_df$n))) +
+    ggplot(aes(x = chose_dx, y = .prediction, fill = n / sum(preds_p_df$n))) +
       geom_tile() +
       geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
       scale_fill_gradient(limits = c(0, 1))
 
-preds_p_df = chose_ax.model.t %>% predict() %>% as_tibble()
+preds_p_df = chose_dx.model.t %>% predict() %>% as_tibble()
 p3 =
   preds_p_df %>%
-    add_column(chose_ax = chose_ax.model.t$data$chose_ax) %>%
-    ggplot(aes(x = Estimate, y = chose_ax, color = chose_ax)) +
+    add_column(chose_dx = chose_dx.model.t$data$chose_dx) %>%
+    ggplot(aes(x = Estimate, y = chose_dx, color = chose_dx)) +
       geom_point() +
       labs(x = "Predicted values") +
       ylim(0, 1) +
@@ -2807,22 +2807,22 @@ p3 =
       ggtitle("Trends Model")
 
 preds_p_df = plot_df %>%
-  add_predicted_draws(chose_ax.model.t) %>%
-  group_by(chose_ax, .prediction) %>%
+  add_predicted_draws(chose_dx.model.t) %>%
+  group_by(chose_dx, .prediction) %>%
   count()
 p4 =
   preds_p_df %>%
-    ggplot(aes(x = chose_ax, y = .prediction, fill = n / sum(preds_p_df$n))) +
+    ggplot(aes(x = chose_dx, y = .prediction, fill = n / sum(preds_p_df$n))) +
       geom_tile() +
       geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
       scale_fill_gradient(limits = c(0, 1))
 
 # Plot predictions vs original
-preds_p_df = chose_ax.model.v %>% predict() %>% as_tibble()
+preds_p_df = chose_dx.model.v %>% predict() %>% as_tibble()
 p5 =
   preds_p_df %>%
-    add_column(chose_ax = chose_ax.model.v$data$chose_ax) %>%
-    ggplot(aes(x = Estimate, y = chose_ax, color = chose_ax)) +
+    add_column(chose_dx = chose_dx.model.v$data$chose_dx) %>%
+    ggplot(aes(x = Estimate, y = chose_dx, color = chose_dx)) +
       geom_point() +
       labs(x = "Predicted values") +
       ylim(0, 1) +
@@ -2830,12 +2830,12 @@ p5 =
       ggtitle("Values Model")
 
 preds_p_df = plot_df %>%
-  add_predicted_draws(chose_ax.model.v) %>%
-  group_by(chose_ax, .prediction) %>%
+  add_predicted_draws(chose_dx.model.v) %>%
+  group_by(chose_dx, .prediction) %>%
   count()
 p6 =
   preds_p_df %>%
-    ggplot(aes(x = chose_ax, y = .prediction, fill = n / sum(preds_p_df$n))) +
+    ggplot(aes(x = chose_dx, y = .prediction, fill = n / sum(preds_p_df$n))) +
       geom_tile() +
       geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
       scale_fill_gradient(limits = c(0, 1))
@@ -2854,16 +2854,16 @@ Inferences from the fitting:
 # bf = 3 - 20: Positive
 # bf = 20 - 150: Strong
 # bf > 150: Very strong
-print(bayesfactor_rope(chose_ax.model.null, null = c(-0.055, 0.055)), n = 30)
-print(bayesfactor_rope(chose_ax.model.t, null = c(-0.055, 0.055)), n = 30)
-print(bayesfactor_rope(chose_ax.model.v, null = c(-0.055, 0.055)), n = 30)
+print(bayesfactor_rope(chose_dx.model.null, null = c(-0.055, 0.055)), n = 30)
+print(bayesfactor_rope(chose_dx.model.t, null = c(-0.055, 0.055)), n = 30)
+print(bayesfactor_rope(chose_dx.model.v, null = c(-0.055, 0.055)), n = 30)
 
 options(digits = 3)
 # Check the significance of each hypothesis
-h_df = as_tibble(insight::get_parameters(chose_ax.model.t)) %>%
+h_df = as_tibble(insight::get_parameters(chose_dx.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -2871,10 +2871,10 @@ h_df = as_tibble(insight::get_parameters(chose_ax.model.t)) %>%
 hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
 print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
 
-h_df = as_tibble(insight::get_parameters(chose_ax.model.v)) %>%
+h_df = as_tibble(insight::get_parameters(chose_dx.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
@@ -2887,7 +2887,9 @@ options(digits = 7)
 
 **Results**:
 
-1. The effect of no noise in action suggestions (100% accurate) has a probability 0.97 of being positive (Median = 0.37, 89% CI [0.06, 0.86]) and can be considered as significant (0.0% in ROPE).
+1. The noise level has a linear relationship to the probability of following diagnosis suggestions with a negative effect size (negative slope) with probability of 0.99 (Median = -0.67, 89% CI [-1.13, -0.22]) and can be considered significant (0.0% in ROPE).
+1. The effect of no noise in suggestions (DX, 100% accurate) has a probability 0.99 of being positive (Median = 0.50, 89% CI [0.16, 0.86]) and can be considered as significant (0.0% in ROPE).
+1. The effect of 20% noise in suggestions (DX, 80% accurate) has a probability 0.98 of being negative (Median = -0.46, 89% CI [-0.82, -0.08]) and can be considered as significant (0.0% in ROPE).
 
 (The ROPE is defined as [-0.055, 0.055]. It is the range is suggested in the literature for logistic models and it corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
@@ -2967,6 +2969,12 @@ rm(fits_p_df, p_df, gg_df)
 ```
 
 ```{r, echo=F, results=F, message=F, warning=F}
-rm(chose_ax.model.null, chose_ax.model.t, chose_ax.model.v)
+rm(chose_dx.model.null, chose_dx.model.t, chose_dx.model.v)
 gc()
 ```
+
+# Remaining Metrics
+
+1. Time taken when compliant / inverse-reliant (for diagnoses and for actions)
+1. Diagnosis Certainty
+1. TBD
