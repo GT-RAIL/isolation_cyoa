@@ -1592,8 +1592,9 @@ p_df =
 
 fits_p_df = p_df %>% add_fitted_draws(optimal_ax.model.v,
                                       re_formula = NA,
-                                      n = 5,
+                                      n = 20,
                                       seed = default_seed)
+gc()
 # We don't want predicted draws because that's a raw count of ones and zeros; not the
 # probability distribution
 # preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
@@ -2020,6 +2021,7 @@ p_df =
 fits_p_df = p_df %>% add_fitted_draws(chose_ax.model.v,
                                       re_formula = NA,
                                       seed = default_seed)
+gc()
 # We don't want predicted draws because that's a raw count of ones and zeros; not the
 # probability distribution
 # preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
@@ -2456,12 +2458,15 @@ p_df =
 
 fits_p_df = p_df %>% add_fitted_draws(optimal_dx.model.v,
                                       re_formula = NA,
-                                      n = 4,
+                                      n = 20,
                                       seed = default_seed)
+gc()
 pars_p_df = optimal_dx.model.t %>%
   extract_draws(newdata = p_df %>% rename(noise_level = noise_level_f),
                 re_formula = NA,
                 nsamples = 100)
+gc()
+
 # We don't want predicted draws because that's a raw count of ones and zeros; not the
 # probability distribution
 # preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
@@ -2899,41 +2904,49 @@ So here are the following plots:
 # A visualization data frame
 gg_df = plot_df %>%
     mutate(noise_level = fct_rev(noise_level)) %>%
-    mutate(chose_ax = factor(chose_ax)) %>%
+    mutate(chose_dx = factor(chose_dx)) %>%
     mutate(user_id = factor(user_id)) %>%
-    mutate(chose_ax = fct_recode(chose_ax, no_follow="0", follow = "1")) %>%
+    mutate(chose_dx = fct_recode(chose_dx, no_follow="0", follow = "1")) %>%
     mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-    count(user_id, study_condition, .fill_column, chose_ax, num_actions, has_ax, has_dx, noise_level,
-          name = "num_follow_ax")
+    count(user_id, study_condition, .fill_column, chose_dx, num_actions, has_ax, has_dx, noise_level,
+          name = "num_follow_dx")
 
 # Simulate predictions on new data
 p_df =
   plot_df %>%
-  data_grid(chose_ax,
-            has_dx,
+  data_grid(chose_dx,
+            has_ax,
             noise_level_f,
             gender,
             age_group,
             robot_experience,
             num_optimal,
             state_idx_rescaled = seq_range(state_idx_rescaled, n = 4),
-            .model = chose_ax.model.v)
+            .model = chose_dx.model.v)
 
-fits_p_df = p_df %>% add_fitted_draws(chose_ax.model.v,
+fits_p_df = p_df %>% add_fitted_draws(chose_dx.model.v,
                                       re_formula = NA,
+                                      n = 100,
                                       seed = default_seed)
+gc()
+pars_p_df = chose_dx.model.t %>%
+  extract_draws(newdata = p_df %>% rename(noise_level = noise_level_f),
+                re_formula = NA,
+                nsamples = 100)
+gc()
+
 # We don't want predicted draws because that's a raw count of ones and zeros; not the
 # probability distribution
 # preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
 
 # Plot the posterior distributions
 rope_value = gg_df %>%
-  filter(chose_ax == 'follow', has_dx == F) %>%
-  summarise(.value = median(num_follow_ax / num_actions)) %>%
+  filter(chose_dx == 'follow', has_ax == F) %>%
+  summarise(.value = median(num_follow_dx / num_actions)) %>%
   pull(.value)
 gg_df %>%
-  filter(chose_ax == 'follow') %>%
-  ggplot(aes(x = has_dx, y = num_follow_ax / num_actions)) +
+  filter(chose_dx == 'follow') %>%
+  ggplot(aes(x = has_ax, y = num_follow_dx / num_actions)) +
     geom_rect(ymin = rope_value-0.055, ymax = rope_value+0.055,
               xmin = -Inf, xmax = Inf,
               color = "transparent", fill = "white") +
@@ -2943,16 +2956,16 @@ gg_df %>%
     stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "follow_ax", color = "AX:DX:Noise")
+    labs(y = "follow_dx", color = "AX:DX:Noise")
 
 rope_value = gg_df %>%
-  filter(chose_ax == 'follow', noise_level == "0.0") %>%
-  summarise(.value = median(num_follow_ax / num_actions)) %>%
+  filter(chose_dx == 'follow', noise_level == "0.0") %>%
+  summarise(.value = median(num_follow_dx / num_actions)) %>%
   pull(.value)
 gg_df %>%
-  filter(chose_ax == 'follow') %>%
+  filter(chose_dx == 'follow') %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
-  ggplot(aes(x = noise_level, y = num_follow_ax / num_actions)) +
+  ggplot(aes(x = noise_level, y = num_follow_dx / num_actions)) +
     geom_rect(ymin = rope_value-0.055, ymax = rope_value+0.055,
               xmin = -Inf, xmax = Inf,
               color = "transparent", fill = "white") +
@@ -2962,10 +2975,42 @@ gg_df %>%
     stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "follow_ax", color = "AX:DX:Noise")
+    labs(y = "follow_dx", color = "AX:DX:Noise")
+
+# Create a plot to show the trend
+pars_p_df_X = pars_p_df$dpars$mu$fe$X[,c("Intercept", "noise_level.L")]
+pars_p_df_b = pars_p_df$dpars$mu$fe$b[,c("b_Intercept", "b_noise_level.L")]
+pars_p_df_y = pars_p_df_X %*% t(pars_p_df_b)
+pars_p_df_y = inv_logit_scaled(pars_p_df_y)
+p_df =
+  p_df %>%
+  bind_cols(as_tibble(pars_p_df_y)) %>%
+  gather(key = ".sample", value = ".value", V1:V100) %>%
+  rename(noise_level = noise_level_f)
+
+rope_value = gg_df %>%
+  filter(chose_dx == 'follow', noise_level == "0.0") %>%
+  summarise(.value = median(num_follow_dx / num_actions)) %>%
+  pull(.value)
+gg_df %>%
+  filter(chose_dx == 'follow') %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  ggplot(aes(x = noise_level, y = num_follow_dx / num_actions)) +
+    geom_rect(ymin = rope_value-0.055, ymax = rope_value+0.055,
+              xmin = -Inf, xmax = Inf,
+              color = "transparent", fill = "white") +
+    annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
+    stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
+    geom_line(aes(y = .value, group = .sample, alpha = 0.3), data = p_df) +
+    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
+    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    scale_color_metro() +
+    ylim(0, 1) +
+    labs(y = "scenario_completed", color = "AX:DX:Noise") +
+    guides(alpha = F)
 
 # Remove the giant fits data frames
-rm(fits_p_df, p_df, gg_df)
+rm(fits_p_df, pars_p_df, pars_p_df_b, pars_p_df_X, pars_p_df_y, p_df, gg_df)
 ```
 
 ```{r, echo=F, results=F, message=F, warning=F}
