@@ -53,7 +53,9 @@ Global options:
 ```{r}
 # Script execution globals
 train_models = F     # Retrain the MCMC models
-plot_posteriors = F  # Plot the posterior distributions
+plot_posteriors = T  # Plot the posterior distributions
+plot_diagnostics = F # Plot the diagnostics
+report_bayesfactors = F  # Report the Bayes Factor scores of model parameters
 default_seed = 0x1331
 data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
 ```
@@ -438,7 +440,7 @@ print(performance::r2(scenario_completed.model.v))
 
 Diagnostics of the fit:
 
-```{r fig.height=7, fig.width=15}
+```{r fig.height=7, fig.width=15, eval=plot_diagnostics}
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
@@ -546,7 +548,7 @@ grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
 
 Inferences from the fitting:
 
-```{r}
+```{r, eval=report_bayesfactors}
 # Compute the bayes factor for each parameter value. Note: we compare
 # here against the ROPE, and not the degenerate null hypothesis of 0
 # Bayes-Factor values would be more significant in the latter case
@@ -558,7 +560,8 @@ Inferences from the fitting:
 print(bayesfactor_rope(scenario_completed.model.null, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(scenario_completed.model.t, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(scenario_completed.model.v, null = c(-0.055, 0.055)), n = 30)
-
+```
+```{r}
 # Compare the models. Note: we cannot do this because we don't have enough samples.
 # The default is 4000; apparently these functions are only meaningful with 40000
 # comparison = bayesfactor_models(scenario_completed.model.t, scenario_completed.model.v,
@@ -1027,7 +1030,7 @@ num_actions_diff.model.v = loadModel("num_actions_diff.model.v")
 Model fitting results:
 
 ```{r}
-print(tidy_stan(num_actions_diff.model.null))
+# print(tidy_stan(num_actions_diff.model.null))
 print(performance::r2(num_actions_diff.model.null))
 
 # Print the parameters, and some initial diagnostics
@@ -1040,7 +1043,7 @@ print(performance::r2(num_actions_diff.model.v))
 
 Diagnostics of the fit:
 
-```{r fig.height=7, fig.width=15, eval=F}
+```{r fig.height=7, fig.width=15, eval=plot_diagnostics}
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
@@ -1058,7 +1061,7 @@ plot(num_actions_diff.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-mcmc_intervals(as.matrix(scenario_completed.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
+mcmc_intervals(as.matrix(num_actions_diff.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Null Model")
 
 p1 = pp_check(num_actions_diff.model.t, type = "bars_grouped", group = "has_ax", stat = "median") + ggtitle("t:has_ax")
@@ -1082,21 +1085,27 @@ p1 =
     add_column(num_actions_diff = num_actions_diff.model.null$data$num_actions_diff) %>%
     ggplot(aes(x = Estimate, y = num_actions_diff, color = num_actions_diff)) +
       geom_point() +
+      geom_abline(slope = 1, intercept = 0) +
       labs(x = "Predicted values") +
-      ylim(0, 1) +
-      xlim(0, 1) +
       ggtitle("Null Model")
 
-preds_p_df = plot_df %>%
+preds_p_df =
+  plot_df %>%
   add_predicted_draws(num_actions_diff.model.null) %>%
-  group_by(num_actions_diff, .prediction) %>%
-  count()
+  ungroup() %>%
+  select(num_actions_diff, .prediction)
+preds_p_df =
+  preds_p_df %>%
+  mutate(num_actions_diff = factor(num_actions_diff, levels = seq(from = 1, to = 20), ordered = T),
+         .prediction = factor(.prediction, levels = seq(from = 1, to = 20), ordered = T))
+preds_p_df =
+  as_tibble(caret::confusionMatrix(preds_p_df$.prediction, preds_p_df$num_actions_diff)$table) %>%
+  mutate(Prediction = factor(Prediction, levels = seq(from = 1, to = 20), ordered = T),
+         Reference = factor(Reference, levels = seq(from = 1, to = 20), ordered = T))
 p2 =
   preds_p_df %>%
-    ggplot(aes(x = num_actions_diff, y = .prediction, fill = n / sum(preds_p_df$n))) +
-      geom_tile() +
-      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
-      scale_fill_gradient(limits = c(0, 1))
+    ggplot(aes(x = Reference, y = Prediction, fill = n )) +
+      geom_tile()
 
 preds_p_df = num_actions_diff.model.t %>% predict() %>% as_tibble()
 p3 =
@@ -1104,21 +1113,27 @@ p3 =
     add_column(num_actions_diff = num_actions_diff.model.t$data$num_actions_diff) %>%
     ggplot(aes(x = Estimate, y = num_actions_diff, color = num_actions_diff)) +
       geom_point() +
+      geom_abline(slope = 1, intercept = 0) +
       labs(x = "Predicted values") +
-      ylim(0, 1) +
-      xlim(0, 1) +
       ggtitle("Trends Model")
 
-preds_p_df = plot_df %>%
+preds_p_df =
+  plot_df %>%
   add_predicted_draws(num_actions_diff.model.t) %>%
-  group_by(num_actions_diff, .prediction) %>%
-  count()
+  ungroup() %>%
+  select(num_actions_diff, .prediction)
+preds_p_df =
+  preds_p_df %>%
+  mutate(num_actions_diff = factor(num_actions_diff, levels = seq(from = 1, to = 20), ordered = T),
+         .prediction = factor(.prediction, levels = seq(from = 1, to = 20), ordered = T))
+preds_p_df =
+  as_tibble(caret::confusionMatrix(preds_p_df$.prediction, preds_p_df$num_actions_diff)$table) %>%
+  mutate(Prediction = factor(Prediction, levels = seq(from = 1, to = 20), ordered = T),
+         Reference = factor(Reference, levels = seq(from = 1, to = 20), ordered = T))
 p4 =
   preds_p_df %>%
-    ggplot(aes(x = num_actions_diff, y = .prediction, fill = n / sum(preds_p_df$n))) +
-      geom_tile() +
-      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
-      scale_fill_gradient(limits = c(0, 1))
+    ggplot(aes(x = Reference, y = Prediction, fill = n)) +
+      geom_tile()
 
 # Plot predictions vs original
 preds_p_df = num_actions_diff.model.v %>% predict() %>% as_tibble()
@@ -1127,28 +1142,34 @@ p5 =
     add_column(num_actions_diff = num_actions_diff.model.v$data$num_actions_diff) %>%
     ggplot(aes(x = Estimate, y = num_actions_diff, color = num_actions_diff)) +
       geom_point() +
+      geom_abline(slope = 1, intercept = 0) +
       labs(x = "Predicted values") +
-      ylim(0, 1) +
-      xlim(0, 1) +
       ggtitle("Values Model")
 
-preds_p_df = plot_df %>%
+preds_p_df =
+  plot_df %>%
   add_predicted_draws(num_actions_diff.model.v) %>%
-  group_by(num_actions_diff, .prediction) %>%
-  count()
+  ungroup() %>%
+  select(num_actions_diff, .prediction)
+preds_p_df =
+  preds_p_df %>%
+  mutate(num_actions_diff = factor(num_actions_diff, levels = seq(from = 1, to = 20), ordered = T),
+         .prediction = factor(.prediction, levels = seq(from = 1, to = 20), ordered = T))
+preds_p_df =
+  as_tibble(caret::confusionMatrix(preds_p_df$.prediction, preds_p_df$num_actions_diff)$table) %>%
+  mutate(Prediction = factor(Prediction, levels = seq(from = 1, to = 20), ordered = T),
+         Reference = factor(Reference, levels = seq(from = 1, to = 20), ordered = T))
 p6 =
   preds_p_df %>%
-    ggplot(aes(x = num_actions_diff, y = .prediction, fill = n / sum(preds_p_df$n))) +
-      geom_tile() +
-      geom_text(aes(label = sprintf("%1.2f", n / sum(preds_p_df$n))), size = 10, vjust = 1) +
-      scale_fill_gradient(limits = c(0, 1))
+    ggplot(aes(x = Reference, y = Prediction, fill = n)) +
+      geom_tile()
 
 grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
 ```
 
 Inferences from the fitting:
 
-```{r}
+```{r, eval=report_bayesfactors}
 # Compute the bayes factor for each parameter value. Note: we compare
 # here against the ROPE, and not the degenerate null hypothesis of 0
 # Bayes-Factor values would be more significant in the latter case
@@ -1160,7 +1181,8 @@ Inferences from the fitting:
 print(bayesfactor_rope(num_actions_diff.model.null, null = c(-0.55, 0.55)), n = 30)
 print(bayesfactor_rope(num_actions_diff.model.t, null = c(-0.55, 0.55)), n = 30)
 print(bayesfactor_rope(num_actions_diff.model.v, null = c(-0.55, 0.55)), n = 30)
-
+```
+```{r}
 options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(num_actions_diff.model.t)) %>%
@@ -1400,7 +1422,7 @@ optimal_ax.model.v = loadModel("optimal_ax.model.v")
 Model fitting results:
 
 ```{r}
-print(tidy_stan(optimal_ax.model.null))
+# print(tidy_stan(optimal_ax.model.null))
 print(performance::r2(optimal_ax.model.null))
 
 # Print the parameters, and some initial diagnostics
@@ -1413,7 +1435,7 @@ print(performance::r2(optimal_ax.model.v))
 
 Diagnostics of the fit:
 
-```{r fig.height=7, fig.width=15, eval=F}
+```{r fig.height=7, fig.width=15, eval=plot_diagnostics}
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
@@ -1515,7 +1537,7 @@ grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
 
 Inferences from the fitting:
 
-```{r}
+```{r, eval=report_bayesfactors}
 # Compute the bayes factor for each parameter value. Note: we compare
 # here against the ROPE, and not the degenerate null hypothesis of 0
 # Bayes-Factor values would be more significant in the latter case
@@ -1527,7 +1549,8 @@ Inferences from the fitting:
 print(bayesfactor_rope(optimal_ax.model.null, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(optimal_ax.model.t, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(optimal_ax.model.v, null = c(-0.055, 0.055)), n = 30)
-
+```
+```{r}
 options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(optimal_ax.model.t)) %>%
@@ -1846,7 +1869,7 @@ print(performance::r2(chose_ax.model.v))
 
 Diagnostics of the fit:
 
-```{r fig.height=7, fig.width=15, eval=F}
+```{r fig.height=7, fig.width=15, eval=plot_diagnostics}
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
@@ -1946,7 +1969,7 @@ grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
 
 Inferences from the fitting:
 
-```{r}
+```{r, eval=report_bayesfactors}
 # Compute the bayes factor for each parameter value. Note: we compare
 # here against the ROPE, and not the degenerate null hypothesis of 0
 # Bayes-Factor values would be more significant in the latter case
@@ -1958,7 +1981,8 @@ Inferences from the fitting:
 print(bayesfactor_rope(chose_ax.model.null, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(chose_ax.model.t, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(chose_ax.model.v, null = c(-0.055, 0.055)), n = 30)
-
+```
+```{r}
 options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(chose_ax.model.t)) %>%
@@ -2278,7 +2302,7 @@ print(performance::r2(optimal_dx.model.v))
 
 Diagnostics of the fit:
 
-```{r fig.height=7, fig.width=15, eval=F}
+```{r fig.height=7, fig.width=15, eval=plot_diagnostics}
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
@@ -2380,7 +2404,7 @@ grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
 
 Inferences from the fitting:
 
-```{r}
+```{r, eval=report_bayesfactors}
 # Compute the bayes factor for each parameter value. Note: we compare
 # here against the ROPE, and not the degenerate null hypothesis of 0
 # Bayes-Factor values would be more significant in the latter case
@@ -2392,7 +2416,8 @@ Inferences from the fitting:
 print(bayesfactor_rope(optimal_dx.model.null, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(optimal_dx.model.t, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(optimal_dx.model.v, null = c(-0.055, 0.055)), n = 30)
-
+```
+```{r}
 options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(optimal_dx.model.t)) %>%
@@ -2750,7 +2775,7 @@ print(performance::r2(chose_dx.model.v))
 
 Diagnostics of the fit:
 
-```{r fig.height=7, fig.width=15, eval=F}
+```{r fig.height=7, fig.width=15, eval=plot_diagnostics}
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
@@ -2850,7 +2875,7 @@ grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
 
 Inferences from the fitting:
 
-```{r}
+```{r, eval=report_bayesfactors}
 # Compute the bayes factor for each parameter value. Note: we compare
 # here against the ROPE, and not the degenerate null hypothesis of 0
 # Bayes-Factor values would be more significant in the latter case
@@ -2862,7 +2887,8 @@ Inferences from the fitting:
 print(bayesfactor_rope(chose_dx.model.null, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(chose_dx.model.t, null = c(-0.055, 0.055)), n = 30)
 print(bayesfactor_rope(chose_dx.model.v, null = c(-0.055, 0.055)), n = 30)
-
+```
+```{r}
 options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(chose_dx.model.t)) %>%
