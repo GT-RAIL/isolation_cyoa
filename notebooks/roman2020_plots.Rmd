@@ -1,0 +1,384 @@
+---
+title: "RO-MAN 2020 Plots"
+output:
+  html_document:
+    theme: readable
+    code_folding: hide
+    df_print: tibble
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    number_sections: true
+---
+
+```{r message=FALSE, warning=FALSE}
+library(car)
+library(stats)
+library(grid)
+library(gridExtra)
+library(fitdistrplus)
+# library(dplyr)
+# library(forcats)
+# library(tibble)
+# library(tidyr)
+# library(readr)
+# library(ggplot2)
+# library(stringr)
+library(tidyverse)
+library(ggsignif)
+library(ggthemes)
+library(jtools)
+library(broom)
+library(modelr)
+library(loo)
+# library(rstanarm)
+library(brms)
+library(bayesplot)
+library(tidybayes)
+library(bayestestR)
+library(sjstats)
+library(report)
+library(see)
+
+# Setup for multiprocessing
+options(mc.cores = 4)
+# library(future)
+# plan(multiprocess)
+
+# Make the default coding of contrasts sum-coding; just in case
+options(contrasts = c("contr.sum", "contr.poly"))
+```
+
+Global options:
+
+```{r}
+default_seed = 0x1331
+data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
+```
+
+Helper functions:
+
+```{r, message=FALSE, warning=FALSE}
+# Create a simple coding contrasts matrix
+contr.deviation = function(nlevels) {
+  x1 = contr.treatment(nlevels)
+  x2 = matrix(rep(1/nlevels, (nlevels-1) * nlevels), ncol = (nlevels-1))
+  return(x1-x2)
+}
+
+# NOTE: For now we're ignoring this advice
+# # Use a simple coding contrasts matrix to add our own contrasts columns
+# # Explained in: http://talklab.psy.gla.ac.uk/tvw/catpred/
+# create_simple_contrasts = function(d, column_name) {
+#  factor_column = d %>% pull(column_name)
+#  contrast_matrix = contr.deviation(length(levels(factor_column)))
+# }
+
+# Save a model
+saveModel = function(model, folder = data_folder) {
+  saveRDS(model, file = file.path(folder, paste(substitute(model), ".rds", sep = '')))
+}
+
+# Load a model
+loadModel = function(model_name, folder = data_folder) {
+  return(readRDS(file.path(folder, paste(model_name, '.rds', sep = ''))))
+}
+
+# Test hypotheses. The NULL arguments need to be provided in this case
+test_hypotheses = function(h_df = NULL, rope_values = NULL, hypotheses_list = NULL, model = NULL) {
+  # Option 1: Use the hypothesis function in brms
+  if (!is.null(hypotheses_list)) {
+    hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
+    return(hyp_results)
+  }
+
+  # Option 2: Use the ROPE & Overlap amount
+  else {
+    if (is.null(rope_values)) {
+      rope_values = c(-0.1, 0.1)
+    }
+    hyp_results =
+      h_df %>%
+        equivalence_test(range = rope_values) %>%
+        as_tibble() %>%
+        bind_cols(h_df %>% pd() %>% select(pd))
+    return(hyp_results)
+  }
+}
+
+# Fit distributions to vectors and print the results. Also return the fit, if necessary
+fit_and_print_dist = function(vec, distr, string) {
+  f = fitdist(vec, distr)
+  print(paste(string, f$loglik, f$aic))
+  return(f)
+}
+```
+
+Data loading:
+
+```{r, message=F, warning=F}
+# Load the CSV files. If the age_group fill model is run again and we get a different output,
+# then remember to update the value here
+loadCSV = function(filename, age_group_fill, contrast_func) {
+  dat = read_csv(
+    file.path(data_folder, filename),
+    col_types = cols(
+      study_condition = col_factor(),
+      noise_level = col_factor(ordered = T),
+      gender = col_factor(levels = c("F", "M", "U")),
+      age_group = col_factor(levels = seq(from = 0, to = 8)),
+      robot_experience = col_factor(levels = seq(from = 0, to = 4))
+    )
+  )
+
+  # Relabel the factors
+  dat = dat %>%
+    mutate(study_condition = fct_recode(study_condition,
+                                        BASELINE="1",
+                                        DX_100="2", AX_100="3", DXAX_100="4",
+                                        DX_90="5", AX_90="6", DXAX_90="7",
+                                        DX_80="8", AX_80="9", DXAX_80="10")) %>%
+    mutate(study_condition = fct_relevel(study_condition, c("DX_100", "AX_100", "DXAX_100",
+                                                            "DX_90", "AX_90", "DXAX_90",
+                                                            "DX_80", "AX_80", "DXAX_80")))
+
+  # Relevel the non-binary gender
+  dat$gender[dat$gender == 'U'] = 'M'
+
+  # Change binary responses to integers
+  dat$scenario_completed = as.integer(dat$scenario_completed)
+  
+  # Relevel age_group
+  dat[dat$age_group == 0,]$age_group = age_group_fill
+  
+  # Create an unordered noise_level. Also drop unused levels
+  dat$age_group = droplevels(dat$age_group)
+  dat$gender = droplevels(dat$gender)
+  dat$noise_level_f = factor(dat$noise_level, ordered = F)
+
+  # Set the contrasts for everything
+  contrasts(dat$age_group) = contrast_func(length(levels(dat$age_group)))
+  contrasts(dat$robot_experience) = contrast_func(length(levels(dat$robot_experience)))
+  contrasts(dat$gender) = contrast_func(length(levels(dat$gender)))
+
+  contrasts(dat$has_ax) = contrast_func(2)
+  contrasts(dat$has_dx) = contrast_func(2)
+  contrasts(dat$has_noise) = contrast_func(2)
+  contrasts(dat$has_dxax) = contrast_func(2)
+
+  contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
+  
+  # Return the data frame
+  return(dat)
+}
+
+# Get the users df and the actions df
+users = loadCSV("users.csv", 3, contr.sum)
+actions = loadCSV("actions.csv", 3, contr.sum)
+
+# Change more binary responses to integers
+actions$optimal_ax = as.integer(actions$optimal_ax)
+actions$chose_ax = as.integer(actions$chose_ax)
+actions$optimal_dx = as.integer(actions$optimal_dx)
+actions$chose_dx = as.integer(actions$optimal_dx)
+
+# Relabel user ids to be in the range 1-200. Otherwise, we're using DB ids
+# The user ID column in the users table that we can now join on is X1
+actions$user_id = actions %>% group_indices(user_id)
+
+# Rescale state ids
+actions$state_idx_rescaled = scales::rescale(actions$state_idx)
+
+# Code to relevel the age group factor to remove unused levels. Also, predict the
+# value of the 1 unknown age from the other indicators of demographics
+# NOTE: If we retrain the model and the output doesn't match the hardcoded
+# values, then update those values
+# if (train_models) {
+#   plot_df = subset(users, users$age_group != 0)
+#   plot_df$age_group = factor(plot_df$age_group, levels = seq(from = 0, to = 8), ordered = T)
+#   plot_df$age_group = droplevels(plot_df$age_group)
+#   age_group_model = brm(age_group ~ gender + robot_experience, data = plot_df, family = "cumulative")
+#   data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
+#   as_tibble(predict(age_group_model, data_to_predict))
+# # # A tibble: 1 x 7
+# #   `P(Y = 2)` `P(Y = 3)` `P(Y = 4)` `P(Y = 5)` `P(Y = 6)` `P(Y = 7)` `P(Y = 8)`
+# #        <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
+# # 1     0.0707      0.230      0.218      0.174      0.105       0.09      0.113
+#   rm(age_group_model)
+# }
+```
+
+Use this notebook to generate the final plots from `iros2020.Rmd`.
+
+
+# Scenario Completed
+
+Load the data and the models:
+
+```{r}
+plot_df = users %>%
+  select(X1, id, study_condition, start_condition, num_optimal,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed)
+
+scenario_completed.model.t = loadModel("scenario_completed.model.t")
+scenario_completed.model.v = loadModel("scenario_completed.model.v")
+```
+
+Significance Results:
+
+So the related plots:
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(scenario_completed.model.t, scenario_completed.model.v)
+gc()
+```
+
+
+# Num Actions Diff
+
+Load the data and the models:
+
+```{r}
+plot_df = users %>%
+  select(X1, id, study_condition, start_condition, num_optimal,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, num_actions_diff, frac_actions_diff) %>%
+  mutate(scenario_completed = factor(scenario_completed))
+
+num_actions_diff.model.t = loadModel("num_actions_diff.model.t")
+num_actions_diff.model.v = loadModel("num_actions_diff.model.v")
+```
+
+Significance Results:
+
+None
+
+So the related plots:
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(num_actions_diff.model.t, num_actions_diff.model.v)
+gc()
+```
+
+
+# Taking the Optimal Action for a State
+
+Load the data and the models:
+
+```{r}
+plot_df = actions %>%
+  select(X1, id, user_id, study_condition, start_condition, num_optimal,
+         state_idx, state_idx_rescaled,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, optimal_ax)
+
+optimal_ax.model.t = loadModel("optimal_ax.model.t")
+optimal_ax.model.v = loadModel("optimal_ax.model.v")
+```
+
+Significance Results:
+
+So the related plots:
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(optimal_ax.model.t, optimal_ax.model.v)
+gc()
+```
+
+
+# Choosing the Correct Diagnosis for a State
+
+Load the data and the models:
+
+```{r}
+plot_df = actions %>%
+  select(X1, id, user_id, study_condition, start_condition, num_optimal,
+         state_idx, state_idx_rescaled,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, optimal_dx)
+
+optimal_dx.model.t = loadModel("optimal_dx.model.t")
+optimal_dx.model.v = loadModel("optimal_dx.model.v")
+```
+
+Significance Results:
+
+So the related plots:
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(optimal_dx.model.t, optimal_dx.model.v)
+gc()
+```
+
+
+# Following Action Suggestions
+
+Load the data and the models:
+
+```{r}
+plot_df = actions %>%
+  filter(has_ax == T) %>%
+  select(X1, id, user_id, study_condition, start_condition, num_optimal,
+         state_idx, state_idx_rescaled,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, chose_ax)
+
+chose_ax.model.t = loadModel("chose_ax.model.t")
+chose_ax.model.v = loadModel("chose_ax.model.v")
+```
+
+Significance Results:
+
+So the related plots:
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(chose_ax.model.t, chose_ax.model.v)
+gc()
+```
+
+
+# Following Diagnosis Suggestions
+
+Load the data and the models:
+
+```{r}
+plot_df = actions %>%
+  filter(has_dx == T) %>%
+  select(X1, id, user_id, study_condition, start_condition, num_optimal,
+         state_idx, state_idx_rescaled,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, chose_dx)
+
+chose_dx.model.t = loadModel("chose_dx.model.t")
+chose_dx.model.v = loadModel("chose_dx.model.v")
+```
+
+Significance Results:
+
+So the related plots:
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(chose_dx.model.t, chose_dx.model.v)
+gc()
+```
+
+
+# SUS
+
+Load the data and the models:
+
+Significance Results:
+
+So the related plots:
+
+
+# Demographics
+
+TODO

@@ -3044,8 +3044,24 @@ rm(chose_dx.model.null, chose_dx.model.t, chose_dx.model.v)
 gc()
 ```
 
+# Likert Scales
+
+The individual unit of analysis is again the user.
+
+## SUS
+
+TODO
+
+## Ease of Diagnosis
+
+TODO
+
+## Ease of Actions
+
+TODO
+
+
 # Remaining Metrics
 
 1. Time taken when compliant / inverse-reliant (for diagnoses and for actions)
 1. Diagnosis Certainty
-1. TBD
