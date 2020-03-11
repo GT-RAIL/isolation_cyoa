@@ -103,7 +103,7 @@ test_hypotheses = function(h_df = NULL, rope_values = NULL, hypotheses_list = NU
     }
     hyp_results =
       h_df %>%
-        equivalence_test(range = rope_values) %>%
+        equivalence_test(range = rope_values, ci = 1.0) %>%
         as_tibble() %>%
         bind_cols(h_df %>% pd() %>% select(pd))
     return(hyp_results)
@@ -1426,10 +1426,10 @@ Model fitting results:
 print(performance::r2(optimal_ax.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(optimal_ax.model.t))
+print(tidy_stan(optimal_ax.model.t, effects = "fixed"))
 print(performance::r2(optimal_ax.model.t))
 
-print(tidy_stan(optimal_ax.model.v))
+print(tidy_stan(optimal_ax.model.v, effects = "fixed"))
 print(performance::r2(optimal_ax.model.v))
 ```
 
@@ -1860,10 +1860,10 @@ Model fitting results:
 print(performance::r2(chose_ax.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(chose_ax.model.t))
+print(tidy_stan(chose_ax.model.t, effects = "fixed"))
 print(performance::r2(chose_ax.model.t))
 
-print(tidy_stan(chose_ax.model.v))
+print(tidy_stan(chose_ax.model.v, effects = "fixed"))
 print(performance::r2(chose_ax.model.v))
 ```
 
@@ -2293,10 +2293,10 @@ Model fitting results:
 print(performance::r2(optimal_dx.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(optimal_dx.model.t))
+print(tidy_stan(optimal_dx.model.t, effects = "fixed"))
 print(performance::r2(optimal_dx.model.t))
 
-print(tidy_stan(optimal_dx.model.v))
+print(tidy_stan(optimal_dx.model.v, effects = "fixed"))
 print(performance::r2(optimal_dx.model.v))
 ```
 
@@ -2766,10 +2766,10 @@ Model fitting results:
 print(performance::r2(chose_dx.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(chose_dx.model.t))
+print(tidy_stan(chose_dx.model.t, effects = "fixed"))
 print(performance::r2(chose_dx.model.t))
 
-print(tidy_stan(chose_dx.model.v))
+print(tidy_stan(chose_dx.model.v, effects = "fixed"))
 print(performance::r2(chose_dx.model.v))
 ```
 
