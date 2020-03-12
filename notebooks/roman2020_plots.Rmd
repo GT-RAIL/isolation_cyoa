@@ -226,9 +226,108 @@ scenario_completed.model.t = loadModel("scenario_completed.model.t")
 scenario_completed.model.v = loadModel("scenario_completed.model.v")
 ```
 
+```{r, fig.width=4, fig.height=6}
+gg_df = plot_df %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
+  count(has_ax, has_dx, noise_level, scenario_completed) %>%
+  mutate(has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+
+gg_df %>%
+  ggplot(aes(has_dx, n / 20, fill=scenario_completed)) +
+    geom_bar(stat = "identity") +
+    facet_grid(rows = vars(noise_level), cols = vars(has_ax)) +
+    labs(y = "Fraction of participants that resolved fault", x = NULL) +
+    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
+    scale_fill_economist() +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          legend.title = element_blank(),
+          legend.position = "bottom",
+          axis.title.y = element_blank())
+```
+
 Significance Results:
 
+1. Large positive effect of AX
+1. Large U-shaped effect of accuracy
+1. Medium positive effect of 100% accurate suggestions
+1. Medium negative effect of 90% accurate suggestions
+
 So the related plots:
+
+
+```{r, fig.width=4, fig.height=6}
+gg_df = plot_df %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
+  count(has_ax, has_dx, noise_level, scenario_completed) %>%
+  mutate(has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+
+gg_df %>%
+  filter(scenario_completed == 'Resolved') %>%
+  ggplot(aes(has_ax, n/20, fill = has_ax)) +
+    geom_boxplot() +
+    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "***", textsize = 8) +
+    scale_y_continuous(limits = c(0.5, 1.1)) +
+    labs(y = "Fraction of participants that resolved fault", x = NULL) +
+    scale_fill_economist() +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          axis.title.y = element_blank()) +
+    legend_none()
+```
+
+```{r, fig.width=4, fig.height=6}
+eff = fixef(scenario_completed.model.v)
+
+gg_df = plot_df %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
+  count(has_ax, has_dx, noise_level, scenario_completed) %>%
+  mutate(has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
+         estimate = -1) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 100%", inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 90%", inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 80%", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]), estimate))
+
+gg_df %>%
+  filter(scenario_completed == 'Resolved') %>%
+  ggplot(aes(noise_level, n/20, group = noise_level, colour = noise_level)) +
+    geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]), size = 2, linetype = "dashed") +
+    geom_point() +
+    geom_boxplot(aes(y = estimate)) +
+    annotate("segment",
+             x = 1,
+             y = inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]),
+             xend = 2,
+             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             colour = "black") +
+    annotate("segment",
+             x = 3,
+             y = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]),
+             xend = 2,
+             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             color = "black") +
+    annotate("text", x = "Acc: 90%", y = inv_logit_scaled(eff["Intercept", "Estimate"] + 0.15),
+                  label = "Mean",
+                  group = NA, colour = "black") +
+    scale_y_continuous(limits = c(0.5, 1.0)) +
+    labs(y = "Fraction of participants that resolved fault", x = NULL) +
+    scale_fill_economist() +
+    scale_colour_economist() +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          axis.title.y = element_blank()) +
+    legend_none()
+```
+
 
 ```{r, echo=F, results=F, message=F, warning=F}
 rm(scenario_completed.model.t, scenario_completed.model.v)
@@ -374,9 +473,25 @@ gc()
 
 Load the data and the models:
 
+```{r}
+plot_df = users %>%
+  select(X1, id, study_condition, start_condition, num_optimal,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         sus, scenario_completed) %>%
+  mutate(scenario_completed = factor(scenario_completed))
+sus.model.t = loadModel("sus.model.t")
+sus.model.v = loadModel("sus.model.v")
+```
+
 Significance Results:
 
 So the related plots:
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(sus.model.t, sus.model.v)
+gc()
+```
 
 
 # Demographics
