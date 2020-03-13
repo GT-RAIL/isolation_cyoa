@@ -3262,19 +3262,23 @@ From this, we can take away that:
 1. The distribution of counts is most likely a `shifted_lognormal`. The Exponential Gaussian null model did not converge in the number of iterations that we have assigned.
 1. Not sure what we're checking here - the difference between when things are optimal vs. not?
 
-Therefore, we assume the following structural model (TODO):
+Therefore, we assume the following structural model:
 
-$$ax\_time_i = TBD\_Distr(\mu_i, \phi)$$
+$$ax\_time_{ij} = LogNormal(\mu_{ij} - ndt, \sigma)$$
 $$\begin{aligned}
-log(\mu_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i +\\ &\beta_{ax:noise}\text{ax}_i\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
-&\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
+log(\mu_{ij}) &= \beta_0 + \beta_{0i} + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i + \\
+&\beta_{ax:noise}\text{ax}_i\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
+&\beta_{no}\text{no}_{i} + \mathbf{\beta_{demo}X_{demo,i}} + \beta_{state} \text{state}_{ij} + \\
+&\beta_{correct\_action}\text{correct_action}_{ij}
 \end{aligned}$$
 $$\begin{aligned}
-\beta_{.} &\sim Normal(0, 10)\\
-\phi &\sim Gamma(0.01, 0.01)
+\beta_{.} &\sim Normal(0, 10) \\
+\beta_{0i} &\sim Normal(0, \sigma_i) \\
+\sigma_i &\sim HalfStudent(3, 0, 10) \\
+ndt &\sim Uniform(0, min(ax\_time_{ij}))
 \end{aligned}$$
 
-The prior for the $\phi$ parameter is the default used in `brms`; I see no need to change it.
+The prior for the $\sigma_i, ndt$ parameters are the default used in `brms`; I see no need to change them.
 
 Model fitting:
 
@@ -3507,7 +3511,7 @@ There is no significant effect of any of the suggestions parameters on the time 
 1. A quadratic relationship to noise (possible effect; p < .1)
 1. An effect of level 1 noise (possible effect; p < .1)
 
-(The ROPE is defined as [-0.49, 0.49]. It corresponds to a reaction time of slightly less than a second and is obtained from `0.1 \times MAD(ax\_response\_time)`. Therefore, a change of less than 0.55 actions in either direction is considered no different from a change of 0 in the number of actions)
+(The ROPE is defined as [-0.49, 0.49]. It corresponds to a reaction time of slightly less than half a second and is obtained from `0.1 \times MAD(ax\_response\_time)`)
 
 There are no plots to show (all effects are supposedly non-existent).
 
@@ -3564,14 +3568,14 @@ gg_df = plot_df %>%
   mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
   mutate(noise_level = fct_rev(noise_level))
 
-p1 = gg_df %>%
-  ggplot(aes(has_ax, ax_decision_duration, fill=chose_ax)) +
-    geom_boxplot() +
-    geom_count(aes(colour = chose_ax), position = position_jitterdodge()) +
-    scale_y_log10() +
-    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Log(AX Decision Duration)") +
-    scale_fill_economist()
+# p1 = gg_df %>%
+#   ggplot(aes(has_ax, ax_decision_duration, fill=chose_ax)) +
+#     geom_boxplot() +
+#     geom_count(aes(colour = chose_ax), position = position_jitterdodge()) +
+#     scale_y_log10() +
+#     facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+#     labs(y = "Log(AX Decision Duration)") +
+#     scale_fill_economist()
 
 p2 = gg_df %>%
   ggplot(aes(has_dx, ax_decision_duration, fill=chose_ax)) +
@@ -3595,16 +3599,16 @@ p3 = gg_df %>%
     scale_fill_economist() +
     legend_none()
 
-grid.arrange(p1, p2, p3, ncol = 3)
+grid.arrange(p2, p3, ncol = 2)
 
 # Visualize also the variation in each of the three levels that we care about
-p1 = gg_df %>%
-  ggplot(aes(ax_decision_duration, group = chose_ax, fill = chose_ax)) +
-    geom_density(position = "identity", alpha = 0.5) +
-    facet_grid(rows = vars(has_ax)) +
-    scale_fill_economist() +
-    scale_x_continuous(trans = "log") +
-    legend_none()
+# p1 = gg_df %>%
+#   ggplot(aes(ax_decision_duration, group = chose_ax, fill = chose_ax)) +
+#     geom_density(position = "identity", alpha = 0.5) +
+#     facet_grid(rows = vars(has_ax)) +
+#     scale_fill_economist() +
+#     scale_x_continuous(trans = "log") +
+#     legend_none()
 
 p2 = gg_df %>%
   ggplot(aes(ax_decision_duration, group = chose_ax, fill = chose_ax)) +
@@ -3622,7 +3626,7 @@ p3 = gg_df %>%
     scale_x_continuous(trans = "log") +
     legend_none()
 
-grid.arrange(p1, p2, p3, ncol = 3)
+grid.arrange(p2, p3, ncol = 2)
 ```
 
 Checking some probability distributions of the durations (given the above plots):
@@ -3721,19 +3725,22 @@ From this, we can take away that:
 1. The distribution of counts is most likely a `shifted_lognormal`. The Exponential Gaussian null model did not converge in the number of iterations that we have assigned.
 1. Not sure what we're checking here - the difference between when things are chosen vs. not?
 
-Therefore, we assume the following structural model (TODO):
+Therefore, we assume the following structural model:
 
-$$ax\_time_i = TBD\_Distr(\mu_i, \phi)$$
+$$ax\_time_{ij} = LogNormal(\mu_{ij} - ndt, \sigma)$$
 $$\begin{aligned}
-log(\mu_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i +\\ &\beta_{ax:noise}\text{ax}_i\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
-&\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
+log(\mu_{ij}) &= \beta_0 + \beta_{0i} + \beta_{noise}\text{noise}_{i} + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
+&\beta_{no}\text{no}_{i} + \mathbf{\beta_{demo}X_{demo,i}} + \beta_{state} \text{state}_{ij} + \\
+&\beta_{follow\_ax}\text{follow_ax}_{ij}
 \end{aligned}$$
 $$\begin{aligned}
-\beta_{.} &\sim Normal(0, 10)\\
-\phi &\sim Gamma(0.01, 0.01)
+\beta_{.} &\sim Normal(0, 10) \\
+\beta_{0i} &\sim Normal(0, \sigma_i) \\
+\sigma_i &\sim HalfStudent(3, 0, 10) \\
+ndt &\sim Uniform(0, min(ax\_time_{ij}))
 \end{aligned}$$
 
-The prior for the $\phi$ parameter is the default used in `brms`; I see no need to change it.
+The prior for the $\sigma_i, ndt$ parameters are the default used in `brms`; I see no need to change them.
 
 Model fitting:
 
@@ -3786,31 +3793,6 @@ saveModel(ax_compliance_time.model.v)
 # A possible alternative to these models is one that does not include the optimal_ax
 # as a factor. There is likely no effect, because the data is but a subset of the data
 # used in the previous metric, and these models had nothing significant then.
-# ax_compliance_time.model.t = brm(
-#   ax_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + (1 | user_id),
-#   family = shifted_lognormal,
-#   prior = c(set_prior("normal(0, 10)", class = "b"),
-#             set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
-#   data = plot_df,
-#   seed = default_seed,
-#   save_all_pars = T,
-#   sample_prior = T
-# )
-# ax_compliance_time.model.t = add_criterion(ax_compliance_time.model.t, "waic")
-# ax_compliance_time.model.t = add_criterion(ax_compliance_time.model.t, "loo", reloo = T)
-# 
-# ax_compliance_time.model.v = brm(
-#   ax_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + (1 | user_id),
-#   family = shifted_lognormal,
-#   prior = c(set_prior("normal(0, 10)", class = "b"),
-#             set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
-#   data = plot_df,
-#   seed = default_seed,
-#   save_all_pars = T,
-#   sample_prior = T
-# )
-# ax_compliance_time.model.v = add_criterion(ax_compliance_time.model.v, "waic")
-# ax_compliance_time.model.v = add_criterion(ax_compliance_time.model.v, "loo", reloo = T)
 ```
 ```{r, eval=!train_models}
 # Load the models
@@ -3856,17 +3838,17 @@ plot(ax_compliance_time.model.v$criteria$loo, main = "Values Model")
 mcmc_intervals(as.matrix(ax_compliance_time.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Null Model")
 
-p1 = pp_check(ax_compliance_time.model.t, group = "has_ax", stat = "median") + ggtitle("t:has_ax")
+# p1 = pp_check(ax_compliance_time.model.t, group = "has_ax", stat = "median") + ggtitle("t:has_ax")
 p2 = pp_check(ax_compliance_time.model.t, group = "has_dx") + ggtitle("t:has_dx")
 p3 = pp_check(ax_compliance_time.model.t, group = "noise_level") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+grid.arrange(p2, p3, nrow = 2)
 mcmc_intervals(as.matrix(ax_compliance_time.model.t), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(ax_compliance_time.model.v, group = "has_ax", stat = "median") + ggtitle("v:has_ax")
+# p1 = pp_check(ax_compliance_time.model.v, group = "has_ax", stat = "median") + ggtitle("v:has_ax")
 p2 = pp_check(ax_compliance_time.model.v, group = "has_dx") + ggtitle("v:has_dx")
 p3 = pp_check(ax_compliance_time.model.v, group = "noise_level") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+grid.arrange(p2, p3, nrow = 2)
 mcmc_intervals(as.matrix(ax_compliance_time.model.v), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -3964,7 +3946,7 @@ There is no significant effect of any of the suggestions parameters on the time 
 1. A linear relationship to noise (possible effect; p < .1)
 1. An effect of level 2 noise (likely effect; p < .05)
 
-(The ROPE is defined as [-0.49, 0.49]. It corresponds to a reaction time of slightly less than a second and is obtained from `0.1 \times MAD(ax\_response\_time)`. Therefore, a change of less than 0.55 actions in either direction is considered no different from a change of 0 in the number of actions)
+(The ROPE is defined as [-0.49, 0.49]. It corresponds to a reaction time of slightly less than half a second and is obtained from `0.1 \times MAD(ax\_response\_time)`)
 
 There are no plots to show (all effects are supposedly non-existent).
 
@@ -3984,9 +3966,9 @@ plot_df = actions %>%
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
          noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, optimal_ax,
-         decision_duration, ax_decision_duration) %>%
-  mutate(optimal_ax = factor(optimal_ax))
+         scenario_completed, num_actions, optimal_dx,
+         decision_duration, dx_decision_duration) %>%
+  mutate(optimal_dx = factor(optimal_dx))
 
 text_short(report(plot_df))
 ```
@@ -3996,11 +3978,11 @@ text_short(report(plot_df))
 p1 =
   plot_df %>%
     mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-    ggplot(aes(study_condition, ax_decision_duration, fill = .fill_column)) +
+    ggplot(aes(study_condition, dx_decision_duration, fill = .fill_column)) +
       geom_boxplot() +
       geom_count() +
       scale_y_log10() +
-      labs(y = "Log(AX Decision Duration)", fill = "noise:has_suggestions") +
+      labs(y = "Log(DX Decision Duration)", fill = "noise:has_suggestions") +
       scale_fill_economist()
 
 p2 =
@@ -4021,30 +4003,30 @@ gg_df = plot_df %>%
   mutate(noise_level = fct_rev(noise_level))
 
 p1 = gg_df %>%
-  ggplot(aes(has_ax, ax_decision_duration, fill=optimal_ax)) +
+  ggplot(aes(has_ax, dx_decision_duration, fill=optimal_dx)) +
     geom_boxplot() +
-    # geom_count(aes(colour = optimal_ax), position = position_jitterdodge()) +
+    # geom_count(aes(colour = optimal_dx), position = position_jitterdodge()) +
     scale_y_log10() +
     facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Log(AX Decision Duration)") +
+    labs(y = "Log(DX Decision Duration)") +
     scale_fill_economist()
 
 p2 = gg_df %>%
-  ggplot(aes(has_dx, ax_decision_duration, fill=optimal_ax)) +
+  ggplot(aes(has_dx, dx_decision_duration, fill=optimal_dx)) +
     geom_boxplot() +
-    # geom_count(aes(colour = optimal_ax), position = position_jitterdodge()) +
+    # geom_count(aes(colour = optimal_dx), position = position_jitterdodge()) +
     scale_y_log10() +
     facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
-    labs(y = "Log(AX Decision Duration)") +
+    labs(y = "Log(DX Decision Duration)") +
     scale_fill_economist()
 
 p3 = gg_df %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
   mutate(has_ax = factor(has_ax)) %>%
   mutate(has_ax = fct_rev(has_ax)) %>%
-  ggplot(aes(noise_level, ax_decision_duration, fill=optimal_ax)) +
+  ggplot(aes(noise_level, dx_decision_duration, fill=optimal_dx)) +
     geom_boxplot() +
-    # geom_count(aes(colour = optimal_ax), position = position_jitterdodge()) +
+    # geom_count(aes(colour = optimal_dx), position = position_jitterdodge()) +
     scale_y_log10() +
     facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
     labs(y = "Log(AX Decision Duration)") +
@@ -4055,7 +4037,7 @@ grid.arrange(p1, p2, p3, ncol = 3)
 
 # Visualize also the variation in each of the three levels that we care about
 p1 = gg_df %>%
-  ggplot(aes(ax_decision_duration, group = optimal_ax, fill = optimal_ax)) +
+  ggplot(aes(dx_decision_duration, group = optimal_dx, fill = optimal_dx)) +
     geom_density(position = "identity", alpha = 0.5) +
     facet_grid(rows = vars(has_ax)) +
     scale_fill_economist() +
@@ -4063,7 +4045,7 @@ p1 = gg_df %>%
     legend_none()
 
 p2 = gg_df %>%
-  ggplot(aes(ax_decision_duration, group = optimal_ax, fill = optimal_ax)) +
+  ggplot(aes(dx_decision_duration, group = optimal_dx, fill = optimal_dx)) +
     geom_density(position = "identity", alpha = 0.5) +
     facet_grid(rows = vars(has_dx)) +
     scale_fill_economist() +
@@ -4071,7 +4053,7 @@ p2 = gg_df %>%
     theme(legend.position = "bottom")
 
 p3 = gg_df %>%
-  ggplot(aes(ax_decision_duration, group = optimal_ax, fill = optimal_ax)) +
+  ggplot(aes(dx_decision_duration, group = optimal_dx, fill = optimal_dx)) +
     geom_density(position = "identity", alpha = 0.5) +
     facet_grid(rows = vars(noise_level)) +
     scale_fill_economist() +
@@ -4081,66 +4063,68 @@ p3 = gg_df %>%
 grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
+(The plots don't bode well for any significant effect of the factors that we're interested in.)
+
 Checking some probability distributions of the durations (given the above plots):
 
 ```{r}
 # Run a few simple distribution fitting tests using the action
 x = fit_and_print_dist(plot_df %>%
-                         filter(has_ax == T, optimal_ax == 1) %>%
-                         pull(ax_decision_duration),
-                       "lognormal", "AX = T, OPT = T; lognormal:", use_mass = T)
-x = fit_and_print_dist(plot_df %>%
-                         filter(has_ax == T, optimal_ax == 1) %>%
-                         pull(ax_decision_duration),
-                       "exponential", "AX = T, OPT = T; exponential:", use_mass = T)
-x = fit_and_print_dist(plot_df %>%
-                         filter(has_ax == T, optimal_ax == 1) %>%
-                         pull(ax_decision_duration),
-                       "gamma", "AX = T, OPT = T; gamma:", use_mass = T)
-x = fit_and_print_dist(plot_df %>%
-                         filter(has_ax == T) %>%
-                         pull(ax_decision_duration),
-                       "lognormal", "AX = T; lognormal:", use_mass = T)
-x = fit_and_print_dist(plot_df %>%
-                         filter(has_ax == T) %>%
-                         pull(ax_decision_duration),
-                       "exponential", "AX = T; exponential:", use_mass = T)
-x = fit_and_print_dist(plot_df %>%
-                         filter(has_ax == T) %>%
-                         pull(ax_decision_duration),
-                       "gamma", "AX = T; gamma:", use_mass = T)
-
-# Try a couple of other predictor variables
-x = fit_and_print_dist(plot_df %>%
-                         filter(has_dx == T, optimal_ax == 1) %>%
-                         pull(ax_decision_duration),
+                         filter(has_dx == T, optimal_dx == 1) %>%
+                         pull(dx_decision_duration),
                        "lognormal", "DX = T, OPT = T; lognormal:", use_mass = T)
 x = fit_and_print_dist(plot_df %>%
-                         filter(has_dx == T, optimal_ax == 1) %>%
-                         pull(ax_decision_duration),
+                         filter(has_dx == T, optimal_dx == 1) %>%
+                         pull(dx_decision_duration),
                        "exponential", "DX = T, OPT = T; exponential:", use_mass = T)
 x = fit_and_print_dist(plot_df %>%
-                         filter(has_dx == T, optimal_ax == 1) %>%
-                         pull(ax_decision_duration),
+                         filter(has_dx == T, optimal_dx == 1) %>%
+                         pull(dx_decision_duration),
                        "gamma", "DX = T, OPT = T; gamma:", use_mass = T)
 x = fit_and_print_dist(plot_df %>%
                          filter(has_dx == T) %>%
-                         pull(ax_decision_duration),
+                         pull(dx_decision_duration),
                        "lognormal", "DX = T; lognormal:", use_mass = T)
 x = fit_and_print_dist(plot_df %>%
                          filter(has_dx == T) %>%
-                         pull(ax_decision_duration),
+                         pull(dx_decision_duration),
                        "exponential", "DX = T; exponential:", use_mass = T)
 x = fit_and_print_dist(plot_df %>%
                          filter(has_dx == T) %>%
-                         pull(ax_decision_duration),
+                         pull(dx_decision_duration),
                        "gamma", "DX = T; gamma:", use_mass = T)
+
+# Try a couple of other predictor variables
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T, optimal_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "lognormal", "AX = T, OPT = T; lognormal:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T, optimal_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "exponential", "AX = T, OPT = T; exponential:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T, optimal_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "gamma", "AX = T, OPT = T; gamma:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T) %>%
+                         pull(dx_decision_duration),
+                       "lognormal", "AX = T; lognormal:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T) %>%
+                         pull(dx_decision_duration),
+                       "exponential", "AX = T; exponential:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T) %>%
+                         pull(dx_decision_duration),
+                       "gamma", "AX = T; gamma:", use_mass = T)
 rm(x)
 
 # If we are training models, then try to use brms to also test this
 if (train_models) {
   lognormal.model = brm(
-    ax_decision_duration ~ 0 + Intercept + (1 | user_id),
+    dx_decision_duration ~ 0 + Intercept + (1 | user_id),
     family = lognormal,
     data = plot_df,
     seed = default_seed,
@@ -4148,7 +4132,7 @@ if (train_models) {
   lognormal.model = add_criterion(lognormal.model, "loo")
 
   exgaussian.model = brm(
-    ax_decision_duration ~ 0 + Intercept + (1 | user_id),
+    dx_decision_duration ~ 0 + Intercept + (1 | user_id),
     family = exgaussian,
     data = plot_df,
     seed = default_seed,
@@ -4156,7 +4140,7 @@ if (train_models) {
   exgaussian.model = add_criterion(exgaussian.model, "loo")
 
   shifted_lognormal.model = brm(
-    ax_decision_duration ~ 0 + Intercept + (1 | user_id),
+    dx_decision_duration ~ 0 + Intercept + (1 | user_id),
     family = shifted_lognormal,
     data = plot_df,
     seed = default_seed,
@@ -4166,6 +4150,10 @@ if (train_models) {
   print(loo_compare(lognormal.model,
                     exgaussian.model,
                     shifted_lognormal.model))
+#                         elpd_diff se_diff
+# shifted_lognormal.model    0.0       0.0 
+# lognormal.model          -14.7       4.9 
+# exgaussian.model        -120.6      41.5 
 
   rm(lognormal.model, exgaussian.model, shifted_lognormal.model)
   gc()
@@ -4177,26 +4165,30 @@ From this, we can take away that:
 1. The distribution of counts is most likely a `shifted_lognormal`. The Exponential Gaussian null model did not converge in the number of iterations that we have assigned.
 1. Not sure what we're checking here - the difference between when things are optimal vs. not?
 
-Therefore, we assume the following structural model (TODO):
+Therefore, we assume the following structural model:
 
-$$ax\_time_i = TBD\_Distr(\mu_i, \phi)$$
+$$dx\_time_{ij} = LogNormal(\mu_{ij} - ndt, \sigma)$$
 $$\begin{aligned}
-log(\mu_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i +\\ &\beta_{ax:noise}\text{ax}_i\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
-&\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
+log(\mu_{ij}) &= \beta_0 + \beta_{0i} + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i + \\
+&\beta_{ax:noise}\text{ax}_j\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
+&\beta_{no}\text{no}_{i} + \mathbf{\beta_{demo}X_{demo,i}} + \beta_{state} \text{state}_{ij} + \\
+&\beta_{correct\_diagnosis}\text{correct_diagnosis}_{ij}
 \end{aligned}$$
 $$\begin{aligned}
-\beta_{.} &\sim Normal(0, 10)\\
-\phi &\sim Gamma(0.01, 0.01)
+\beta_{.} &\sim Normal(0, 10) \\
+\beta_{0i} &\sim Normal(0, \sigma_i) \\
+\sigma_i &\sim HalfStudent(3, 0, 10) \\
+ndt &\sim Uniform(0, min(dx\_time_{ij}))
 \end{aligned}$$
 
-The prior for the $\phi$ parameter is the default used in `brms`; I see no need to change it.
+The prior for the $\sigma_i, ndt$ parameters are the default used in `brms`; I see no need to change them.
 
 Model fitting:
 
 ```{r, eval=train_models}
 # A null model to compare against
-ax_reliance_time.model.null = brm(
-  ax_decision_duration ~ 0 + Intercept + (1 | user_id),
+dx_reliance_time.model.null = brm(
+  dx_decision_duration ~ 0 + Intercept + (1 | user_id),
   family = shifted_lognormal,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
@@ -4205,13 +4197,13 @@ ax_reliance_time.model.null = brm(
   save_all_pars = T,
   sample_prior = T
 )
-ax_reliance_time.model.null = add_criterion(ax_reliance_time.model.null, "waic")
-ax_reliance_time.model.null = add_criterion(ax_reliance_time.model.null, "loo", reloo = T)
-saveModel(ax_reliance_time.model.null)
+dx_reliance_time.model.null = add_criterion(dx_reliance_time.model.null, "waic")
+dx_reliance_time.model.null = add_criterion(dx_reliance_time.model.null, "loo", reloo = T)
+saveModel(dx_reliance_time.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
-ax_reliance_time.model.t = brm(
-  ax_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + optimal_ax + (1 | user_id),
+dx_reliance_time.model.t = brm(
+  dx_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + optimal_dx + (1 | user_id),
   family = shifted_lognormal,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
@@ -4220,13 +4212,13 @@ ax_reliance_time.model.t = brm(
   save_all_pars = T,
   sample_prior = T
 )
-ax_reliance_time.model.t = add_criterion(ax_reliance_time.model.t, "waic")
-ax_reliance_time.model.t = add_criterion(ax_reliance_time.model.t, "loo", reloo = T)
-saveModel(ax_reliance_time.model.t)
+dx_reliance_time.model.t = add_criterion(dx_reliance_time.model.t, "waic")
+dx_reliance_time.model.t = add_criterion(dx_reliance_time.model.t, "loo", reloo = T)
+saveModel(dx_reliance_time.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
-ax_reliance_time.model.v = brm(
-  ax_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + optimal_ax + (1 | user_id),
+dx_reliance_time.model.v = brm(
+  dx_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + optimal_dx + (1 | user_id),
   family = shifted_lognormal,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
@@ -4235,15 +4227,15 @@ ax_reliance_time.model.v = brm(
   save_all_pars = T,
   sample_prior = T
 )
-ax_reliance_time.model.v = add_criterion(ax_reliance_time.model.v, "waic")
-ax_reliance_time.model.v = add_criterion(ax_reliance_time.model.v, "loo", reloo = T)
-saveModel(ax_reliance_time.model.v)
+dx_reliance_time.model.v = add_criterion(dx_reliance_time.model.v, "waic")
+dx_reliance_time.model.v = add_criterion(dx_reliance_time.model.v, "loo", reloo = T)
+saveModel(dx_reliance_time.model.v)
 
 # A possible alternative to these models is one that does not include the optimal_ax
 # as a factor. Weirdly, these models show an even lower effect of the study conditions
 # on the output. Does this mean the effect is not mediated by the probability of reliance?
-# ax_reliance_time.model.t = brm(
-#   ax_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + (1 | user_id),
+# dx_reliance_time.model.t = brm(
+#   dx_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + (1 | user_id),
 #   family = shifted_lognormal,
 #   prior = c(set_prior("normal(0, 10)", class = "b"),
 #             set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
@@ -4252,11 +4244,11 @@ saveModel(ax_reliance_time.model.v)
 #   save_all_pars = T,
 #   sample_prior = T
 # )
-# ax_reliance_time.model.t = add_criterion(ax_reliance_time.model.t, "waic")
-# ax_reliance_time.model.t = add_criterion(ax_reliance_time.model.t, "loo", reloo = T)
+# dx_reliance_time.model.t = add_criterion(dx_reliance_time.model.t, "waic")
+# dx_reliance_time.model.t = add_criterion(dx_reliance_time.model.t, "loo", reloo = T)
 # 
-# ax_reliance_time.model.v = brm(
-#   ax_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + (1 | user_id),
+# dx_reliance_time.model.v = brm(
+#   dx_decision_duration ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + (1 | user_id),
 #   family = shifted_lognormal,
 #   prior = c(set_prior("normal(0, 10)", class = "b"),
 #             set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
@@ -4265,28 +4257,28 @@ saveModel(ax_reliance_time.model.v)
 #   save_all_pars = T,
 #   sample_prior = T
 # )
-# ax_reliance_time.model.v = add_criterion(ax_reliance_time.model.v, "waic")
-# ax_reliance_time.model.v = add_criterion(ax_reliance_time.model.v, "loo", reloo = T)
+# dx_reliance_time.model.v = add_criterion(dx_reliance_time.model.v, "waic")
+# dx_reliance_time.model.v = add_criterion(dx_reliance_time.model.v, "loo", reloo = T)
 ```
 ```{r, eval=!train_models}
 # Load the models
-ax_reliance_time.model.null = loadModel("ax_reliance_time.model.null")
-ax_reliance_time.model.t = loadModel("ax_reliance_time.model.t")
-ax_reliance_time.model.v = loadModel("ax_reliance_time.model.v")
+dx_reliance_time.model.null = loadModel("dx_reliance_time.model.null")
+dx_reliance_time.model.t = loadModel("dx_reliance_time.model.t")
+dx_reliance_time.model.v = loadModel("dx_reliance_time.model.v")
 ```
 
 Model fitting results:
 
 ```{r}
-# print(tidy_stan(ax_reliance_time.model.null))
-print(performance::r2(ax_reliance_time.model.null))
+# print(tidy_stan(dx_reliance_time.model.null))
+print(performance::r2(dx_reliance_time.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(ax_reliance_time.model.t, effects = "fixed"))
-print(performance::r2(ax_reliance_time.model.t))
+print(tidy_stan(dx_reliance_time.model.t, effects = "fixed"))
+print(performance::r2(dx_reliance_time.model.t))
 
-print(tidy_stan(ax_reliance_time.model.v, effects = "fixed"))
-print(performance::r2(ax_reliance_time.model.v))
+print(tidy_stan(dx_reliance_time.model.v, effects = "fixed"))
+print(performance::r2(dx_reliance_time.model.v))
 ```
 
 Diagnostics of the fit:
@@ -4295,68 +4287,514 @@ Diagnostics of the fit:
 # Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
 
 # LOO cross-validation results
-print(ax_reliance_time.model.null$criteria$loo$estimates)
-print(ax_reliance_time.model.t$criteria$loo$estimates)
-print(ax_reliance_time.model.v$criteria$loo$estimates)
-print(loo_compare(ax_reliance_time.model.null,
-                  ax_reliance_time.model.t,
-                  ax_reliance_time.model.v))
+print(dx_reliance_time.model.null$criteria$loo$estimates)
+print(dx_reliance_time.model.t$criteria$loo$estimates)
+print(dx_reliance_time.model.v$criteria$loo$estimates)
+print(loo_compare(dx_reliance_time.model.null,
+                  dx_reliance_time.model.t,
+                  dx_reliance_time.model.v))
+
+#                             elpd_diff se_diff
+# dx_reliance_time.model.v       0.0       0.0 
+# dx_reliance_time.model.t      -1.0       0.3 
+# dx_reliance_time.model.null -140.4      16.2 
 
 # Diagnostics of the sampling process
 par(mfrow=c(1,2))
-plot(ax_reliance_time.model.t$criteria$loo, main = "Trend Model")
-plot(ax_reliance_time.model.v$criteria$loo, main = "Values Model")
+plot(dx_reliance_time.model.t$criteria$loo, main = "Trend Model")
+plot(dx_reliance_time.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-# mcmc_intervals(as.matrix(ax_reliance_time.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
+# mcmc_intervals(as.matrix(dx_reliance_time.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
 #   ggtitle("Null Model")
 
-p1 = pp_check(ax_reliance_time.model.t, group = "has_ax", stat = "median") + ggtitle("t:has_ax")
-p2 = pp_check(ax_reliance_time.model.t, group = "has_dx") + ggtitle("t:has_dx")
-p3 = pp_check(ax_reliance_time.model.t, group = "noise_level") + ggtitle("t:noise_level")
+p1 = pp_check(dx_reliance_time.model.t, group = "has_ax", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(dx_reliance_time.model.t, group = "has_dx") + ggtitle("t:has_dx")
+p3 = pp_check(dx_reliance_time.model.t, group = "noise_level") + ggtitle("t:noise_level")
 grid.arrange(p1, p2, p3, nrow = 3)
-mcmc_intervals(as.matrix(ax_reliance_time.model.t), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
+mcmc_intervals(as.matrix(dx_reliance_time.model.t), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(ax_reliance_time.model.v, group = "has_ax", stat = "median") + ggtitle("v:has_ax")
-p2 = pp_check(ax_reliance_time.model.v, group = "has_dx") + ggtitle("v:has_dx")
-p3 = pp_check(ax_reliance_time.model.v, group = "noise_level") + ggtitle("v:noise_level")
+p1 = pp_check(dx_reliance_time.model.v, group = "has_ax", stat = "median") + ggtitle("v:has_ax")
+p2 = pp_check(dx_reliance_time.model.v, group = "has_dx") + ggtitle("v:has_dx")
+p3 = pp_check(dx_reliance_time.model.v, group = "noise_level") + ggtitle("v:noise_level")
 grid.arrange(p1, p2, p3, nrow = 3)
-mcmc_intervals(as.matrix(ax_reliance_time.model.v), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
+mcmc_intervals(as.matrix(dx_reliance_time.model.v), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
 # Plot predictions vs original
-preds_p_df = ax_reliance_time.model.null %>% predict() %>% as_tibble()
+preds_p_df = dx_reliance_time.model.null %>% predict() %>% as_tibble()
 p1 =
   preds_p_df %>%
-    add_column(ax_response_time = ax_reliance_time.model.null$data$ax_decision_duration,
-               optimal_ax = ax_reliance_time.model.v$data$optimal_ax) %>%
-    ggplot(aes(x = ax_response_time, y = Estimate, color = optimal_ax, group = optimal_ax)) +
+    add_column(dx_response_time = dx_reliance_time.model.null$data$dx_decision_duration,
+               optimal_dx = dx_reliance_time.model.v$data$optimal_dx) %>%
+    ggplot(aes(x = dx_response_time, y = Estimate, color = optimal_dx, group = optimal_dx)) +
       geom_point() +
       scale_x_log10() + scale_y_log10() +
       labs(y = "Predicted values") +
       ggtitle("Null Model") +
       theme(legend.position = "bottom")
 
-preds_p_df = ax_reliance_time.model.t %>% predict() %>% as_tibble()
+preds_p_df = dx_reliance_time.model.t %>% predict() %>% as_tibble()
 p3 =
   preds_p_df %>%
-    add_column(ax_response_time = ax_reliance_time.model.t$data$ax_decision_duration,
-               optimal_ax = ax_reliance_time.model.t$data$optimal_ax) %>%
-    ggplot(aes(x = ax_response_time, y = Estimate, color = optimal_ax, group = optimal_ax)) +
+    add_column(dx_response_time = dx_reliance_time.model.t$data$dx_decision_duration,
+               optimal_dx = dx_reliance_time.model.t$data$optimal_dx) %>%
+    ggplot(aes(x = dx_response_time, y = Estimate, color = optimal_dx, group = optimal_dx)) +
       geom_point() +
       scale_x_log10() + scale_y_log10() +
       labs(y = "Predicted values") +
       ggtitle("Trends Model") +
       legend_none()
 
-preds_p_df = ax_reliance_time.model.v %>% predict() %>% as_tibble()
+preds_p_df = dx_reliance_time.model.v %>% predict() %>% as_tibble()
 p5 =
   preds_p_df %>%
-    add_column(ax_response_time = ax_reliance_time.model.v$data$ax_decision_duration,
-               optimal_ax = ax_reliance_time.model.v$data$optimal_ax) %>%
-    ggplot(aes(x = ax_response_time, y = Estimate, color = optimal_ax, group = optimal_ax)) +
+    add_column(dx_response_time = dx_reliance_time.model.v$data$dx_decision_duration,
+               optimal_dx = dx_reliance_time.model.v$data$optimal_dx) %>%
+    ggplot(aes(x = dx_response_time, y = Estimate, color = optimal_dx, group = optimal_dx)) +
+      geom_point() +
+      scale_x_log10() + scale_y_log10() +
+      labs(y = "Predicted values") +
+      ggtitle("Values Model")
+
+grid.arrange(p1, p3, p5, nrow = 1, ncol = 3)
+```
+
+Inferences from the fitting:
+
+```{r, eval=report_bayesfactors}
+# Compute the bayes factor for each parameter value. Note: we compare
+# here against the ROPE, and not the degenerate null hypothesis of 0
+# Bayes-Factor values would be more significant in the latter case
+# According to the Raftery, 1995 rules
+# bf = 1 - 3: Weak
+# bf = 3 - 20: Positive
+# bf = 20 - 150: Strong
+# bf > 150: Very strong
+# The MAD is 8.12. This is more reasonable than the std. dev of 24.1
+# The almost double MAD makes sense---there are atleast 2 buttons that
+# a user must click for the diagnoses
+print(bayesfactor_rope(dx_reliance_time.model.null, null = c(-0.81, 0.81)), n = 30)
+print(bayesfactor_rope(dx_reliance_time.model.t, null = c(-0.81, 0.81)), n = 30)
+print(bayesfactor_rope(dx_reliance_time.model.v, null = c(-0.81, 0.81)), n = 30)
+```
+```{r}
+options(digits = 3)
+# Check the significance of each hypothesis
+h_df = as_tibble(insight::get_parameters(dx_reliance_time.model.t)) %>%
+  transmute(
+    Intercept = b_Intercept,
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_levelL_test = b_noise_level.L,
+    noise_levelQ_test = b_noise_level.Q,
+    optimal_dx_test = -2 * b_optimal_dx1
+  )
+
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.81, 0.81))
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+
+h_df = as_tibble(insight::get_parameters(dx_reliance_time.model.v)) %>%
+  transmute(
+    Intercept = b_Intercept,
+    has_ax_test = -2 * b_has_ax1,
+    has_dx_test = -2 * b_has_dx1,
+    noise_level1_test = b_noise_level_f1,
+    noise_level2_test = b_noise_level_f2,
+    noise_level3_test = - b_noise_level_f1 - b_noise_level_f2,
+    optimal_dx_test = -2 * b_optimal_dx1
+  )
+
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.81, 0.81))
+print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+options(digits = 7)
+```
+
+**Results**:
+
+There is no significant effect of any of the suggestions parameters on the time taken to pick an diagnoses. Based on [pd] values, insignificant effects exist of:
+
+1. Choosing the optimal diagnosis (certain effect; p < 0.001)
+1. Having action suggestions (probable effect; p < .01)
+
+(The ROPE is defined as [-0.81, 0.81]. It corresponds to a reaction time of slightly less twice the ROPE of action select and is obtained from `0.1 \times MAD(dx\_response\_time)`; the 2x MAD is understandable given that atleast 2 buttons must be clicked in order to select diagnoses).
+
+There are no plots to show (all effects are supposedly non-existent).
+
+```{r, echo=F, results=F, message=F, warning=F}
+rm(dx_reliance_time.model.null, dx_reliance_time.model.t, dx_reliance_time.model.v)
+gc()
+```
+
+
+## Time When Compliant with AX
+
+**How long did people take to pick diagnoses when they were compliant with suggestions?**
+
+```{r}
+plot_df = actions %>%
+  filter(has_dx == T) %>%
+  select(X1, id, user_id, study_condition, start_condition, num_optimal,
+         state_idx, state_idx_rescaled,
+         age_group, gender, robot_experience,
+         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         scenario_completed, num_actions, chose_dx,
+         decision_duration, dx_decision_duration) %>%
+  mutate(chose_dx = factor(chose_dx))
+
+text_short(report(plot_df))
+```
+
+```{r fig.height=7, fig.width=15}
+# Plot by the study condition
+p1 =
+  plot_df %>%
+    mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+    ggplot(aes(study_condition, dx_decision_duration, fill = .fill_column)) +
+      geom_boxplot() +
+      geom_count() +
+      scale_y_log10() +
+      labs(y = "Log(DX Decision Duration)", fill = "noise:has_suggestions") +
+      scale_fill_economist()
+
+p2 =
+  plot_df %>%
+    mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+    ggplot(aes(study_condition, decision_duration, fill = .fill_column)) +
+      geom_boxplot() +
+      geom_count() +
+      scale_y_log10() +
+      labs(y = "Log(Decision Duration)", fill = "noise:has_suggestions") +
+      scale_fill_economist()
+
+grid.arrange(p1, p2, ncol = 2)
+
+# Visualize the data by the three variables that we care about
+gg_df = plot_df %>%
+  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+  mutate(noise_level = fct_rev(noise_level))
+
+p1 = gg_df %>%
+  ggplot(aes(has_ax, dx_decision_duration, fill=chose_dx)) +
+    geom_boxplot() +
+    geom_count(aes(colour = chose_dx), position = position_jitterdodge()) +
+    scale_y_log10() +
+    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Log(AX Decision Duration)") +
+    scale_fill_economist()
+
+# p2 = gg_df %>%
+#   ggplot(aes(has_dx, dx_decision_duration, fill=chose_dx)) +
+#     geom_boxplot() +
+#     geom_count(aes(colour = chose_dx), position = position_jitterdodge()) +
+#     scale_y_log10() +
+#     facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
+#     labs(y = "Log(AX Decision Duration)") +
+#     scale_fill_economist()
+
+p3 = gg_df %>%
+  mutate(noise_level = fct_rev(noise_level)) %>%
+  mutate(has_ax = factor(has_ax)) %>%
+  mutate(has_ax = fct_rev(has_ax)) %>%
+  ggplot(aes(noise_level, dx_decision_duration, fill=chose_dx)) +
+    geom_boxplot() +
+    geom_count(aes(colour = chose_dx), position = position_jitterdodge()) +
+    scale_y_log10() +
+    facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
+    labs(y = "Log(AX Decision Duration)") +
+    scale_fill_economist() +
+    legend_none()
+
+grid.arrange(p1, p3, ncol = 2)
+
+# Visualize also the variation in each of the three levels that we care about
+p1 = gg_df %>%
+  ggplot(aes(dx_decision_duration, group = chose_dx, fill = chose_dx)) +
+    geom_density(position = "identity", alpha = 0.5) +
+    facet_grid(rows = vars(has_ax)) +
+    scale_fill_economist() +
+    scale_x_continuous(trans = "log") +
+    theme(legend.position = "bottom")
+
+# p2 = gg_df %>%
+#   ggplot(aes(dx_decision_duration, group = chose_dx, fill = chose_dx)) +
+#     geom_density(position = "identity", alpha = 0.5) +
+#     facet_grid(rows = vars(has_dx)) +
+#     scale_fill_economist() +
+#     scale_x_continuous(trans = "log") +
+#     theme(legend.position = "bottom")
+
+p3 = gg_df %>%
+  ggplot(aes(dx_decision_duration, group = chose_dx, fill = chose_dx)) +
+    geom_density(position = "identity", alpha = 0.5) +
+    facet_grid(rows = vars(noise_level)) +
+    scale_fill_economist() +
+    scale_x_continuous(trans = "log") +
+    legend_none()
+
+grid.arrange(p1, p3, ncol = 2)
+```
+
+Checking some probability distributions of the durations (given the above plots):
+
+```{r}
+# Run a few simple distribution fitting tests using the action
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_dx == T, chose_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "lognormal", "DX = T, OPT = T; lognormal:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_dx == T, chose_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "exponential", "DX = T, OPT = T; exponential:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_dx == T, chose_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "gamma", "DX = T, OPT = T; gamma:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_dx == T) %>%
+                         pull(dx_decision_duration),
+                       "lognormal", "DX = T; lognormal:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_dx == T) %>%
+                         pull(dx_decision_duration),
+                       "exponential", "DX = T; exponential:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_dx == T) %>%
+                         pull(dx_decision_duration),
+                       "gamma", "DX = T; gamma:", use_mass = T)
+
+# Try a couple of other predictor variables
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T, chose_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "lognormal", "AX = T, OPT = T; lognormal:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T, chose_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "exponential", "AX = T, OPT = T; exponential:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T, chose_dx == 1) %>%
+                         pull(dx_decision_duration),
+                       "gamma", "AX = T, OPT = T; gamma:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T) %>%
+                         pull(dx_decision_duration),
+                       "lognormal", "AX = T; lognormal:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T) %>%
+                         pull(dx_decision_duration),
+                       "exponential", "AX = T; exponential:", use_mass = T)
+x = fit_and_print_dist(plot_df %>%
+                         filter(has_ax == T) %>%
+                         pull(dx_decision_duration),
+                       "gamma", "AX = T; gamma:", use_mass = T)
+rm(x)
+
+# If we are training models, then try to use brms to also test this
+if (train_models) {
+  lognormal.model = brm(
+    dx_decision_duration ~ 0 + Intercept + (1 | user_id),
+    family = lognormal,
+    data = plot_df,
+    seed = default_seed,
+  )
+  lognormal.model = add_criterion(lognormal.model, "loo")
+
+  exgaussian.model = brm(
+    dx_decision_duration ~ 0 + Intercept + (1 | user_id),
+    family = exgaussian,
+    data = plot_df,
+    seed = default_seed,
+  )
+  exgaussian.model = add_criterion(exgaussian.model, "loo")
+
+  shifted_lognormal.model = brm(
+    dx_decision_duration ~ 0 + Intercept + (1 | user_id),
+    family = shifted_lognormal,
+    data = plot_df,
+    seed = default_seed,
+  )
+  shifted_lognormal.model = add_criterion(shifted_lognormal.model, "loo")
+
+  print(loo_compare(lognormal.model,
+                    exgaussian.model,
+                    shifted_lognormal.model))
+#                         elpd_diff se_diff
+# shifted_lognormal.model    0.0       0.0 
+# lognormal.model          -14.7       4.9 
+# exgaussian.model        -120.6      41.5 
+
+  rm(lognormal.model, exgaussian.model, shifted_lognormal.model)
+  gc()
+}
+```
+
+From this, we can take away that:
+
+1. The distribution of counts is most likely a `shifted_lognormal`. The Exponential Gaussian null model did not converge in the number of iterations that we have assigned.
+1. Not sure what we're checking here - the difference between when things are chosen vs. not?
+
+Therefore, we assume the following structural model:
+
+$$dx\_time_{ij} = LogNormal(\mu_{ij} - ndt, \sigma)$$
+$$\begin{aligned}
+log(\mu_{ij}) &= \beta_0 + \beta_{0i} + \beta_{noise}\text{noise}_{i} + \beta_{ax}\text{ax}_i + \beta_{noise}\text{noise}_i + \beta_{ax:noise}\text{ax}_i\text{noise}_i + \\
+&\beta_{no}\text{no}_{i} + \mathbf{\beta_{demo}X_{demo,i}} + \beta_{state} \text{state}_{ij} + \\
+&\beta_{follow\_dx}\text{follow_dx}_{ij}
+\end{aligned}$$
+$$\begin{aligned}
+\beta_{.} &\sim Normal(0, 10) \\
+\beta_{0i} &\sim Normal(0, \sigma_i) \\
+\sigma_i &\sim HalfStudent(3, 0, 10) \\
+ndt &\sim Uniform(0, min(dx\_time_{ij}))
+\end{aligned}$$
+
+The prior for the $\sigma_i, ndt$ parameters are the default used in `brms`; I see no need to change them.
+
+Model fitting:
+
+```{r, eval=train_models}
+# A null model to compare against
+dx_compliance_time.model.null = brm(
+  dx_decision_duration ~ 0 + Intercept + (1 | user_id),
+  family = shifted_lognormal,
+  prior = c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
+  data = plot_df,
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
+)
+dx_compliance_time.model.null = add_criterion(dx_compliance_time.model.null, "waic")
+dx_compliance_time.model.null = add_criterion(dx_compliance_time.model.null, "loo", reloo = T)
+saveModel(dx_compliance_time.model.null)
+
+# The trend model to see if there is a trend in the noise level variable
+dx_compliance_time.model.t = brm(
+  dx_decision_duration ~ 0 + Intercept + (has_ax * noise_level) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + chose_dx + (1 | user_id),
+  family = shifted_lognormal,
+  prior = c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
+  data = plot_df,
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
+)
+dx_compliance_time.model.t = add_criterion(dx_compliance_time.model.t, "waic")
+dx_compliance_time.model.t = add_criterion(dx_compliance_time.model.t, "loo", reloo = T)
+saveModel(dx_compliance_time.model.t)
+
+# The values model, to see if specific values of the noise level variable are significant
+dx_compliance_time.model.v = brm(
+  dx_decision_duration ~ 0 + Intercept + (has_ax * noise_level_f) + (gender + age_group + robot_experience) + num_optimal + state_idx_rescaled + chose_dx + (1 | user_id),
+  family = shifted_lognormal,
+  prior = c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("student_t(3, 0, 10)", class = "sd")),  # ndt = uniform(0, min(Y))
+  data = plot_df,
+  seed = default_seed,
+  save_all_pars = T,
+  sample_prior = T
+)
+dx_compliance_time.model.v = add_criterion(dx_compliance_time.model.v, "waic")
+dx_compliance_time.model.v = add_criterion(dx_compliance_time.model.v, "loo", reloo = T)
+saveModel(dx_compliance_time.model.v)
+
+# A possible alternative to these models is one that does not include the optimal_ax
+# as a factor. There is likely no effect, because the data is but a subset of the data
+# used in the previous metric, and these models had nothing significant then.
+```
+```{r, eval=!train_models}
+# Load the models
+dx_compliance_time.model.null = loadModel("dx_compliance_time.model.null")
+dx_compliance_time.model.t = loadModel("dx_compliance_time.model.t")
+dx_compliance_time.model.v = loadModel("dx_compliance_time.model.v")
+```
+
+Model fitting results:
+
+```{r}
+# print(tidy_stan(dx_compliance_time.model.null))
+print(performance::r2(dx_compliance_time.model.null))
+
+# Print the parameters, and some initial diagnostics
+print(tidy_stan(dx_compliance_time.model.t, effects = "fixed"))
+print(performance::r2(dx_compliance_time.model.t))
+
+print(tidy_stan(dx_compliance_time.model.v, effects = "fixed"))
+print(performance::r2(dx_compliance_time.model.v))
+```
+
+Diagnostics of the fit:
+
+```{r fig.height=7, fig.width=15, eval=plot_diagnostics}
+# Alternative diagnostics: diagnostic_posterior(scenario_completed.model.v)
+
+# LOO cross-validation results
+print(dx_compliance_time.model.null$criteria$loo$estimates)
+print(dx_compliance_time.model.t$criteria$loo$estimates)
+print(dx_compliance_time.model.v$criteria$loo$estimates)
+print(loo_compare(dx_compliance_time.model.null,
+                  dx_compliance_time.model.t,
+                  dx_compliance_time.model.v))
+
+# Diagnostics of the sampling process
+par(mfrow=c(1,2))
+plot(dx_compliance_time.model.t$criteria$loo, main = "Trend Model")
+plot(dx_compliance_time.model.v$criteria$loo, main = "Values Model")
+
+# Include posterior predictive checks of the sampling (are sampling according
+# to the data that we actually have?)
+mcmc_intervals(as.matrix(dx_compliance_time.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Null Model")
+
+p1 = pp_check(dx_compliance_time.model.t, group = "has_ax", stat = "median") + ggtitle("t:has_ax")
+# p2 = pp_check(dx_compliance_time.model.t, group = "has_dx") + ggtitle("t:has_dx")
+p3 = pp_check(dx_compliance_time.model.t, group = "noise_level") + ggtitle("t:noise_level")
+grid.arrange(p1, p3, nrow = 2)
+mcmc_intervals(as.matrix(dx_compliance_time.model.t), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Trends Model")
+
+p1 = pp_check(dx_compliance_time.model.v, group = "has_ax", stat = "median") + ggtitle("v:has_ax")
+# p2 = pp_check(dx_compliance_time.model.v, group = "has_dx") + ggtitle("v:has_dx")
+p3 = pp_check(dx_compliance_time.model.v, group = "noise_level") + ggtitle("v:noise_level")
+grid.arrange(p1, p3, nrow = 2)
+mcmc_intervals(as.matrix(dx_compliance_time.model.v), regex_pars = "b_|^ndt", prob = 0.90, prob_outer = 0.95) +
+  ggtitle("Values Model")
+
+# Plot predictions vs original
+preds_p_df = dx_compliance_time.model.null %>% predict() %>% as_tibble()
+p1 =
+  preds_p_df %>%
+    add_column(dx_response_time = dx_compliance_time.model.null$data$dx_decision_duration,
+               chose_dx = dx_compliance_time.model.v$data$chose_dx) %>%
+    ggplot(aes(x = dx_response_time, y = Estimate, color = chose_dx, group = chose_dx)) +
+      geom_point() +
+      scale_x_log10() + scale_y_log10() +
+      labs(y = "Predicted values") +
+      ggtitle("Null Model") +
+      theme(legend.position = "bottom")
+
+preds_p_df = dx_compliance_time.model.t %>% predict() %>% as_tibble()
+p3 =
+  preds_p_df %>%
+    add_column(dx_response_time = dx_compliance_time.model.t$data$dx_decision_duration,
+               chose_dx = dx_compliance_time.model.t$data$chose_dx) %>%
+    ggplot(aes(x = dx_response_time, y = Estimate, color = chose_dx, group = chose_dx)) +
+      geom_point() +
+      scale_x_log10() + scale_y_log10() +
+      labs(y = "Predicted values") +
+      ggtitle("Trends Model") +
+      legend_none()
+
+preds_p_df = dx_compliance_time.model.v %>% predict() %>% as_tibble()
+p5 =
+  preds_p_df %>%
+    add_column(dx_response_time = dx_compliance_time.model.v$data$dx_decision_duration,
+               chose_dx = dx_compliance_time.model.v$data$chose_dx) %>%
+    ggplot(aes(x = dx_response_time, y = Estimate, color = chose_dx, group = chose_dx)) +
       geom_point() +
       scale_x_log10() + scale_y_log10() +
       labs(y = "Predicted values") +
@@ -4377,38 +4815,36 @@ Inferences from the fitting:
 # bf = 20 - 150: Strong
 # bf > 150: Very strong
 # The MAD is 4.89. This is more reasonable than the std. dev of 1.12
-print(bayesfactor_rope(ax_reliance_time.model.null, null = c(-0.49, 0.49)), n = 30)
-print(bayesfactor_rope(ax_reliance_time.model.t, null = c(-0.49, 0.49)), n = 30)
-print(bayesfactor_rope(ax_reliance_time.model.v, null = c(-0.49, 0.49)), n = 30)
+print(bayesfactor_rope(dx_compliance_time.model.null, null = c(-0.81, 0.81)), n = 30)
+print(bayesfactor_rope(dx_compliance_time.model.t, null = c(-0.81, 0.81)), n = 30)
+print(bayesfactor_rope(dx_compliance_time.model.v, null = c(-0.81, 0.81)), n = 30)
 ```
 ```{r}
 options(digits = 3)
 # Check the significance of each hypothesis
-h_df = as_tibble(insight::get_parameters(ax_reliance_time.model.t)) %>%
+h_df = as_tibble(insight::get_parameters(dx_compliance_time.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
     has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q,
-    optimal_ax_test = -2 * b_optimal_ax1
+    chose_dx_test = -2 * b_chose_dx1
   )
 
-hyp_results = test_hypotheses(h_df, rope_values = c(-0.49, 0.49))
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.81, 0.81))
 print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
 
-h_df = as_tibble(insight::get_parameters(ax_reliance_time.model.v)) %>%
+h_df = as_tibble(insight::get_parameters(dx_compliance_time.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
     has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2,
-    optimal_ax_test = -2 * b_optimal_ax1
+    chose_dx_test = -2 * b_chose_dx1
   )
 
-hyp_results = test_hypotheses(h_df, rope_values = c(-0.49, 0.49))
+hyp_results = test_hypotheses(h_df, rope_values = c(-0.81, 0.81))
 print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
 options(digits = 7)
 ```
@@ -4417,17 +4853,16 @@ options(digits = 7)
 
 There is no significant effect of any of the suggestions parameters on the time taken to pick an action. Based on [pd] values, insignificant effects exist of:
 
-1. Choosing the optimal action (certain effect; p < 0.001)
-1. Having action suggestions (possible effect; p < .1)
-1. A quadratic relationship to noise (possible effect; p < .1)
-1. An effect of level 1 noise (possible effect; p < .1)
+1. An effect of choosing the suggestions (probable effect; p < .01)
+1. An effect of having action suggestions (certain effect; p < .001)
+1. An effect of no noise in the suggestions (likely effect; p < .05)
 
-(The ROPE is defined as [-0.49, 0.49]. It corresponds to a reaction time of slightly less than a second and is obtained from `0.1 \times MAD(ax\_response\_time)`. Therefore, a change of less than 0.55 actions in either direction is considered no different from a change of 0 in the number of actions)
+(The ROPE is defined as [-0.81, 0.81]. It corresponds to a reaction time of slightly less twice the ROPE of action select and is obtained from `0.1 \times MAD(dx\_response\_time)`; the 2x MAD is understandable given that atleast 2 buttons must be clicked in order to select diagnoses).
 
 There are no plots to show (all effects are supposedly non-existent).
 
 ```{r, echo=F, results=F, message=F, warning=F}
-rm(ax_reliance_time.model.null, ax_reliance_time.model.t, ax_reliance_time.model.v)
+rm(ax_compliance_time.model.null, ax_compliance_time.model.t, ax_compliance_time.model.v)
 gc()
 ```
 
