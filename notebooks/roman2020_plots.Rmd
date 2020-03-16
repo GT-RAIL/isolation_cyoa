@@ -226,7 +226,7 @@ scenario_completed.model.t = loadModel("scenario_completed.model.t")
 scenario_completed.model.v = loadModel("scenario_completed.model.v")
 ```
 
-```{r, fig.width=4, fig.height=6}
+```{r, fig.width=3.5, fig.height=5}
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
@@ -259,30 +259,37 @@ Significance Results:
 So the related plots:
 
 
-```{r, fig.width=4, fig.height=6}
+```{r, fig.width=3.5, fig.height=2.5}
+eff = fixef(scenario_completed.model.v)
+
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
   count(has_ax, has_dx, noise_level, scenario_completed) %>%
   mutate(has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
          has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
+         estimate = -1) %>%
+  mutate(estimate = if_else(has_ax == "No AX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_ax1","Estimate"]), estimate)) %>%
+  mutate(estimate = if_else(has_ax == "AX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_ax1", "Estimate"]), estimate))
 
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
-  ggplot(aes(has_ax, n/20, fill = has_ax)) +
-    geom_boxplot() +
-    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "***", textsize = 8) +
+  ggplot(aes(has_ax, n/20, group = has_ax, colour = has_ax)) +
+    geom_count() +
+    geom_boxplot(aes(y = estimate)) +
+    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "***", textsize = 8, color = "black") +
     scale_y_continuous(limits = c(0.5, 1.1)) +
     labs(y = "Fraction of participants that resolved fault", x = NULL) +
     scale_fill_economist() +
+    scale_colour_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
     legend_none()
 ```
 
-```{r, fig.width=4, fig.height=6}
+```{r, fig.width=3.5, fig.height=2.5}
 eff = fixef(scenario_completed.model.v)
 
 gg_df = plot_df %>%
@@ -300,8 +307,8 @@ gg_df = plot_df %>%
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
   ggplot(aes(noise_level, n/20, group = noise_level, colour = noise_level)) +
-    geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]), size = 2, linetype = "dashed") +
-    geom_point() +
+    geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]), size = 1, linetype = "dashed") +
+    geom_count() +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 1,
@@ -315,13 +322,18 @@ gg_df %>%
              xend = 2,
              yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
              color = "black") +
-    annotate("text", x = "Acc: 90%", y = inv_logit_scaled(eff["Intercept", "Estimate"] + 0.15),
-                  label = "Mean",
-                  group = NA, colour = "black") +
-    scale_y_continuous(limits = c(0.5, 1.0)) +
+    annotate("text",
+             x = 3.5,
+             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.85),
+             label = "Mean of all levels",
+             angle = 90,
+             group = NA,
+             colour = "black") +
+    scale_y_continuous(limits = c(0.5, 1.1), breaks = c(0.5, 1.0)) +
     labs(y = "Fraction of participants that resolved fault", x = NULL) +
     scale_fill_economist() +
     scale_colour_economist() +
+    scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
@@ -345,10 +357,37 @@ plot_df = users %>%
          age_group, gender, robot_experience,
          noise_level, noise_level_f, has_noise, has_dx, has_ax,
          scenario_completed, num_actions, num_actions_diff, frac_actions_diff) %>%
-  mutate(scenario_completed = factor(scenario_completed))
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
+         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
 
 num_actions_diff.model.t = loadModel("num_actions_diff.model.t")
 num_actions_diff.model.v = loadModel("num_actions_diff.model.v")
+```
+
+```{r, fig.width=7, fig.height=5}
+gg_df = plot_df %>%
+  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":"))
+
+fit_df = fitdist(gg_df %>% filter(scenario_completed == "Resolved") %>% pull(num_actions_diff),
+                 "nbinom")
+
+gg_df %>%
+  ggplot(aes(num_actions_diff, group = scenario_completed, fill = scenario_completed)) +
+    geom_histogram(binwidth = 1) +
+    stat_function(fun = function(z, size, mu)(dnbinom(z, size = size, mu = mu) * 200 * 1),
+                  args = as.list(fit_df$estimate),
+                  aes(colour = "Negative Binomial"),
+                  n = 18) +
+    xlab("Number of Unncessary Actions (UA)") +
+    ylab("Number of Participants") +
+    scale_fill_economist() +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          legend.position = "top",
+          legend.title = element_blank())
 ```
 
 Significance Results:
@@ -373,15 +412,70 @@ plot_df = actions %>%
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
          noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, optimal_ax)
+         scenario_completed, num_actions, optimal_ax) %>%
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
+         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
 
 optimal_ax.model.t = loadModel("optimal_ax.model.t")
 optimal_ax.model.v = loadModel("optimal_ax.model.v")
 ```
 
+```{r, fig.width=3.5, fig.height=5}
+gg_df = plot_df %>%
+  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+  count(user_id, study_condition, .fill_column, optimal_ax, num_actions, has_ax, has_dx, noise_level,
+        name = "num_optimal_ax")
+
+gg_df %>%
+  filter(optimal_ax == "1") %>%
+  ggplot(aes(has_ax, num_optimal_ax / num_actions, fill=.fill_column)) +
+    geom_boxplot() +
+    # geom_count() +
+    facet_grid(rows = vars(noise_level), cols = vars(has_dx)) +
+    labs(y = NULL, x = NULL) +
+    scale_fill_economist() +
+    scale_colour_economist() +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          axis.title.y = element_blank()) +
+    legend_none()
+```
+
 Significance Results:
 
+1. Medium positive effect of AX
+
 So the related plots:
+
+```{r, fig.width=3.5, fig.height=5}
+eff = fixef(optimal_ax.model.v)
+
+gg_df = plot_df %>%
+  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
+  count(user_id, study_condition, .fill_column, optimal_ax, num_actions, has_ax, has_dx, noise_level,
+        name = "num_optimal_ax") %>%
+  mutate(estimate = -1) %>%
+  mutate(estimate = if_else(has_ax == "No AX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_ax1","Estimate"]), estimate)) %>%
+  mutate(estimate = if_else(has_ax == "AX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_ax1", "Estimate"]), estimate))
+
+gg_df %>%
+  filter(optimal_ax == "1") %>%
+  ggplot(aes(has_ax, num_optimal_ax / num_actions, group = has_ax, colour=has_ax)) +
+    geom_count(aes(colour = NULL)) +
+    geom_boxplot(aes(y = estimate)) +
+    geom_signif(y_position = 1.07, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
+    scale_y_continuous(limits = c(0.0, 1.1), breaks = c(0.0, 0.5, 1.0)) +
+    labs(y = NULL, x = NULL) +
+    scale_fill_economist() +
+    scale_colour_economist() +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          axis.title.y = element_blank()) +
+    legend_none()
+```
 
 ```{r, echo=F, results=F, message=F, warning=F}
 rm(optimal_ax.model.t, optimal_ax.model.v)
