@@ -849,13 +849,13 @@ gg_df = plot_df %>%
   mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
   mutate(study_condition = fct_rev(study_condition)) %>%
   group_by(study_condition, .fill_column) %>%
-  summarise(sd = sd(sus), sus = mean(sus))
+  summarise(mad = mad(sus), sus = median(sus))
 
 gg_df %>%
   ggplot(aes(study_condition, sus, fill=.fill_column)) +
     # geom_boxplot() +
     geom_bar(stat = "identity") +
-    geom_errorbar(aes(ymin = sus-sd, ymax = sus+sd), width = 0) +
+    geom_errorbar(aes(ymin = sus-mad, ymax = sus+mad), width = 0) +
     # coord_flip() +
     # facet_grid(rows = vars(noise_level), cols = vars(has_dx)) +
     labs(y = NULL, x = NULL) +
