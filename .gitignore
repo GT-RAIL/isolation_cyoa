@@ -69,4 +69,6 @@ node_modules/
 .Rhistory
 *.nb.html
 notebooks/*.html
+notebooks/*_files/
+notebooks/*_libs/
 .RData
