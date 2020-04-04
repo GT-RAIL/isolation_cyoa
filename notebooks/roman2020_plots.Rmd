@@ -173,8 +173,8 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
 }
 
 # Get the users df and the actions df
-users = loadCSV("users.csv", 3, contr.sum)
-actions = loadCSV("actions.csv", 3, contr.sum)
+users = loadCSV("users.csv", 4, contr.sum)
+actions = loadCSV("actions.csv", 4, contr.sum)
 
 # Change more binary responses to integers
 actions$optimal_ax = as.integer(actions$optimal_ax)
@@ -200,10 +200,10 @@ actions$state_idx_rescaled = scales::rescale(actions$state_idx)
 #   age_group_model = brm(age_group ~ gender + robot_experience, data = plot_df, family = "cumulative")
 #   data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
 #   as_tibble(predict(age_group_model, data_to_predict))
-# # # A tibble: 1 x 7
-# #   `P(Y = 2)` `P(Y = 3)` `P(Y = 4)` `P(Y = 5)` `P(Y = 6)` `P(Y = 7)` `P(Y = 8)`
-# #        <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
-# # 1     0.0707      0.230      0.218      0.174      0.105       0.09      0.113
+# # A tibble: 1 x 7
+#   `P(Y = 2)` `P(Y = 3)` `P(Y = 4)` `P(Y = 5)` `P(Y = 6)` `P(Y = 7)` `P(Y = 8)`
+#        <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
+# 1     0.0838      0.202      0.215      0.188      0.110      0.089      0.111
 #   rm(age_group_model)
 # }
 ```
