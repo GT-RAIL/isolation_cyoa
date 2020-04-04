@@ -276,7 +276,7 @@ gg_df = plot_df %>%
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
   ggplot(aes(has_ax, n/20, group = has_ax, colour = has_ax)) +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
     scale_y_continuous(limits = c(0.5, 1.1)) +
@@ -309,7 +309,7 @@ gg_df %>%
   ggplot(aes(noise_level, n/20, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,
@@ -575,7 +575,7 @@ gg_df %>%
   ggplot(aes(noise_level, num_correct_dx / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,
@@ -678,7 +678,7 @@ gg_df %>%
   ggplot(aes(noise_level, num_chose_ax / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,
@@ -781,7 +781,7 @@ gg_df %>%
   ggplot(aes(noise_level, num_chose_dx / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,

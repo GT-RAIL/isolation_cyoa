@@ -633,8 +633,8 @@ options(digits = 7)
 
 1. AX suggestions
     - Positive effect pd = 100%
-    - Median = 2.36, 89% CI [1.26, 3.16]
-    - Medium, Std.Median = 0.60
+    - Median = 2.24, 89% CI [1.30, 3.18]
+    - Medium, Std.Median = 0.58
     - 0.0% in ROPE
 1. Noise Level Quadratic
     - Positive (convex-shape) pd = 99.6%
@@ -783,7 +783,7 @@ gg_df = plot_df %>%
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
   ggplot(aes(has_ax, n/20, group = has_ax, colour = has_ax)) +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
     scale_y_continuous(limits = c(0.5, 1.1)) +
@@ -812,7 +812,7 @@ gg_df %>%
   ggplot(aes(noise_level, n/20, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,
@@ -1208,7 +1208,7 @@ options(digits = 7)
 
 1. AX suggestions
     - Positive effect pd = 100%
-    - Median = 1.20, 89% CI [0.66, 1.70]
+    - Median = 1.24, 89% CI [0.76, 1.78]
     - Small, Std.Median = 0.32
     - 0.0% in ROPE
 
@@ -1712,15 +1712,15 @@ options(digits = 7)
 **Results**:
 
 1. DX suggestions
-    - Positive effect pd = 98.5%
-    - Median = 0.56, 89% CI [0.10, 0.92]
-    - Small, Std.Median = 0.24
-    - 1.6% in ROPE
+    - Positive effect pd = 98.4%
+    - Median = 0.54, 89% CI [0.12, 0.94]
+    - Small, Std.Median = 0.26
+    - 1.98% in ROPE
 1. Noise Level Linear
-    - Negative (negative slope) pd = 97.8%
-    - Median = -0.42, 89% CI [-0.76, -0.09]
+    - Negative (negative slope) pd = 97.9%
+    - Median = -0.42, 89% CI [-0.78, -0.10]
     - Small, Std.Median = 0.21
-    - 2.6% in ROPE (n.s.)
+    - 2.67% in ROPE (n.s.)
 
 (The ROPE is defined as [-0.055, 0.055]. It is the range is suggested in the literature for logistic models and it corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
@@ -1910,7 +1910,7 @@ gg_df %>%
   ggplot(aes(noise_level, num_correct_dx / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,
@@ -2277,10 +2277,10 @@ options(digits = 7)
 **Results**:
 
 1. Noise Level Linear
-    - Negative (negative slope) pd = 96.3%
-    - Median = -0.40, 89% CI [-0.77, -0.05]
+    - Negative (negative slope) pd = 95.6%
+    - Median = -0.39, 89% CI [-0.75, -0.01]
     - Small, Std.Median = 0.23
-    - 4.25% in ROPE (n.s.)
+    - 4.98% in ROPE (n.s.)
 
 (The ROPE is defined as [-0.055, 0.055]. It is the range is suggested in the literature for logistic models and it corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
@@ -2390,7 +2390,7 @@ gg_df %>%
   ggplot(aes(noise_level, num_chose_ax / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,
@@ -2758,9 +2758,9 @@ options(digits = 7)
 
 1. Noise Level Linear
     - Negative (negative slope) pd = 99.4%
-    - Median = -0.67, 89% CI [-1.13, -0.22]
+    - Median = -0.68, 89% CI [-1.09, -0.22]
     - Small, Std.Median = 0.27
-    - 0.68% in ROPE
+    - 0.63% in ROPE
 
 (The ROPE is defined as [-0.055, 0.055]. It is the range is suggested in the literature for logistic models and it corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
@@ -2909,7 +2909,7 @@ gg_df %>%
   ggplot(aes(noise_level, num_chose_dx / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
-    geom_count() +
+    geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
              x = 3,
