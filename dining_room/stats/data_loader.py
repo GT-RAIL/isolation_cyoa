@@ -67,6 +67,13 @@ def get_users_df(*, users=None, use_cache=True):
         data['has_dx'] = user.show_dx_suggestions
         data['has_ax'] = user.show_ax_suggestions
         data['has_dxax'] = user.show_dx_suggestions and user.show_ax_suggestions
+        data['suggestion_type'] = (
+            'AX' if user.show_ax_suggestions and not user.show_dx_suggestions else (
+                'DX' if not user.show_ax_suggestions and user.show_dx_suggestions else (
+                    'DXAX' if user.show_ax_suggestions and user.show_dx_suggestions else 'NONE'
+                )
+            )
+        )
 
         # Get meta information about the actions
         data['num_actions'] = user.num_actions
@@ -195,6 +202,13 @@ def get_actions_df(*, actions=None, use_cache=True):
         data['has_dx'] = action.user.show_dx_suggestions
         data['has_ax'] = action.user.show_ax_suggestions
         data['has_dxax'] = action.user.show_dx_suggestions and action.user.show_ax_suggestions
+        data['suggestion_type'] = (
+            'AX' if action.user.show_ax_suggestions and not action.user.show_dx_suggestions else (
+                'DX' if not action.user.show_ax_suggestions and action.user.show_dx_suggestions else (
+                    'DXAX' if action.user.show_ax_suggestions and action.user.show_dx_suggestions else 'NONE'
+                )
+            )
+        )
 
         # Get some the inferred data in the user df
         optimal_sequence = constants.OPTIMAL_ACTION_SEQUENCES[action.user.start_condition]

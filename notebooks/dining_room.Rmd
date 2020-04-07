@@ -11,85 +11,199 @@ output:
 ---
 
 ```{r message=FALSE, warning=FALSE}
-library(readr)
-library(ggplot2)
-library(reshape)
 library(car)
-library(compute.es)
-library(multcomp)
-library(pastecs)
-library(nlme)
-library(stats)
-library(plyr)
-library(ez)
-library(ggsignif)
-library(pgirmess)
-library(PMCMR)
-library(Exact)
-library(psych)
-library(gvlma)
-library(lmtest)
 library(lme4)
+library(stats)
+library(grid)
+library(gridExtra)
 library(fitdistrplus)
-library(dplyr)
+# library(dplyr)
+# library(forcats)
+# library(tibble)
+# library(tidyr)
+# library(readr)
+# library(ggplot2)
+# library(stringr)
+library(tidyverse)
+library(ggsignif)
+library(ggthemes)
+library(jtools)
+library(broom)
+library(modelr)
+library(loo)
+# library(rstanarm)
 library(brms)
+library(bayesplot)
+library(GGally)
+library(tidybayes)
+library(bayestestR)
+library(sjstats)
+library(report)
+library(see)
 
 # Setup for multiprocessing
-library(future)
-plan(multiprocess)
+options(mc.cores = 4)
+# library(future)
+# plan(multiprocess)
+
+# Make the default coding of contrasts sum-coding; just in case
+options(contrasts = c("contr.sum", "contr.poly"))
+```
+```{r}
+# Script execution globals
+train_models = F     # Retrain the MCMC models. Also infer unknown demographics
+plot_posteriors = T  # Plot the posterior distributions
+plot_diagnostics = T # Plot the diagnostics
+report_bayesfactors = F  # Report the Bayes Factor scores of model parameters
+default_seed = 0x1331 # For repeatable models and diagnostics
+data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
 ```
 ```{r, message=FALSE, warning=FALSE}
-# Load the CSV files
-users = read_csv(
-  "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/users.csv",
-  col_types = cols(
-    study_condition = col_factor(),
-    noise_level = col_factor(ordered = T),
-    age_group = col_factor(levels = seq(from = 0, to = 8), ordered = T),
-    robot_experience = col_factor(levels = seq(from = 0, to = 4), ordered = T)
+# Create a simple coding contrasts matrix
+contr.deviation = function(nlevels) {
+  x1 = contr.treatment(nlevels)
+  x2 = matrix(rep(1/nlevels, (nlevels-1) * nlevels), ncol = (nlevels-1))
+  return(x1-x2)
+}
+
+# NOTE: For now we're ignoring this advice
+# # Use a simple coding contrasts matrix to add our own contrasts columns
+# # Explained in: http://talklab.psy.gla.ac.uk/tvw/catpred/
+# create_simple_contrasts = function(d, column_name) {
+#  factor_column = d %>% pull(column_name)
+#  contrast_matrix = contr.deviation(length(levels(factor_column)))
+# }
+
+# Save a model
+saveModel = function(model, folder = data_folder) {
+  saveRDS(model, file = file.path(folder, paste(substitute(model), ".rds", sep = '')))
+}
+
+# Load a model
+loadModel = function(model_name, folder = data_folder) {
+  return(readRDS(file.path(folder, paste(model_name, '.rds', sep = ''))))
+}
+
+# Test hypotheses. The NULL arguments need to be provided in this case
+test_hypotheses = function(h_df = NULL, rope_values = NULL, hypotheses_list = NULL, model = NULL) {
+  # Option 1: Use the hypothesis function in brms
+  if (!is.null(hypotheses_list)) {
+    hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
+    return(hyp_results)
+  }
+
+  # Option 2: Use the ROPE & Overlap amount
+  else {
+    if (is.null(rope_values)) {
+      rope_values = c(-0.1, 0.1)
+    }
+    hyp_results =
+      h_df %>%
+        equivalence_test(range = rope_values) %>%
+        as_tibble() %>%
+        bind_cols(h_df %>% pd() %>% select(pd))
+    return(hyp_results)
+  }
+}
+
+# Fit distributions to vectors and print the results. Also return the fit, if necessary
+fit_and_print_dist = function(vec, distr, string) {
+  f = fitdist(vec, distr)
+  print(paste(string, f$loglik, f$aic))
+  return(f)
+}
+```
+```{r, message=F, warning=F}
+# Load the CSV files. If the age_group fill model is run again and we get a different output,
+# then remember to update the value here
+loadCSV = function(filename, age_group_fill, contrast_func) {
+  dat = read_csv(
+    file.path(data_folder, filename),
+    col_types = cols(
+      study_condition = col_factor(),
+      suggestion_type = col_factor(levels = c("NONE", "AX", "DX", "DXAX")),
+      noise_level = col_factor(ordered = T),
+      gender = col_factor(levels = c("F", "M", "U")),
+      age_group = col_factor(levels = seq(from = 0, to = 8)),
+      robot_experience = col_factor(levels = seq(from = 0, to = 4))
+    )
   )
-)
 
-actions = read_csv(
-  "~/Documents/GT/Research/Data/arbitration/2019-12-09/results/actions.csv",
-  col_types = cols(
-    study_condition = col_factor(),
-    noise_level = col_factor(ordered = T),
-    age_group = col_factor(levels = seq(from = 0, to = 8), ordered = T),
-    robot_experience = col_factor(levels = seq(from = 0, to = 4), ordered = T)
-  )
-)
+  # Relabel the factors
+  dat = dat %>%
+    mutate(study_condition = fct_recode(study_condition,
+                                        BASELINE="1",
+                                        DX_100="2", AX_100="3", DXAX_100="4",
+                                        DX_90="5", AX_90="6", DXAX_90="7",
+                                        DX_80="8", AX_80="9", DXAX_80="10")) %>%
+    mutate(study_condition = fct_relevel(study_condition, c("DX_100", "AX_100", "DXAX_100",
+                                                            "DX_90", "AX_90", "DXAX_90",
+                                                            "DX_80", "AX_80", "DXAX_80")))
 
-# Relabel the factors
-users$study_condition = mapvalues(users$study_condition,
-                                  from = seq(from = 1, to = 10),
-                                  to = c("1"="BASELINE",
-                                         "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
-                                         "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
-                                         "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
-actions$study_condition = mapvalues(actions$study_condition,
-                                    from = seq(from = 1, to = 10),
-                                    to = c("1"="BASELINE",
-                                           "2"="DX_100", "3"="AX_100", "4"="DXAX_100",
-                                           "5"="DX_90", "6"="AX_90", "7"="DXAX_90",
-                                           "8"="DX_80", "9"="AX_80", "10"="DXAX_80"))
+  # Relevel the non-binary gender
+  dat$gender[dat$gender == 'U'] = 'M'
 
-# # Relevel the non-binary age
-users$gender[users$gender == 'U'] = 'M'
-actions$gender[actions$gender == 'U'] = 'M'
+  # Change binary responses to integers
+  dat$scenario_completed = as.integer(dat$scenario_completed)
+  
+  # Relevel age_group
+  dat[dat$age_group == 0,]$age_group = age_group_fill
+  
+  # Create an unordered noise_level. Also drop unused levels
+  dat$age_group = droplevels(dat$age_group)
+  dat$gender = droplevels(dat$gender)
+  dat$noise_level_f = factor(dat$noise_level, ordered = F)
 
-# Change binary responses to integers
-users$scenario_completed = as.integer(users$scenario_completed)
-actions$scenario_completed = as.integer(actions$scenario_completed)
+  # Set the contrasts for everything
+  contrasts(dat$age_group) = contrast_func(length(levels(dat$age_group)))
+  contrasts(dat$robot_experience) = contrast_func(length(levels(dat$robot_experience)))
+  contrasts(dat$gender) = contrast_func(length(levels(dat$gender)))
 
+  contrasts(dat$has_ax) = contrast_func(2)
+  contrasts(dat$has_dx) = contrast_func(2)
+  contrasts(dat$has_noise) = contrast_func(2)
+  contrasts(dat$has_dxax) = contrast_func(2)
+
+  contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
+  
+  # Return the data frame
+  return(dat)
+}
+
+# Get the users df and the actions df
+users = loadCSV("users.csv", 4, contr.sum)
+actions = loadCSV("actions.csv", 4, contr.sum)
+
+# Change more binary responses to integers
 actions$optimal_ax = as.integer(actions$optimal_ax)
 actions$chose_ax = as.integer(actions$chose_ax)
-
 actions$optimal_dx = as.integer(actions$optimal_dx)
 actions$chose_dx = as.integer(actions$optimal_dx)
 
-# Relabel user ids
+# Relabel user ids to be in the range 1-200. Otherwise, we're using DB ids
+# The user ID column in the users table that we can now join on is X1
 actions$user_id = actions %>% group_indices(user_id)
+
+# Rescale state ids
+actions$state_idx_rescaled = scales::rescale(actions$state_idx)
+
+# Code to relevel the age group factor to remove unused levels. Also, predict the
+# value of the 1 unknown age from the other indicators of demographics
+# NOTE: If we retrain the model and the output doesn't match the hardcoded
+# values, then update those values
+if (train_models) {
+  plot_df = subset(users, users$age_group != 0)
+  plot_df$age_group = factor(plot_df$age_group, levels = seq(from = 0, to = 8), ordered = T)
+  plot_df$age_group = droplevels(plot_df$age_group)
+  age_group_model = brm(age_group ~ gender + robot_experience, data = plot_df, family = "cumulative")
+  data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
+  as_tibble(predict(age_group_model, data_to_predict))
+# # A tibble: 1 x 7
+#   `P(Y = 2)` `P(Y = 3)` `P(Y = 4)` `P(Y = 5)` `P(Y = 6)` `P(Y = 7)` `P(Y = 8)`
+#        <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
+# 1     0.0838      0.202      0.215      0.188      0.110      0.089      0.111
+  rm(age_group_model)
+}
 ```
 ```{r, message=FALSE, warning=FALSE}
 # Helper functions copied from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
@@ -249,9 +363,10 @@ ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
 ```
 
 ```{r}
-plot_df = users;
+plot_df = users #%>% filter(suggestion_type != 'NONE') %>% mutate(suggestion_type = fct_drop(suggestion_type))
+contrasts(plot_df$suggestion_type) = contr.treatment
 scenario_completed.model = glm(
-  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience),
+  scenario_completed ~ (suggestion_type + noise_level) + (gender + age_group + robot_experience),
   data=plot_df,
   family = 'binomial'
 )
@@ -261,7 +376,7 @@ with(scenario_completed.model, pchisq(null.deviance - deviance, df.null - df.res
 ```{r, eval=FALSE}
 # Additional diagnostics
 r2glm(scenario_completed.model)
-# anova(scenario_completed.model, test = "Chisq")
+anova(scenario_completed.model, test = "Chisq")
 car::vif(scenario_completed.model)
 ```
 
@@ -446,15 +561,15 @@ plot_df$robot_experience = as.numeric(plot_df$robot_experience)
 # shapiro.test(resid(optimal_action.model))
 
 # Use a GLM to estimate parameters (unidentifiable)
-# optimal_action.model = glmer(
-#   optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
-#   data=plot_df,
-#   family = 'binomial',
-# )
-optimal_action.model = glmer.nb(
-  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + scale(state_idx) + (1 | user_id),
-  data=plot_df
+optimal_action.model = glmer(
+  optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
+  data=plot_df,
+  family = 'binomial',
 )
+# optimal_action.model = glmer.nb(
+#   optimal_ax ~ ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + scale(state_idx) + (1 | user_id),
+#   data=plot_df
+# )
 
 summary(optimal_action.model)
 ```
@@ -532,7 +647,7 @@ bayes_R2(optimal_action.model2)
 Given suggestions, did the user follow the actions? P(follow | suggestion)
 
 ```{r message=FALSE, warning=FALSE}
-plot_df = subset(actions, has_ax)
+plot_df = subset(actions, has_ax == T)
 x = plot_df$chose_ax
 ```
 
@@ -564,15 +679,15 @@ ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
 # shapiro.test(resid(chose_action.model))
 
 # Use a GLM to estimate parameters (unidentifiable)
-# chose_action.model = glmer(
-#   chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
-#   data=plot_df,
-#   family = 'binomial',
-# )
-chose_action.model = glmer.nb(
-  chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx + (1 | user_id),
-  data=plot_df
+chose_action.model = glmer(
+  chose_ax ~ () + (age_group + robot_experience + gender) + state_idx_rescaled + (1 | user_id),
+  data=plot_df,
+  family = 'binomial',
 )
+# chose_action.model = glmer.nb(
+#   chose_ax ~ (has_dx * noise_level) + (age_group + robot_experience + gender) + state_idx_rescaled + (1 | user_id),
+#   data=plot_df
+# )
 
 summary(chose_action.model)
 ```
