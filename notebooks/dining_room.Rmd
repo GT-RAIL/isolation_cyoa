@@ -163,6 +163,10 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
   contrasts(dat$has_dx) = contrast_func(2)
   contrasts(dat$has_noise) = contrast_func(2)
   contrasts(dat$has_dxax) = contrast_func(2)
+  contrasts(dat$has_ax_only) = contrast_func(2)
+  contrasts(dat$has_dx_only) = contrast_func(2)
+  contrasts(dat$has_suggestions) = contrast_func(2)
+  contrasts(dat$suggestion_type) = contr.treatment(4)  # This is a hardcode
 
   contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
   
@@ -363,10 +367,17 @@ ppcomp(list(fnorm, flogis, fpois, fnbinom, fgeom), legendtext = plot.legend)
 ```
 
 ```{r}
-plot_df = users #%>% filter(suggestion_type != 'NONE') %>% mutate(suggestion_type = fct_drop(suggestion_type))
-contrasts(plot_df$suggestion_type) = contr.treatment
+plot_df = users# %>%
+  # filter(suggestion_type != 'NONE') %>%
+  # mutate(suggestion_type = fct_drop(suggestion_type))
+# contrasts(plot_df$suggestion_type) = contr.treatment(4)
+# contrasts(plot_df$has_ax) = contr.treatment
+# contrasts(plot_df$has_dx) = contr.treatment
+# contrasts(plot_df$has_dxax) = contr.treatment
+# contrasts(plot_df$noise_level_f) = contr.treatment
+
 scenario_completed.model = glm(
-  scenario_completed ~ (suggestion_type + noise_level) + (gender + age_group + robot_experience),
+  scenario_completed ~ (has_ax_only + has_dx_only + has_dxax + noise_level) + has_ax_only:noise_level,
   data=plot_df,
   family = 'binomial'
 )
@@ -383,11 +394,10 @@ car::vif(scenario_completed.model)
 ```{r, eval=F}
 # MCMC estimation
 scenario_completed.model1 = brm(
-  scenario_completed ~ ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience),
+  scenario_completed ~ (has_ax_only + has_dx_only + has_dxax + noise_level) + (gender + age_group + robot_experience),
   data=plot_df,
   family = 'bernoulli',
-  iter = 4000,
-  cores = 8
+  iter = 4000
 )
 summary(scenario_completed.model1)
 scenario_completed.model1 = add_criterion(scenario_completed.model1, "waic")

@@ -67,6 +67,9 @@ def get_users_df(*, users=None, use_cache=True):
         data['has_dx'] = user.show_dx_suggestions
         data['has_ax'] = user.show_ax_suggestions
         data['has_dxax'] = user.show_dx_suggestions and user.show_ax_suggestions
+        data['has_ax_only'] = user.show_ax_suggestions and not user.show_dx_suggestions
+        data['has_dx_only'] = user.show_dx_suggestions and not user.show_ax_suggestions
+        data['has_suggestions'] = user.show_ax_suggestions or user.show_dx_suggestions
         data['suggestion_type'] = (
             'AX' if user.show_ax_suggestions and not user.show_dx_suggestions else (
                 'DX' if not user.show_ax_suggestions and user.show_dx_suggestions else (
@@ -202,6 +205,9 @@ def get_actions_df(*, actions=None, use_cache=True):
         data['has_dx'] = action.user.show_dx_suggestions
         data['has_ax'] = action.user.show_ax_suggestions
         data['has_dxax'] = action.user.show_dx_suggestions and action.user.show_ax_suggestions
+        data['has_ax_only'] = action.user.show_ax_suggestions and not action.user.show_dx_suggestions
+        data['has_dx_only'] = action.user.show_dx_suggestions and not action.user.show_ax_suggestions
+        data['has_suggestions'] = action.user.show_ax_suggestions or action.user.show_dx_suggestions
         data['suggestion_type'] = (
             'AX' if action.user.show_ax_suggestions and not action.user.show_dx_suggestions else (
                 'DX' if not action.user.show_ax_suggestions and action.user.show_dx_suggestions else (
