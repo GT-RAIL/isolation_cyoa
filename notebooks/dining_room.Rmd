@@ -377,7 +377,7 @@ plot_df = users# %>%
 # contrasts(plot_df$noise_level_f) = contr.treatment
 
 scenario_completed.model = glm(
-  scenario_completed ~ (has_ax_only + has_dx_only + has_dxax + noise_level) + has_ax_only:noise_level,
+  scenario_completed ~ (has_ax_only + has_dx_only + has_dxax + noise_level),
   data=plot_df,
   family = 'binomial'
 )

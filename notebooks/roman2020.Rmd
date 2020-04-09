@@ -136,6 +136,7 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
     file.path(data_folder, filename),
     col_types = cols(
       study_condition = col_factor(),
+      suggestion_type = col_factor(levels = c("NONE", "AX", "DX", "DXAX")),
       noise_level = col_factor(ordered = T),
       gender = col_factor(levels = c("F", "M", "U")),
       age_group = col_factor(levels = seq(from = 0, to = 8)),
@@ -177,6 +178,10 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
   contrasts(dat$has_dx) = contrast_func(2)
   contrasts(dat$has_noise) = contrast_func(2)
   contrasts(dat$has_dxax) = contrast_func(2)
+  contrasts(dat$has_ax_only) = contrast_func(2)
+  contrasts(dat$has_dx_only) = contrast_func(2)
+  contrasts(dat$has_suggestions) = contrast_func(2)
+  contrasts(dat$suggestion_type) = contr.treatment(4)  # This is a hardcode
 
   contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
   
@@ -273,7 +278,8 @@ In the code, this variable is called `scenario_completed`.
 plot_df = users %>%
   select(X1, id, study_condition, start_condition, num_optimal,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed)
 text_short(report(plot_df))
 ```
@@ -370,7 +376,7 @@ Based on the data, we assume the following structural model:
 
 $$frr_i = Bernoulli(p_i)$$
 $$\begin{aligned}
-logit^{-1}(p_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{noise}\text{noise}_i +\\ &\beta_{ax:noise}\text{ax}_i\text{noise}_i + \beta_{dx:noise}\text{dx}_i\text{noise}_i + \\
+logit^{-1}(p_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{dxax}\text{dxax}_i + \beta_{noise}\text{noise}_i +\\
 &\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
 \end{aligned}$$
 $$\beta_{.} \sim Normal(0, 10)$$
@@ -394,7 +400,7 @@ saveModel(scenario_completed.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 scenario_completed.model.t = brm(
-  scenario_completed ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  scenario_completed ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level) + (gender + age_group + robot_experience) + num_optimal,
   family = "bernoulli",
   prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
@@ -408,7 +414,7 @@ saveModel(scenario_completed.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 scenario_completed.model.v = brm(
-  scenario_completed ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
+  scenario_completed ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
   family = "bernoulli",
   prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
@@ -477,17 +483,19 @@ plot(scenario_completed.model.v$criteria$loo, main = "Values Model")
 mcmc_intervals(as.matrix(scenario_completed.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Null Model")
 
-p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_ax", stat = "median") + ggtitle("t:has_ax")
-p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
-p3 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("t:has_dx")
+p3 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_dxax")
+p4 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
-p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
-p3 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("v:has_ax")
+p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("v:has_dx")
+p3 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_dxax")
+p4 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -605,8 +613,9 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -617,8 +626,9 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
@@ -860,7 +870,8 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed, num_actions, optimal_ax)
 
 text_short(report(plot_df))
@@ -1008,7 +1019,7 @@ saveModel(optimal_ax.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 optimal_ax.model.t = brm(
-  optimal_ax ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  optimal_ax ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -1023,7 +1034,7 @@ saveModel(optimal_ax.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 optimal_ax.model.v = brm(
-  optimal_ax ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  optimal_ax ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -1074,17 +1085,19 @@ plot(optimal_ax.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-p1 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_ax", stat = "median") + ggtitle("t:has_ax")
-p2 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
-p3 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("t:has_dx")
+p3 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_dxax")
+p4 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(optimal_ax.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
-p2 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
-p3 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("v:has_ax")
+p2 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("v:has_dx")
+p3 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_dxax")
+p4 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(optimal_ax.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -1180,8 +1193,9 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(optimal_ax.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -1192,8 +1206,9 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 h_df = as_tibble(insight::get_parameters(optimal_ax.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
@@ -1365,7 +1380,8 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed, num_actions, optimal_dx)
 
 text_short(report(plot_df))
@@ -1513,7 +1529,7 @@ saveModel(optimal_dx.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 optimal_dx.model.t = brm(
-  optimal_dx ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  optimal_dx ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -1528,7 +1544,7 @@ saveModel(optimal_dx.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 optimal_dx.model.v = brm(
-  optimal_dx ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  optimal_dx ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -1579,17 +1595,19 @@ plot(optimal_dx.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-p1 = pp_check(optimal_dx.model.t, type = "bars_grouped", group = "has_ax", stat = "median") + ggtitle("t:has_ax")
-p2 = pp_check(optimal_dx.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
-p3 = pp_check(optimal_dx.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(optimal_dx.model.t, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(optimal_dx.model.t, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("t:has_dx")
+p3 = pp_check(optimal_dx.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_dxax")
+p4 = pp_check(optimal_dx.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
 mcmc_intervals(as.matrix(optimal_dx.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(optimal_dx.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
-p2 = pp_check(optimal_dx.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
-p3 = pp_check(optimal_dx.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(optimal_dx.model.v, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("v:has_ax")
+p2 = pp_check(optimal_dx.model.v, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("v:has_dx")
+p3 = pp_check(optimal_dx.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_dxax")
+p4 = pp_check(optimal_dx.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
 mcmc_intervals(as.matrix(optimal_dx.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -1685,8 +1703,9 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(optimal_dx.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -1697,8 +1716,9 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 h_df = as_tibble(insight::get_parameters(optimal_dx.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
@@ -1959,7 +1979,8 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed, num_actions, chose_ax)
 
 text_short(report(plot_df))
@@ -2082,7 +2103,7 @@ saveModel(chose_ax.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 chose_ax.model.t = brm(
-  chose_ax ~ 0 + Intercept + (has_dx * noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  chose_ax ~ 0 + Intercept + (has_dxax + noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -2097,7 +2118,7 @@ saveModel(chose_ax.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 chose_ax.model.v = brm(
-  chose_ax ~ 0 + Intercept + (has_dx * noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  chose_ax ~ 0 + Intercept + (has_dxax + noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -2148,14 +2169,14 @@ plot(chose_ax.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-p2 = pp_check(chose_ax.model.t, type = "bars_grouped", group = "has_dx") + ggtitle("t:has_dx")
-p3 = pp_check(chose_ax.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
+p2 = pp_check(chose_ax.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_dx")
+p3 = pp_check(chose_ax.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
 grid.arrange(p2, p3, ncol = 2)
 mcmc_intervals(as.matrix(chose_ax.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p2 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "has_dx") + ggtitle("v:has_dx")
-p3 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
+p2 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_dx")
+p3 = pp_check(chose_ax.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
 grid.arrange(p2, p3, nrow = 2)
 mcmc_intervals(as.matrix(chose_ax.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
@@ -2252,7 +2273,7 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(chose_ax.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_dx_test = -2 * b_has_dx1,
+    has_dx_test = -2 * b_has_dxax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -2263,7 +2284,7 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 h_df = as_tibble(insight::get_parameters(chose_ax.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_dx_test = -2 * b_has_dx1,
+    has_dx_test = -2 * b_has_dxax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
@@ -2440,7 +2461,8 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed, num_actions, chose_dx)
 
 text_short(report(plot_df))
@@ -2562,7 +2584,7 @@ saveModel(chose_dx.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 chose_dx.model.t = brm(
-  chose_dx ~ 0 + Intercept + (has_ax * noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  chose_dx ~ 0 + Intercept + (has_dxax + noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -2577,7 +2599,7 @@ saveModel(chose_dx.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 chose_dx.model.v = brm(
-  chose_dx ~ 0 + Intercept + (has_ax * noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  chose_dx ~ 0 + Intercept + (has_dxax + noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -2628,14 +2650,14 @@ plot(chose_dx.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-p1 = pp_check(chose_dx.model.t, type = "bars_grouped", group = "has_ax") + ggtitle("t:has_ax")
-p3 = pp_check(chose_dx.model.t, type = "bars_grouped", group = "noise_level") + ggtitle("t:noise_level")
+p1 = pp_check(chose_dx.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_ax")
+p3 = pp_check(chose_dx.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
 grid.arrange(p1, p3, ncol = 2)
 mcmc_intervals(as.matrix(chose_dx.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(chose_dx.model.v, type = "bars_grouped", group = "has_ax") + ggtitle("v:has_ax")
-p3 = pp_check(chose_dx.model.v, type = "bars_grouped", group = "noise_level_f") + ggtitle("v:noise_level")
+p1 = pp_check(chose_dx.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_ax")
+p3 = pp_check(chose_dx.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
 grid.arrange(p1, p3, nrow = 2)
 mcmc_intervals(as.matrix(chose_dx.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
@@ -2732,7 +2754,7 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(chose_dx.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
+    has_ax_test = -2 * b_has_dxax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -2743,7 +2765,7 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 h_df = as_tibble(insight::get_parameters(chose_dx.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
+    has_ax_test = -2 * b_has_dxax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
@@ -2952,7 +2974,8 @@ gc()
 plot_df = users %>%
   select(X1, id, study_condition, start_condition, num_optimal,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          sus, scenario_completed) %>%
   mutate(scenario_completed = factor(scenario_completed))
 
@@ -3071,7 +3094,7 @@ saveModel(sus.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 sus.model.t = brm(
-  sus ~ 0 + Intercept + ((has_dx + has_ax) * noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  sus ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level) + (gender + age_group + robot_experience) + num_optimal,
   family = "skew_normal",
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 22)", class = "sigma"),
@@ -3087,7 +3110,7 @@ saveModel(sus.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 sus.model.v = brm(
-  sus ~ 0 + Intercept + ((has_dx + has_ax) * noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
+  sus ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
   family = "skew_normal",
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 22)", class = "sigma"),
@@ -3157,17 +3180,19 @@ plot(sus.model.v$criteria$loo, main = "Values Model")
 mcmc_intervals(as.matrix(sus.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Null Model")
 
-p1 = pp_check(sus.model.t, group = "has_ax", stat = "median") + ggtitle("t:has_ax")
-p2 = pp_check(sus.model.t, group = "has_dx") + ggtitle("t:has_dx")
-p3 = pp_check(sus.model.t, group = "noise_level") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(sus.model.t, group = "has_ax_only", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(sus.model.t, group = "has_dx_only", stat = "median") + ggtitle("t:has_dx")
+p3 = pp_check(sus.model.t, group = "has_dxax", stat = "median") + ggtitle("t:has_dxax")
+p4 = pp_check(sus.model.t, group = "noise_level", stat = "median") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(sus.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(sus.model.v, group = "has_ax") + ggtitle("v:has_ax")
-p2 = pp_check(sus.model.v, group = "has_dx") + ggtitle("v:has_dx")
-p3 = pp_check(sus.model.v, group = "noise_level_f") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, nrow = 3)
+p1 = pp_check(sus.model.v, group = "has_ax_only", stat = "median") + ggtitle("v:has_ax")
+p2 = pp_check(sus.model.v, group = "has_dx_only", stat = "median") + ggtitle("v:has_dx")
+p3 = pp_check(sus.model.v, group = "has_dxax", stat = "median") + ggtitle("v:has_dxax")
+p4 = pp_check(sus.model.v, group = "noise_level_f") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(sus.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -3243,8 +3268,9 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(sus.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -3255,8 +3281,9 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 h_df = as_tibble(insight::get_parameters(sus.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax1,
-    has_dx_test = -2 * b_has_dx1,
+    has_ax_test = -2 * b_has_ax_only1,
+    has_dx_test = -2 * b_has_dx_only1,
+    has_dxax_test = -2 * b_has_dxax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
