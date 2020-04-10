@@ -180,7 +180,7 @@ actions = loadCSV("actions.csv", 4, contr.sum)
 actions$optimal_ax = as.integer(actions$optimal_ax)
 actions$chose_ax = as.integer(actions$chose_ax)
 actions$optimal_dx = as.integer(actions$optimal_dx)
-actions$chose_dx = as.integer(actions$optimal_dx)
+actions$chose_dx = as.integer(actions$chose_dx)
 
 # Relabel user ids to be in the range 1-200. Otherwise, we're using DB ids
 # The user ID column in the users table that we can now join on is X1

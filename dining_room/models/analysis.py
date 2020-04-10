@@ -113,6 +113,8 @@ class StudyAction(models.Model):
 
     @property
     def chose_ax_suggestion(self):
+        # None of the data will hit this. So instead we return 0 (not NA) when
+        # there are no AX suggestions
         if self.action is None or self.ax_suggestions is None:
             return None
         return self.action in self.ax_suggestions

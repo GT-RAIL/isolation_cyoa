@@ -159,8 +159,8 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
   dat$gender[dat$gender == 'U'] = 'M'
 
   # Change binary responses to integers
-  dat$scenario_completed = as.integer(dat$scenario_completed)
-  
+  dat = dat %>% mutate(scenario_completed = as.integer(scenario_completed))
+
   # Relevel age_group
   dat[dat$age_group == 0,]$age_group = age_group_fill
   
@@ -194,10 +194,13 @@ users = loadCSV("users.csv", 4, contr.sum)
 actions = loadCSV("actions.csv", 4, contr.sum)
 
 # Change more binary responses to integers
-actions$optimal_ax = as.integer(actions$optimal_ax)
-actions$chose_ax = as.integer(actions$chose_ax)
-actions$optimal_dx = as.integer(actions$optimal_dx)
-actions$chose_dx = as.integer(actions$optimal_dx)
+# actions %>%
+#   mutate(optimal_ax)
+actions = actions %>%
+  mutate(optimal_ax = as.integer(optimal_ax),
+         chose_ax = as.integer(chose_ax),
+         optimal_dx = as.integer(optimal_dx),
+         chose_dx = as.integer(chose_dx))
 
 # Relabel user ids to be in the range 1-200. Otherwise, we're using DB ids
 # The user ID column in the users table that we can now join on is X1
@@ -245,27 +248,29 @@ We use Deviation / Sum coding in the coding of non-ordered factors so that we ca
 In all our models:
 
 - $\beta_0$ is assumed to be the intercept. In a mixed effects model, this is additionally indexed by $i$, the user; i.e. $\beta_{0i}$.
-- $\text{ax}_i$ denotes if sample $i$ received AX suggestions or not
-- $\text{dx}_i$ denotes if sample $i$ received DX suggestions or not
+- $\text{ax_only}_i$ denotes if sample $i$ received AX suggestions (only) or not
+- $\text{dx_only}_i$ denotes if sample $i$ received DX suggestions (only) or not
+- $\text{dxax}_i$ denotes if sample $i$ received DXAX suggestions or not
 - $\text{noise}_i$ denotes the level of noise in the suggestions that sample $i$ received. 0 (100% accuracy) if none was present.
-- $\mathbf{X_{demo,i}}$ is a vector of demographic information. For one participant, this information is imputed from a simple linear model of the other participants. Think of it almost as Propensity Score matching.
-- $\text{no}_i$ denotes the number of optimal actions for the scenario present in sample $i$. This is a proxy for a factor encoding of the start scenario
+- $\mathbf{X_{demo,i}}$ is a vector of demographic information. For one participant, this information is imputed from a simple linear model of the other participants.
+- $\text{no}_i$ denotes the number of optimal actions for the scenario present in sample $i$. This is a proxy for a difficulty rating of the error scenario given to the participant
 - $\text{state}_{ij}$ denotes the state the user $i$ visited on action number $j$. The sample, in this case, is indexed by $j$. The states are indexed according to the frequency of users visits (0 = most visited state), and then all the indices are rescaled into the range 0-1.
 
 We test the following hypotheses (the explanations are a statement of the null hypotheses; the coefficients are from the expected regression parameters, given sum coding):
 
-- $(\beta_0 - \beta_{ax_0}) - (\beta_0 + \beta_{ax_0}) = -2\beta_{ax_0} = 0 \Rightarrow \beta_{ax_0} = 0$: The main difference in effects from having action suggestions vs. not is not negligible (ceterus paribus)
-- $(\beta_0 - \beta_{dx_0}) - (\beta_0 + \beta_{dx_0}) = -2\beta_{dx_0} = 0 \Rightarrow \beta_{dx_0} = 0$: The main difference in effects from having diagnosis suggestions vs. not is not neglible (ceterus paribus)
-- $\beta_{noise_L} = 0; \beta_{noise_Q} = 0$: Noise does not have a linear / quadratic effect on the outcome.
+- $-\beta_{ax_0} = 0$: The main difference in effects from adding action suggestions (only) vs. the mean of all other conditions is negligible (ceterus paribus)
+- $-\beta_{dx_0} = 0$: The main difference in effects from adding diagnosis suggestions (only) vs. the mean of all other conditions is neglible (ceterus paribus)
+- $-\beta_{dxax_0} = 0$: The main difference in effects from adding both suggestions vs. the mean of all other conditions is neglible (ceterus paribus)
+- $\beta_{noise_L} = 0; \beta_{noise_Q} = 0$: Noise does not have a linear (L) / quadratic (Q) effect on the outcome.
 
-We do not test the interaction effects (because it's hard to make sense of what those mean).
+We do not include or test interaction effects in our model because interaction effects add more parameters to our model than can be estimated given the experimental design. Therefore, we assume that noise and the suggestion type have independent effects on each of the outcomes.
 
 The method of reporting and testing is based on the following papers:
 
 1. [A protocol for conducting and presenting results of regression‐type analyses](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12577)
 1. [Indices of Effect Existence and Significance in the Bayesian Framework](https://www.frontiersin.org/articles/10.3389/fpsyg.2019.02767/full). The paper is associated with [this post](https://easystats.github.io/bayestestR/articles/guidelines.html) on how to present results, and [this post](https://easystats.github.io/bayestestR/articles/region_of_practical_equivalence.html) giving a quick overview of terms (the posts are part of a package I'm using heavily in these analyses)
 
-Note, that unlike the previous version of this HTML page, and some of the references, we are NOT going to perform model-selection here. Based on what I've read, we're doing confirmatory hypothesis testing, which is not where one should use model selection paradigms.
+Note taht we are NOT going to perform model-selection here. Based on what I've read, we're doing confirmatory hypothesis testing, which is not where one should use model selection paradigms.
 
 
 # FRR: Fault Resolution Rate
@@ -278,9 +283,10 @@ In the code, this variable is called `scenario_completed`.
 plot_df = users %>%
   select(X1, id, study_condition, start_condition, num_optimal,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise,
+         noise_level, noise_level_f, has_noise, suggestion_type,
          has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed)
+
 text_short(report(plot_df))
 ```
 
@@ -297,77 +303,126 @@ plot_df %>%
     labs(y = "Fraction completed") +
     scale_fill_economist()
 
-# Visualize the data by the three variables that we care about
+# Plot by suggestion type
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
-  count(has_ax, has_dx, noise_level, scenario_completed)
+  count(suggestion_type, noise_level, scenario_completed)
+
+gg_df %>%
+  ggplot(aes(suggestion_type, n/20, fill=scenario_completed)) +
+    geom_bar(stat = "identity") +
+    facet_grid(cols = vars(noise_level), labeller = label_both) +
+    labs(y = "Fraction completed") +
+    scale_fill_economist() +
+    theme(legend.position = "bottom")
+
+gg_df %>%
+  ggplot(aes(noise_level, n/20, fill=scenario_completed)) +
+    geom_bar(stat = "identity") +
+    facet_grid(cols = vars(suggestion_type)) +
+    labs(y = "Fraction completed") +
+    scale_fill_economist() +
+    theme(legend.position = "bottom")
 
 p1 = gg_df %>%
-  ggplot(aes(has_ax, n / 20, fill=scenario_completed)) +
-    geom_bar(stat = "identity") +
-    facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Fraction completed") +
-    legend_none() +
-    scale_fill_economist()
-
-p2 = gg_df %>%
-  ggplot(aes(has_dx, n / 20, fill=scenario_completed)) +
-    geom_bar(stat = "identity") +
-    facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
-    labs(y = "Fraction completed") +
-    theme(legend.position = "bottom") +
-    scale_fill_economist()
-
-p3 = gg_df %>%
-  mutate(noise_level = fct_rev(noise_level)) %>%
-  mutate(has_ax = factor(has_ax)) %>%
-  mutate(has_ax = fct_rev(has_ax)) %>%
-  ggplot(aes(noise_level, n / 20, fill=scenario_completed)) +
-    geom_bar(stat = "identity") +
-    facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
-    labs(y = "Fraction completed") +
-    legend_none() +
-    scale_fill_economist()
-
-grid.arrange(p1, p2, p3, ncol = 3)
-
-# Visualize also the variation in each of the three levels that we care about
-p1 = gg_df %>%
   filter(scenario_completed == 'complete') %>%
-  ggplot(aes(has_ax, n/20)) +
+  ggplot(aes(suggestion_type, n/20)) +
     geom_violin() +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
-    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
-    scale_color_metro() +
-    ylim(0, 1) +
-    labs(color = "AX:DX:Noise") +
-    theme(legend.position = "left") +
-    guides(size = F)
-
-p2 = gg_df %>%
-  filter(scenario_completed == 'complete') %>%
-  ggplot(aes(has_dx, n/20)) +
-    geom_violin() +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    geom_point(aes(color = paste(suggestion_type, noise_level, sep=":"), size = 2),
+               position = position_jitter(width = .2, height = 0)) +
     stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     legend_none()
 
-p3 = gg_df %>%
+p2 = gg_df %>%
   filter(scenario_completed == 'complete') %>%
   ggplot(aes(noise_level, n/20)) +
     geom_violin() +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+    geom_point(aes(color = paste(suggestion_type, noise_level, sep=":"), size = 2),
+               position = position_jitter(width = .2, height = 0)) +
     stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    scale_x_discrete(limits = rev(levels(gg_df$noise_level))) +
-    legend_none()
+    labs(color = "Type:Noise") +
+    theme(legend.position = "right") +
+    guides(size = F)
 
-grid.arrange(p1, p2, p3, ncol = 3)
+grid.arrange(p1, p2, ncol = 2)
+
+# # Plot by the DX, AX, Noise factors (original analyses)
+# gg_df = plot_df %>%
+#   mutate(scenario_completed = factor(scenario_completed)) %>%
+#   mutate(scenario_completed = fct_recode(scenario_completed, incomplete="0", complete = "1")) %>%
+#   mutate(noise_level = fct_rev(noise_level)) %>%
+#   count(has_ax, has_dx, noise_level, scenario_completed)
+# 
+# p1 = gg_df %>%
+#   ggplot(aes(has_ax, n / 20, fill=scenario_completed)) +
+#     geom_bar(stat = "identity") +
+#     facet_grid(rows = vars(noise_level), cols = vars(has_dx), labeller = label_both) +
+#     labs(y = "Fraction completed") +
+#     legend_none() +
+#     scale_fill_economist()
+# 
+# p2 = gg_df %>%
+#   ggplot(aes(has_dx, n / 20, fill=scenario_completed)) +
+#     geom_bar(stat = "identity") +
+#     facet_grid(rows = vars(noise_level), cols = vars(has_ax), labeller = label_both) +
+#     labs(y = "Fraction completed") +
+#     theme(legend.position = "bottom") +
+#     scale_fill_economist()
+# 
+# p3 = gg_df %>%
+#   mutate(noise_level = fct_rev(noise_level)) %>%
+#   mutate(has_ax = factor(has_ax)) %>%
+#   mutate(has_ax = fct_rev(has_ax)) %>%
+#   ggplot(aes(noise_level, n / 20, fill=scenario_completed)) +
+#     geom_bar(stat = "identity") +
+#     facet_grid(rows = vars(has_ax), cols = vars(has_dx), labeller = label_both) +
+#     labs(y = "Fraction completed") +
+#     legend_none() +
+#     scale_fill_economist()
+# 
+# grid.arrange(p1, p2, p3, ncol = 3)
+# 
+# # Visualize also the variation in each of the three levels that we care about
+# p1 = gg_df %>%
+#   filter(scenario_completed == 'complete') %>%
+#   ggplot(aes(has_ax, n/20)) +
+#     geom_violin() +
+#     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+#     stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+#     scale_color_metro() +
+#     ylim(0, 1) +
+#     labs(color = "AX:DX:Noise") +
+#     theme(legend.position = "left") +
+#     guides(size = F)
+# 
+# p2 = gg_df %>%
+#   filter(scenario_completed == 'complete') %>%
+#   ggplot(aes(has_dx, n/20)) +
+#     geom_violin() +
+#     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+#     stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+#     scale_color_metro() +
+#     ylim(0, 1) +
+#     legend_none()
+# 
+# p3 = gg_df %>%
+#   filter(scenario_completed == 'complete') %>%
+#   ggplot(aes(noise_level, n/20)) +
+#     geom_violin() +
+#     geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep=":"), size = 2)) +
+#     stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+#     scale_color_metro() +
+#     ylim(0, 1) +
+#     scale_x_discrete(limits = rev(levels(gg_df$noise_level))) +
+#     legend_none()
+# 
+# grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
 ## Model
@@ -376,7 +431,7 @@ Based on the data, we assume the following structural model:
 
 $$frr_i = Bernoulli(p_i)$$
 $$\begin{aligned}
-logit^{-1}(p_i) &= \beta_0 + \beta_{ax}\text{ax}_i + \beta_{dx}\text{dx}_i + \beta_{dxax}\text{dxax}_i + \beta_{noise}\text{noise}_i +\\
+logit^{-1}(p_i) &= \beta_0 + \beta_{ax}\text{ax_only}_i + \beta_{dx}\text{dx_only}_i + \beta_{dxax}\text{dxax}_i + \beta_{noise}\text{noise}_i +\\
 &\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}}
 \end{aligned}$$
 $$\beta_{.} \sim Normal(0, 10)$$
@@ -480,14 +535,16 @@ plot(scenario_completed.model.v$criteria$loo, main = "Values Model")
 
 # Include posterior predictive checks of the sampling (are sampling according
 # to the data that we actually have?)
-mcmc_intervals(as.matrix(scenario_completed.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
-  ggtitle("Null Model")
+# mcmc_intervals(as.matrix(scenario_completed.model.null), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
+#   ggtitle("Null Model")
+
+p0 = pp_check(scenario_completed.model.null, type = "bars", stat = "median") + ggtitle("null model")
 
 p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("t:has_ax")
 p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("t:has_dx")
 p3 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_dxax")
 p4 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
+grid.arrange(p1, p2, p3, p4, p0, nrow = 3, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
@@ -495,7 +552,7 @@ p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_ax
 p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("v:has_dx")
 p3 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_dxax")
 p4 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)
+grid.arrange(p1, p2, p3, p4, p0, nrow = 3, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -613,9 +670,9 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax_only1,
-    has_dx_test = -2 * b_has_dx_only1,
-    has_dxax_test = -2 * b_has_dxax1,
+    has_ax_test = -b_has_ax_only1,
+    has_dx_test = -b_has_dx_only1,
+    has_dxax_test = -b_has_dxax1,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
@@ -626,9 +683,9 @@ print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, 
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -2 * b_has_ax_only1,
-    has_dx_test = -2 * b_has_dx_only1,
-    has_dxax_test = -2 * b_has_dxax1,
+    has_ax_test = -b_has_ax_only1,
+    has_dx_test = -b_has_dx_only1,
+    has_dxax_test = -b_has_dxax1,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
