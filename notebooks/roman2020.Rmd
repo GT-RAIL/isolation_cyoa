@@ -57,7 +57,8 @@ Global options:
 ```{r}
 # Script execution globals
 train_models = F     # Retrain the MCMC models. Also infer unknown demographics
-plot_posteriors = T  # Plot the posterior distributions
+plot_posteriors = F  # Plot the posterior distributions (debug)
+plot_paper_posteriors = T  # Plot the posterior distributions that are in the paper
 plot_diagnostics = T # Plot the diagnostics
 report_bayesfactors = F  # Report the Bayes Factor scores of model parameters
 default_seed = 0x1331 # For repeatable models and diagnostics
@@ -93,25 +94,38 @@ loadModel = function(model_name, folder = data_folder) {
 }
 
 # Test hypotheses. The NULL arguments need to be provided in this case
-test_hypotheses = function(h_df = NULL, rope_values = NULL, hypotheses_list = NULL, model = NULL) {
-  # Option 1: Use the hypothesis function in brms
-  if (!is.null(hypotheses_list)) {
-    hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
-    return(hyp_results)
+test_hypotheses = function(h_df, rope_values = NULL) {
+  # Set the default ROPE values
+  if (is.null(rope_values)) {
+    rope_values = c(-0.1, 0.1)
   }
 
-  # Option 2: Use the ROPE & Overlap amount
-  else {
-    if (is.null(rope_values)) {
-      rope_values = c(-0.1, 0.1)
-    }
-    hyp_results =
-      h_df %>%
-        equivalence_test(range = rope_values, ci = 1.0) %>%
-        as_tibble() %>%
-        bind_cols(h_df %>% pd() %>% select(pd))
-    return(hyp_results)
-  }
+  pd_test = h_df %>% pd() %>% as_tibble()
+
+  eq_test = h_df %>%
+    equivalence_test(range = rope_values, ci = 1.0, verbose = T) %>%
+    as_tibble() %>%
+    select(Parameter, ROPE_Percentage, ROPE_Equivalence)
+
+  hdi_test = h_df %>% hdi(ci = .89, verbose = T) %>% as_tibble() %>% select(Parameter, CI_low, CI_high)
+
+  point_test = h_df %>%
+    point_interval(.width = 0.89, .point = median, .interval = hdi, .simple_names = T) %>%
+    select(colnames(h_df)) %>%
+    gather(key = "Parameter", value = "Estimate")
+
+  effect_test = point_test %>%
+    inner_join(hdi_test, by = "Parameter") %>%
+    mutate(Effect_Size = abs(Estimate) * sqrt(3) / pi)
+           # There's quite a few nuances that I'm missing with this calculation
+           # Effect_CI_low = pmin(abs(CI_low), abs(CI_high)) * sqrt(3) / pi,
+           # Effect_CI_high = pmax(abs(CI_low), abs(CI_high)) * sqrt(3) / pi)
+
+  hyp_results = effect_test %>%
+    inner_join(pd_test, by = "Parameter") %>%
+    inner_join(eq_test, by = "Parameter")
+
+  return(hyp_results)
 }
 
 # Fit distributions to vectors and print the results. Also return the fit, if necessary
@@ -138,8 +152,8 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
       study_condition = col_factor(),
       suggestion_type = col_factor(levels = c("NONE", "AX", "DX", "DXAX")),
       noise_level = col_factor(ordered = T),
-      gender = col_factor(levels = c("F", "M", "U")),
-      age_group = col_factor(levels = seq(from = 0, to = 8)),
+      # gender = col_factor(levels = c("F", "M", "U")),
+      # age_group = col_factor(levels = seq(from = 0, to = 8)),  # We don't load this as a factor yet
       robot_experience = col_factor(levels = seq(from = 0, to = 4))
     )
   )
@@ -155,15 +169,19 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
                                                             "DX_90", "AX_90", "DXAX_90",
                                                             "DX_80", "AX_80", "DXAX_80")))
 
-  # Relevel the non-binary gender
-  dat$gender[dat$gender == 'U'] = 'M'
+  # Relevel the non-binary gender and make it a factor
+  dat = dat %>%
+    mutate(gender = ifelse(gender == "U", "M", gender)) %>%
+    mutate(gender = factor(gender, levels = c("F", "M")))
 
   # Change binary responses to integers
   dat = dat %>% mutate(scenario_completed = as.integer(scenario_completed))
 
-  # Relevel age_group
-  dat[dat$age_group == 0,]$age_group = age_group_fill
-  
+  # Relevel age_group and make it a factor
+  dat = dat %>%
+    mutate(age_group = ifelse(age_group == 0, age_group_fill, age_group)) %>%
+    mutate(age_group = factor(age_group, levels = seq(from = 0, to = 8)))
+
   # Create an unordered noise_level. Also drop unused levels
   dat$age_group = droplevels(dat$age_group)
   dat$gender = droplevels(dat$gender)
@@ -181,7 +199,7 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
   contrasts(dat$has_ax_only) = contrast_func(2)
   contrasts(dat$has_dx_only) = contrast_func(2)
   contrasts(dat$has_suggestions) = contrast_func(2)
-  contrasts(dat$suggestion_type) = contr.treatment(4)  # This is a hardcode
+  contrasts(dat$suggestion_type) = contr.helmert(4)  # This is a hardcode
 
   contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
   
@@ -243,27 +261,28 @@ For each of our dependent variables, there are 2 models:
 1. With the noise variable as an ordered factor, so that we can make inferences on the trends in the variable
 1. With the noise variable as an unordered factor, so that we can make inferences on the values of the variable
 
-We use Deviation / Sum coding in the coding of non-ordered factors so that we can test the influence of individual factor levels over and above the grand mean.
+We use Deviation / Sum coding in the coding of non-ordered factors so that we can test the influence of individual factor levels over and above the grand mean. We code the suggestion_type as (reverse) Helmert coding so that collinearity between the suggestion condition values is reduced (collinearity invalidates Bayesian hypothesis testing). (The reverse Helmert coding is the default form of helmert coding that's followed in R).
 
 In all our models:
 
 - $\beta_0$ is assumed to be the intercept. In a mixed effects model, this is additionally indexed by $i$, the user; i.e. $\beta_{0i}$.
-- $\text{ax_only}_i$ denotes if sample $i$ received AX suggestions (only) or not
-- $\text{dx_only}_i$ denotes if sample $i$ received DX suggestions (only) or not
-- $\text{dxax}_i$ denotes if sample $i$ received DXAX suggestions or not
+- $\text{suggestion_type}_i$ which denotes the type of suggestion that the participant received. This factor is coded, using Helmert coding, into three sub-variables (`baseline` is a reference level for this factor):
+    - $\text{ax_only}_i$ denotes if sample $i$ received AX suggestions (only) or not
+    - $\text{dx_only}_i$ denotes if sample $i$ received DX suggestions (only) or not
+    - $\text{dxax}_i$ denotes if sample $i$ received DXAX suggestions or not
 - $\text{noise}_i$ denotes the level of noise in the suggestions that sample $i$ received. 0 (100% accuracy) if none was present.
 - $\mathbf{X_{demo,i}}$ is a vector of demographic information. For one participant, this information is imputed from a simple linear model of the other participants.
 - $\text{no}_i$ denotes the number of optimal actions for the scenario present in sample $i$. This is a proxy for a difficulty rating of the error scenario given to the participant
 - $\text{state}_{ij}$ denotes the state the user $i$ visited on action number $j$. The sample, in this case, is indexed by $j$. The states are indexed according to the frequency of users visits (0 = most visited state), and then all the indices are rescaled into the range 0-1.
 
-We test the following hypotheses (the explanations are a statement of the null hypotheses; the coefficients are from the expected regression parameters, given sum coding):
+We test the following hypotheses (the explanations are a statement of the null hypotheses; the coefficients are from the expected regression parameters, given sum/Helmert coding):
 
-- $-\beta_{ax_0} = 0$: The main difference in effects from adding action suggestions (only) vs. the mean of all other conditions is negligible (ceterus paribus)
-- $-\beta_{dx_0} = 0$: The main difference in effects from adding diagnosis suggestions (only) vs. the mean of all other conditions is neglible (ceterus paribus)
-- $-\beta_{dxax_0} = 0$: The main difference in effects from adding both suggestions vs. the mean of all other conditions is neglible (ceterus paribus)
+- $2\beta_{ax} = 0$: The effect of action suggestions is no better than the baseline condition with no suggestions.
+- $3\beta_{dx} + \beta_{ax} = 0$: The effect of diagnosis suggestions is no better than the baseline condition with no suggestions.
+- $4\beta_{dxax} + \beta_{ax} + \beta_{dx} = 0$: The effect of both suggestions is no better than the baseline condition with no suggestions.
 - $\beta_{noise_L} = 0; \beta_{noise_Q} = 0$: Noise does not have a linear (L) / quadratic (Q) effect on the outcome.
 
-We do not include or test interaction effects in our model because interaction effects add more parameters to our model than can be estimated given the experimental design. Therefore, we assume that noise and the suggestion type have independent effects on each of the outcomes.
+We do not include or test interaction effects in our model because interaction effects add more parameters to our model than can be estimated given the experimental design. Therefore, we assume that noise and the suggestion type have independent effects on each of the outcomes, and comparisons are made against the grand means of all the data.
 
 The method of reporting and testing is based on the following papers:
 
@@ -335,7 +354,7 @@ p1 = gg_df %>%
     geom_violin() +
     geom_point(aes(color = paste(suggestion_type, noise_level, sep=":"), size = 2),
                position = position_jitter(width = .2, height = 0)) +
-    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    stat_summary(fun = median, geom="point", shape=23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     legend_none()
@@ -346,7 +365,7 @@ p2 = gg_df %>%
     geom_violin() +
     geom_point(aes(color = paste(suggestion_type, noise_level, sep=":"), size = 2),
                position = position_jitter(width = .2, height = 0)) +
-    stat_summary(fun.y = median, geom="point", shape=23, size = 6) +
+    stat_summary(fun = median, geom="point", shape=23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     labs(color = "Type:Noise") +
@@ -386,7 +405,7 @@ saveModel(scenario_completed.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 scenario_completed.model.t = brm(
-  scenario_completed ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level) + (gender + age_group + robot_experience) + num_optimal,
+  scenario_completed ~ 0 + Intercept + (suggestion_type + noise_level) + (gender + age_group + robot_experience) + num_optimal,
   family = "bernoulli",
   prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
@@ -398,19 +417,9 @@ scenario_completed.model.t = add_criterion(scenario_completed.model.t, "waic")
 scenario_completed.model.t = add_criterion(scenario_completed.model.t, "loo", reloo = T)
 saveModel(scenario_completed.model.t)
 
-scenario_completed.model.t = brm(
-  scenario_completed ~ 0 + Intercept + (suggestion_type + noise_level) + (gender + age_group + robot_experience) + num_optimal,
-  family = "bernoulli",
-  prior = set_prior("normal(0, 10)", class = "b"),
-  data = plot_df,
-  seed = default_seed,
-  save_all_pars = T,
-  sample_prior = T
-)
-
 # The values model, to see if specific values of the noise level variable are significant
 scenario_completed.model.v = brm(
-  scenario_completed ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
+  scenario_completed ~ 0 + Intercept + (suggestion_type + noise_level_f) + (gender + age_group + robot_experience) + num_optimal,
   family = "bernoulli",
   prior = set_prior("normal(0, 10)", class = "b"),
   data = plot_df,
@@ -432,17 +441,28 @@ scenario_completed.model.v = loadModel("scenario_completed.model.v")
 Model fitting results:
 
 ```{r}
-# print(summary(scenario_completed.model.null))
 print(performance::r2(scenario_completed.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(scenario_completed.model.t))
+print(model_parameters(scenario_completed.model.t,
+                       centrality = "median",
+                       ci = 0.89,
+                       ci_method = "hdi",
+                       test = c("pd", "rope"),
+                       rope_range = c(-0.055, 0.055),
+                       rope_ci = 1,
+                       effects = "fixed"))
 print(performance::r2(scenario_completed.model.t))
 
-print(tidy_stan(scenario_completed.model.v))
+print(model_parameters(scenario_completed.model.v,
+                       centrality = "median",
+                       ci = 0.89,
+                       ci_method = "hdi",
+                       test = c("pd", "rope"),
+                       rope_range = c(-0.055, 0.055),
+                       rope_ci = 1,
+                       effects = "fixed"))
 print(performance::r2(scenario_completed.model.v))
-
-# TODO: parameters::model_parameters(scenario_completed.model.t, centrality = "median", ci = 0.89, ci_method = "hdi", test = c("pd", "rope"), rope_range = c(-0.055, 0.055), rope_ci = 1, effects = "fixed")
 ```
 
 ## Diagnostic
@@ -470,19 +490,15 @@ plot(scenario_completed.model.v$criteria$loo, main = "Values Model")
 
 p0 = pp_check(scenario_completed.model.null, type = "bars", stat = "median") + ggtitle("null model")
 
-p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("t:has_ax")
-p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("t:has_dx")
-p3 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_dxax")
-p4 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, p4, p0, nrow = 3, ncol = 2)
+p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("t:has_ax")
+p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p0, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("v:has_ax")
-p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("v:has_dx")
-p3 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_dxax")
-p4 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, p4, p0, nrow = 3, ncol = 2)
+p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("v:has_ax")
+p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
+grid.arrange(p1, p2, p0, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -576,74 +592,54 @@ print(bayesfactor_rope(scenario_completed.model.t, null = c(-0.055, 0.055)), n =
 print(bayesfactor_rope(scenario_completed.model.v, null = c(-0.055, 0.055)), n = 30)
 ```
 ```{r}
-# Compare the models. Note: we cannot do this because we don't have enough samples.
-# The default is 4000; apparently these functions are only meaningful with 40000
-# comparison = bayesfactor_models(scenario_completed.model.t, scenario_completed.model.v,
-#                                 denominator = scenario_completed.model.null)
-# print(comparison)
-# print(bayesfactor_inclusion(comparison))
-
-# # If we're using the brms functions, then use the following (make sure to update!)
-# common_hyp_to_test = c("-2 * has_ax1 = 0", "-2 * has_dx1 = 0")
-# noise_levels_hyp_to_test = c(
-#   "Intercept-noise_level_f1 = 0", "Intercept-noise_level_f2 = 0", "Intercept-noise_level_f1-noise_level_f2 = 0",
-#   "Intercept-has_ax1:noise_level_f1 = 0", "Intercept-has_dx1:noise_level_f1 = 0",
-#   "Intercept-has_ax1:noise_level_f2 = 0", "Intercept-has_dx1:noise_level_f2 = 0",
-#   "Intercept-has_ax1:noise_level_f1-has_ax1:noise_level_f2 = 0",
-#   "Intercept-has_dx1:noise_level_f1-has_dx1:noise_level_f2 = 0"
-# )
-# hyp_results = test_hypotheses(hypotheses_list = c(common_hyp_to_test, noise_levels_hyp_to_test), model = scenario_completed.model.v)
-# print(hyp_results$hypothesis)
-# plot(hyp_results, ask=F)
-
 options(digits = 3)
 # Check the significance of each hypothesis
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -b_has_ax_only1,
-    has_dx_test = -b_has_dx_only1,
-    has_dxax_test = -b_has_dxax1,
+    has_ax_test = 2 * b_suggestion_type1,
+    has_dx_test = (3 * b_suggestion_type2) + b_suggestion_type1,
+    has_dxax_test = (4 * b_suggestion_type3) + b_suggestion_type1 + b_suggestion_type2,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
 
 hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
-print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+print(hyp_results %>% as.matrix())
 
 h_df = as_tibble(insight::get_parameters(scenario_completed.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -b_has_ax_only1,
-    has_dx_test = -b_has_dx_only1,
-    has_dxax_test = -b_has_dxax1,
+    has_ax_test = 2 * b_suggestion_type1,
+    has_dx_test = (3 * b_suggestion_type2) + b_suggestion_type1,
+    has_dxax_test = (4 * b_suggestion_type3) + b_suggestion_type1 + b_suggestion_type2,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
   )
 
 hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
-print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+print(hyp_results %>% as.matrix())
 options(digits = 7)
 ```
 
 **Results**:
 
 1. AX suggestions
-    - Positive effect pd = 97.7%
-    - Median = 0.94, 89% CI [0.16, 1.67]
-    - Small, Std.Median = 0.48
-    - 1.13% in ROPE
+    - Positive effect pd = 97.2%
+    - Median = 1.89, 89% CI [0.29, 3.37]
+    - Large, Effect Size = 1.04
+    - 0.73% in ROPE
 1. DXAX suggestions
-    - Positive effect pd = 95.8%
-    - Median = 0.78, 89% CI [0.06, 1.48]
-    - Small, Std.Median = 0.44
-    - 2.38% in ROPE
+    - Positive effect pd = 96.2%
+    - Median = 1.57, 89% CI [0.16, 2.97]
+    - Large, Effect Size = 0.87
+    - 1.15% in ROPE
 1. Noise Level Quadratic
-    - Positive (convex-shape) pd = 96.9%
-    - Median = 0.74, 89% CI [0.13, 1.41]
-    - Small, Std.Median = 0.41
-    - 2.0% in ROPE
+    - Positive (convex-shape) pd = 97.0%
+    - Median = 0.77, 89% CI [0.12, 1.40]
+    - Small, Effect Size = 0.42
+    - 1.75% in ROPE
 
 (The ROPE is defined as [-0.055, 0.055]. It is the range is suggested in the literature for logistic models and it corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
@@ -661,9 +657,7 @@ gg_df = plot_df %>%
 p_df =
   plot_df %>%
   data_grid(scenario_completed,
-            has_ax_only,
-            has_dx_only,
-            has_dxax,
+            suggestion_type,
             noise_level_f,
             gender,
             age_group,
@@ -671,7 +665,14 @@ p_df =
             num_optimal,
             .model = scenario_completed.model.v)
 
-fits_p_df = p_df %>% add_fitted_draws(scenario_completed.model.v)  # Linear predicted values
+fits_p_df = p_df %>%
+  add_fitted_draws(scenario_completed.model.v) %>%  # Linear predicted values
+  mutate(has_ax_only = (suggestion_type == "AX"),
+         has_dx_only = (suggestion_type == "DX"),
+         has_dxax = (suggestion_type == "DXAX")) %>%
+  mutate(has_ax_only = factor(has_ax_only, levels = c(F, T)),
+         has_dx_only = factor(has_dx_only, levels = c(F, T)),
+         has_dxax = factor(has_dxax, levels = c(F, T)))
 pars_p_df = scenario_completed.model.t %>% extract_draws(newdata = p_df %>% rename(noise_level = noise_level_f))
 
 # Plot the posterior distributions. In each of the following, the reference ROPE band
@@ -680,7 +681,7 @@ pars_p_df = scenario_completed.model.t %>% extract_draws(newdata = p_df %>% rena
 
 # If centering ROPE on the Intercept (NULL or Fitted?)
 # rope_value = inv_logit_scaled(fixef(scenario_completed.model.null)["Intercept","Estimate"])
-rope_value = inv_logit_scaled(fixef(scenario_completed.model.t)["Intercept","Estimate"])
+# rope_value = inv_logit_scaled(fixef(scenario_completed.model.t)["Intercept","Estimate"])
 
 # If centering ROPE on the actual data
 # rope_value = gg_df %>%
@@ -688,18 +689,25 @@ rope_value = inv_logit_scaled(fixef(scenario_completed.model.t)["Intercept","Est
 #   summarise(.value = median(n) / 20) %>%
 #   pull(.value)
 
-# If centering ROPE on the posterior distributions
-# preds_p_df = p_df %>%
-#   add_predicted_draws(scenario_completed.model.v)  %>% # 0, 1 predictions for each predicted value
-#   ungroup() %>%
-#   count(has_ax_only, has_dx_only, has_dxax, noise_level_f, .prediction)
-# rope_value = median(
-#   preds_p_df %>%
-#     filter(has_ax_only == F) %>%
-#     spread(.prediction, n) %>%
-#     mutate(.value = `1` / (`0` + `1`)) %>%
-#     pull(.value)
-# )
+# If centering ROPE on the posterior distributions. Here we center the ROPE around the posterior
+# predicted value for the BASELINE condition
+preds_p_df = p_df %>%
+  add_predicted_draws(scenario_completed.model.v)  %>% # 0, 1 predictions for each predicted value
+  ungroup() %>%
+  count(suggestion_type, noise_level_f, .prediction) %>%
+  mutate(has_ax_only = (suggestion_type == "AX"),
+         has_dx_only = (suggestion_type == "DX"),
+         has_dxax = (suggestion_type == "DXAX")) %>%
+  mutate(has_ax_only = factor(has_ax_only, levels = c(F, T)),
+         has_dx_only = factor(has_dx_only, levels = c(F, T)),
+         has_dxax = factor(has_dxax, levels = c(F, T)))
+rope_value = median(
+  preds_p_df %>%
+    filter(suggestion_type == "NONE") %>%
+    spread(.prediction, n) %>%
+    mutate(.value = `1` / (`0` + `1`)) %>%
+    pull(.value)
+)
 
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
@@ -711,7 +719,7 @@ gg_df %>%
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
@@ -726,7 +734,7 @@ gg_df %>%
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
@@ -741,7 +749,7 @@ gg_df %>%
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
@@ -757,22 +765,20 @@ gg_df %>%
     stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:Noise")
+    labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
 
 # Create a plot to show the trend
 pars_p_df_X = pars_p_df$dpars$mu$fe$X[,c("Intercept", "noise_level.Q")]
 pars_p_df_b = pars_p_df$dpars$mu$fe$b[,c("b_Intercept", "b_noise_level.Q")]
 pars_p_df_y = pars_p_df_X %*% t(pars_p_df_b)[,as.integer(seq(from = 1, to = 4000, length.out = 100))]
 pars_p_df_y = inv_logit_scaled(pars_p_df_y)
-p_df =
-  p_df %>%
+p_df = p_df %>%
   bind_cols(as_tibble(pars_p_df_y)) %>%
   gather(key = ".sample", value = ".value", V1:V100) %>%
   rename(noise_level = noise_level_f)
-
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
@@ -785,69 +791,98 @@ gg_df %>%
     geom_line(aes(y = .value, group = .sample, alpha = 0.3), data = p_df) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:Noise") +
+    labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise") +
     guides(alpha = F)
 
 # Remove the giant fits data frames
-# rm(preds_p_df) # If using the predictions based ROPE
+rm(preds_p_df) # If using the posterior-predictions-based ROPE
 rm(fits_p_df, pars_p_df, pars_p_df_b, pars_p_df_X, pars_p_df_y, p_df, gg_df)
 ```
 
-```{r, eval=plot_posteriors}
-eff = fixef(scenario_completed.model.v)
+```{r, eval=plot_paper_posteriors}
+eff = fixef(scenario_completed.model.t)
+base_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  - eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+ax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+dx_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (2 * eff["suggestion_type2", "Estimate"])
+  - eff["suggestion_type3", "Estimate"]
+)
+dxax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (3 * eff["suggestion_type3", "Estimate"])
+)
+
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
-  count(has_ax_only, has_dx_only, has_dxax, noise_level, scenario_completed) %>%
+  count(suggestion_type, has_ax_only, has_dx_only, has_dxax, noise_level, scenario_completed) %>%
   mutate(has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
          has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
          has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
-         estimate = -1)
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
+  mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
 
-p_df = gg_df %>%
-  mutate(estimate = if_else(has_ax_only == "No AX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_ax_only1","Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(has_ax_only == "AX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_ax_only1", "Estimate"]), estimate))
-p1 = p_df %>%
+p1 = gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
-  ggplot(aes(has_ax_only, n/20, group = has_ax_only, colour = has_ax_only)) +
+  ggplot(aes(suggestion_type, n/20, group = suggestion_type, colour = suggestion_type)) +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
-    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "*", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.5, 1.1)) +
+    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "***", textsize = 8, color = "black") +
+    geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "***", textsize = 8, color = "black") +
+    scale_y_continuous(limits = c(0.5, 1.2), breaks = c(0.5, 0.75, 1.0)) +
     labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
     legend_none()
 
-p_df = gg_df %>%
-  mutate(estimate = if_else(has_dxax == "No DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_dxax1","Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(has_dxax == "DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_dxax1", "Estimate"]), estimate))
-p2 = p_df %>%
-  filter(scenario_completed == 'Resolved') %>%
-  ggplot(aes(has_dxax, n/20, group = has_dxax, colour = has_dxax)) +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
-    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "*", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.5, 1.1)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
-    theme_economist_white(base_size = 13) +
-    theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
-    legend_none()
+# p_df = gg_df %>%
+#   mutate(estimate = if_else(has_dxax == "No DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_dxax1","Estimate"]), estimate)) %>%
+#   mutate(estimate = if_else(has_dxax == "DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_dxax1", "Estimate"]), estimate))
+# p2 = p_df %>%
+#   filter(scenario_completed == 'Resolved') %>%
+#   ggplot(aes(has_dxax, n/20, group = has_dxax, colour = has_dxax)) +
+#     geom_count(aes(colour = NULL)) +
+#     geom_boxplot(aes(y = estimate)) +
+#     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "*", textsize = 8, color = "black") +
+#     scale_y_continuous(limits = c(0.5, 1.1)) +
+#     labs(y = "Fraction of participants that resolved fault", x = NULL) +
+#     scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+#     theme_economist_white(base_size = 13) +
+#     theme(plot.background = element_rect(fill = "white"),
+#           axis.title.y = element_blank()) +
+#     legend_none()
 
-p_df = gg_df %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]), estimate)) %>%
+eff = fixef(scenario_completed.model.v)
+noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
+noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
+noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
+
+gg_df = gg_df %>%
+  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
-p3 = p_df %>%
+
+p2 = gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
   ggplot(aes(noise_level, n/20, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
@@ -855,16 +890,12 @@ p3 = p_df %>%
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
-             x = 3,
-             y = inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 3, y = noise_0_eff,
+             xend = 2, yend = noise_1_eff,
              colour = "black") +
     annotate("segment",
-             x = 1,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 1, y = noise_2_eff,
+             xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
              x = 3.5,
@@ -875,7 +906,7 @@ p3 = p_df %>%
              colour = "black") +
     scale_y_continuous(limits = c(0.5, 1.1), breaks = c(0.5, 1.0)) +
     labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
@@ -883,8 +914,8 @@ p3 = p_df %>%
           axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     legend_none()
 
-grid.arrange(p1, p2, p3, nrow = 1, ncol = 3)
-rm(p1, p2, p3)
+grid.arrange(p1, p2, nrow = 1, ncol = 2)
+rm(p1, p2)
 ```
 
 ```{r, echo=F, results=F, message=F, warning=F}
@@ -1041,7 +1072,7 @@ saveModel(optimal_ax.model.null)
 
 # The trend model to see if there is a trend in the noise level variable
 optimal_ax.model.t = brm(
-  optimal_ax ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  optimal_ax ~ 0 + Intercept + (suggestion_type + noise_level) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
