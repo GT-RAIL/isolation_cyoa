@@ -202,7 +202,7 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
   contrasts(dat$suggestion_type) = contr.helmert(4)  # This is a hardcode
 
   contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
-  
+
   # Return the data frame
   return(dat)
 }
@@ -490,13 +490,13 @@ plot(scenario_completed.model.v$criteria$loo, main = "Values Model")
 
 p0 = pp_check(scenario_completed.model.null, type = "bars", stat = "median") + ggtitle("null model")
 
-p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("t:has_ax")
+p1 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("t:suggestion_type")
 p2 = pp_check(scenario_completed.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
 grid.arrange(p1, p2, p0, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.t), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("v:has_ax")
+p1 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("v:suggestion_type")
 p2 = pp_check(scenario_completed.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
 grid.arrange(p1, p2, p0, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(scenario_completed.model.v), regex_pars = "b_", prob = 0.90, prob_outer = 0.95) +
@@ -722,7 +722,7 @@ gg_df %>%
     stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
+    labs(y = "FRR", color = "AX:DX:DXAX:Noise")
 
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
@@ -737,7 +737,7 @@ gg_df %>%
     stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
+    labs(y = "FRR", color = "AX:DX:DXAX:Noise")
 
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
@@ -752,7 +752,7 @@ gg_df %>%
     stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
+    labs(y = "FRR", color = "AX:DX:DXAX:Noise")
 
 gg_df %>%
   filter(scenario_completed == 'complete') %>%
@@ -768,7 +768,7 @@ gg_df %>%
     stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise")
+    labs(y = "FRR", color = "AX:DX:DXAX:Noise")
 
 # Create a plot to show the trend
 pars_p_df_X = pars_p_df$dpars$mu$fe$X[,c("Intercept", "noise_level.Q")]
@@ -794,7 +794,7 @@ gg_df %>%
     stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:DXAX:Noise") +
+    labs(y = "FRR", color = "AX:DX:DXAX:Noise") +
     guides(alpha = F)
 
 # Remove the giant fits data frames
@@ -853,23 +853,6 @@ p1 = gg_df %>%
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
     legend_none()
-
-# p_df = gg_df %>%
-#   mutate(estimate = if_else(has_dxax == "No DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_dxax1","Estimate"]), estimate)) %>%
-#   mutate(estimate = if_else(has_dxax == "DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_dxax1", "Estimate"]), estimate))
-# p2 = p_df %>%
-#   filter(scenario_completed == 'Resolved') %>%
-#   ggplot(aes(has_dxax, n/20, group = has_dxax, colour = has_dxax)) +
-#     geom_count(aes(colour = NULL)) +
-#     geom_boxplot(aes(y = estimate)) +
-#     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "*", textsize = 8, color = "black") +
-#     scale_y_continuous(limits = c(0.5, 1.1)) +
-#     labs(y = "Fraction of participants that resolved fault", x = NULL) +
-#     scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
-#     theme_economist_white(base_size = 13) +
-#     theme(plot.background = element_rect(fill = "white"),
-#           axis.title.y = element_blank()) +
-#     legend_none()
 
 eff = fixef(scenario_completed.model.v)
 noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
@@ -1013,7 +996,7 @@ p1 = gg_df %>%
     geom_violin() +
     geom_point(aes(color = paste(suggestion_type, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .2, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     legend_none()
@@ -1024,7 +1007,7 @@ p2 = gg_df %>%
     geom_violin() +
     geom_point(aes(color = paste(suggestion_type, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
     labs(color = "Type:Noise") +
@@ -1040,7 +1023,7 @@ Based on the data, we assume the following structural model:
 
 $$RAX_{ij} = Bernoulli(p_{ij})$$
 $$\begin{aligned}
-logit^{-1}(p_{ij}) &= \beta_0 + \beta_{ax}\text{ax_only}_i + \beta_{dx}\text{dx_only}_i + \beta_{dxax}\text{dxax}_i +\\
+logit(p_{ij}) &= \beta_0 + \beta_{ax}\text{ax_only}_i + \beta_{dx}\text{dx_only}_i + \beta_{dxax}\text{dxax}_i +\\
 &\beta_{noise_L}\text{noise}_i + \beta_{noise_Q}\text{noise}_i +\\
 &\beta_{no}\text{no}_i + \mathbf{\beta_{demo}X_{demo,i}} + \beta_{state} \text{state}_{ij}
 \end{aligned}$$
@@ -1087,7 +1070,7 @@ saveModel(optimal_ax.model.t)
 
 # The values model, to see if specific values of the noise level variable are significant
 optimal_ax.model.v = brm(
-  optimal_ax ~ 0 + Intercept + (has_ax_only + has_dx_only + has_dxax + noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
+  optimal_ax ~ 0 + Intercept + (suggestion_type + noise_level_f) + (age_group + robot_experience + gender) + num_optimal + state_idx_rescaled + (1 | user_id),
   family = bernoulli,
   prior = c(set_prior("normal(0, 10)", class = "b"),
             set_prior("student_t(3, 0, 10)", class = "sd")),
@@ -1110,14 +1093,27 @@ optimal_ax.model.v = loadModel("optimal_ax.model.v")
 Model fitting results:
 
 ```{r}
-# print(tidy_stan(optimal_ax.model.null))
 print(performance::r2(optimal_ax.model.null))
 
 # Print the parameters, and some initial diagnostics
-print(tidy_stan(optimal_ax.model.t, effects = "fixed"))
+print(model_parameters(optimal_ax.model.t,
+                       centrality = "median",
+                       ci = 0.89,
+                       ci_method = "hdi",
+                       test = c("pd", "rope"),
+                       rope_range = c(-0.055, 0.055),
+                       rope_ci = 1,
+                       effects = "fixed"))
 print(performance::r2(optimal_ax.model.t))
 
-print(tidy_stan(optimal_ax.model.v, effects = "fixed"))
+print(model_parameters(optimal_ax.model.v,
+                       centrality = "median",
+                       ci = 0.89,
+                       ci_method = "hdi",
+                       test = c("pd", "rope"),
+                       rope_range = c(-0.055, 0.055),
+                       rope_ci = 1,
+                       effects = "fixed"))
 print(performance::r2(optimal_ax.model.v))
 ```
 
@@ -1140,19 +1136,15 @@ plot(optimal_ax.model.v$criteria$loo, main = "Values Model")
 # to the data that we actually have?)
 p0 = pp_check(optimal_ax.model.null, type = "bars", stat = "median") + ggtitle("null model")
 
-p1 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("t:has_ax")
-p2 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("t:has_dx")
-p3 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("t:has_dxax")
-p4 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
-grid.arrange(p1, p2, p3, p4, p0, nrow = 3, ncol = 2)
+p1 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("t:suggestion_type")
+p2 = pp_check(optimal_ax.model.t, type = "bars_grouped", group = "noise_level", stat = "median") + ggtitle("t:noise_level")
+grid.arrange(p1, p2, p0, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(optimal_ax.model.t), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Trends Model")
 
-p1 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_ax_only", stat = "median") + ggtitle("v:has_ax")
-p2 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_dx_only", stat = "median") + ggtitle("v:has_dx")
-p3 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "has_dxax", stat = "median") + ggtitle("v:has_dxax")
+p1 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "suggestion_type", stat = "median") + ggtitle("v:suggestion_type")
 p4 = pp_check(optimal_ax.model.v, type = "bars_grouped", group = "noise_level_f", stat = "median") + ggtitle("v:noise_level")
-grid.arrange(p1, p2, p3, p4, p0, nrow = 3, ncol = 2)
+grid.arrange(p1, p2, p0, nrow = 2, ncol = 2)
 mcmc_intervals(as.matrix(optimal_ax.model.v), regex_pars = "b_|^shape", prob = 0.90, prob_outer = 0.95) +
   ggtitle("Values Model")
 
@@ -1228,6 +1220,8 @@ grid.arrange(p1, p3, p5, p2, p4, p6, nrow = 2, ncol = 3)
 rm(p0, p1, p2, p3, p4, p5, p6)
 ```
 
+We are better able to recreate the data, if only marginally, with the model.
+
 ## Inference
 
 ```{r, eval=report_bayesfactors}
@@ -1249,44 +1243,44 @@ options(digits = 3)
 h_df = as_tibble(insight::get_parameters(optimal_ax.model.t)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -b_has_ax_only1,
-    has_dx_test = -b_has_dx_only1,
-    has_dxax_test = -b_has_dxax1,
+    has_ax_test = 2 * b_suggestion_type1,
+    has_dx_test = (3 * b_suggestion_type2) + b_suggestion_type1,
+    has_dxax_test = (4 * b_suggestion_type3) + b_suggestion_type1 + b_suggestion_type2,
     noise_levelL_test = b_noise_level.L,
     noise_levelQ_test = b_noise_level.Q
   )
 
 hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
-print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+print(hyp_results %>% as.matrix())
 
 h_df = as_tibble(insight::get_parameters(optimal_ax.model.v)) %>%
   transmute(
     Intercept = b_Intercept,
-    has_ax_test = -b_has_ax_only1,
-    has_dx_test = -b_has_dx_only1,
-    has_dxax_test = -b_has_dxax1,
+    has_ax_test = 2 * b_suggestion_type1,
+    has_dx_test = (3 * b_suggestion_type2) + b_suggestion_type1,
+    has_dxax_test = (4 * b_suggestion_type3) + b_suggestion_type1 + b_suggestion_type2,
     noise_level1_test = b_noise_level_f1,
     noise_level2_test = b_noise_level_f2,
     noise_level3_test = - b_noise_level_f1 - b_noise_level_f2
   )
 
 hyp_results = test_hypotheses(h_df, rope_values = c(-0.055, 0.055))
-print(hyp_results %>% select(Parameter, pd, HDI_low, HDI_high, ROPE_Percentage, ROPE_Equivalence) %>% as.matrix())
+print(hyp_results %>% as.matrix())
 options(digits = 7)
 ```
 
 **Results**:
 
 1. AX suggestions
-    - Positive effect pd = 96.4%
-    - Median = 0.5, 89% CI [0.06, 0.95]
-    - Small, Std.Median = 0.28
-    - 3.43% in ROPE (n.s.)
+    - Positive effect pd = 97.0%
+    - Median = 1.03, 89% CI [0.16, 1.95]
+    - Medium, Effect Size = 0.57
+    - 1.98% in ROPE
 1. DXAX suggestions
-    - Positive effect pd = 98.3%
-    - Median = 0.58, 89% CI [0.15, 1.01]
-    - Small, Std.Median = 0.28
-    - 1.85% in ROPE
+    - Positive effect pd = 99.0%
+    - Median = 1.20, 89% CI [0.39, 2.09]
+    - Medium, Effect Size = 0.66
+    - 0.50% in ROPE
 
 (The ROPE is defined as [-0.055, 0.055]. It is the range is suggested in the literature for logistic models and it corresponds to a probability range of 0.11. Therefore, a probability change of less than 0.055 is considered no different from a probability change of 0)
 
@@ -1299,29 +1293,31 @@ gg_df = plot_df %>%
     mutate(optimal_ax = factor(optimal_ax)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(optimal_ax = fct_recode(optimal_ax, incorrect="0", correct = "1")) %>%
-    mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-    count(user_id, study_condition, .fill_column, optimal_ax, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
+    count(user_id, optimal_ax, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
           name = "num_optimal_ax")
 
 # Simulate predictions on new data
 p_df =
   plot_df %>%
   data_grid(optimal_ax,
-            has_ax_only,
-            has_dx_only,
-            has_dxax,
+            suggestion_type,
             noise_level_f,
             gender,
             age_group,
             robot_experience,
-            num_optimal = seq_range(num_optimal, n = 2),
-            state_idx_rescaled = seq_range(state_idx_rescaled, n = 3),
+            num_optimal,
+            state_idx_rescaled = seq_range(state_idx_rescaled, n = 4),
             .model = optimal_ax.model.v)
 
-fits_p_df = p_df %>% add_fitted_draws(optimal_ax.model.v,
-                                      re_formula = NA,
-                                      n = 20,
-                                      seed = default_seed)
+fits_p_df = p_df %>%
+  add_fitted_draws(optimal_ax.model.v, re_formula = NA, n = 20, seed = default_seed) %>%
+  mutate(has_ax_only = (suggestion_type == "AX"),
+         has_dx_only = (suggestion_type == "DX"),
+         has_dxax = (suggestion_type == "DXAX")) %>%
+  mutate(has_ax_only = factor(has_ax_only, levels = c(F, T)),
+         has_dx_only = factor(has_dx_only, levels = c(F, T)),
+         has_dxax = factor(has_dxax, levels = c(F, T)))
+
 gc()
 
 # Plot the posterior distributions. In each of the following, the reference ROPE band
@@ -1330,13 +1326,34 @@ gc()
 
 # If centering the ROPE on the Intercept (NULL or Fitted?)
 # rope_value = inv_logit_scaled(fixef(optimal_ax.model.null)["Intercept", "Estimate"])
-rope_value = inv_logit_scaled(fixef(optimal_ax.model.t)["Intercept", "Estimate"])
+# rope_value = inv_logit_scaled(fixef(optimal_ax.model.t)["Intercept", "Estimate"])
 
 # If centering the ROPE on the actual data
 # rope_value = gg_df %>%
 #   filter(optimal_ax == 'correct', has_ax == F) %>%
 #   summarise(.value = median(num_optimal_ax / num_actions)) %>%
 #   pull(.value)
+
+# If centering ROPE on the posterior distributions. Here we center the ROPE around the posterior
+# predicted value for the BASELINE condition
+preds_p_df = p_df %>%
+  add_predicted_draws(optimal_ax.model.v, re_formula = NA)  %>% # 0, 1 predictions for each predicted value
+  ungroup() %>%
+  count(suggestion_type, noise_level_f, .prediction) %>%
+  mutate(has_ax_only = (suggestion_type == "AX"),
+         has_dx_only = (suggestion_type == "DX"),
+         has_dxax = (suggestion_type == "DXAX")) %>%
+  mutate(has_ax_only = factor(has_ax_only, levels = c(F, T)),
+         has_dx_only = factor(has_dx_only, levels = c(F, T)),
+         has_dxax = factor(has_dxax, levels = c(F, T)))
+rope_value = median(
+  preds_p_df %>%
+    filter(suggestion_type == "NONE") %>%
+    spread(.prediction, n) %>%
+    mutate(.value = `1` / (`0` + `1`)) %>%
+    pull(.value)
+)
+gc()
 
 gg_df %>%
   filter(optimal_ax == 'correct') %>%
@@ -1348,10 +1365,10 @@ gg_df %>%
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "correct_ax", color = "AX:DX:DXAX:Noise")
+    labs(y = "RAX", color = "AX:DX:DXAX:Noise")
 
 gg_df %>%
   filter(optimal_ax == 'correct') %>%
@@ -1363,10 +1380,10 @@ gg_df %>%
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "correct_ax", color = "AX:DX:DXAX:Noise")
+    labs(y = "RAX", color = "AX:DX:DXAX:Noise")
 
 gg_df %>%
   filter(optimal_ax == 'correct') %>%
@@ -1378,10 +1395,10 @@ gg_df %>%
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "correct_ax", color = "AX:DX:DXAX:Noise")
+    labs(y = "RAX", color = "AX:DX:DXAX:Noise")
 
 gg_df %>%
   filter(optimal_ax == 'correct') %>%
@@ -1394,17 +1411,38 @@ gg_df %>%
     stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_point(aes(color = paste(has_ax_only, has_dx_only, has_dxax, noise_level, sep = ":")),
                size = 2, position = position_jitter(width = .1, height = 0)) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "correct_ax", color = "AX:DX:DXAX:Noise")
+    labs(y = "RAX", color = "AX:DX:DXAX:Noise")
 
 # Remove the giant fits data frames
 rm(fits_p_df, p_df, gg_df)
 ```
 
-```{r, eval=plot_posteriors}
-eff = fixef(optimal_ax.model.v)
+```{r, eval=plot_paper_posteriors}
+eff = fixef(optimal_ax.model.t)
+base_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  - eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+ax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+dx_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (2 * eff["suggestion_type2", "Estimate"])
+  - eff["suggestion_type3", "Estimate"]
+)
+dxax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (3 * eff["suggestion_type3", "Estimate"])
+)
 
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
@@ -1413,45 +1451,27 @@ gg_df = plot_df %>%
          has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
          has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
          noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
-  count(user_id, study_condition, optimal_ax, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
+  count(user_id, suggestion_type, optimal_ax, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
         name = "num_optimal_ax") %>%
-  mutate(estimate = -1)
+  mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
+  mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
 
-p_df = gg_df %>%
-  mutate(estimate = if_else(has_ax_only == "No AX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_ax_only1","Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(has_ax_only == "AX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_ax_only1", "Estimate"]), estimate))
-p1 = p_df %>%
+gg_df %>%
   filter(optimal_ax == "1") %>%
-  ggplot(aes(has_ax_only, num_optimal_ax / num_actions, group = has_ax_only, colour=has_ax_only)) +
+  ggplot(aes(suggestion_type, num_optimal_ax / num_actions, group = suggestion_type, colour=suggestion_type)) +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
-    # geom_signif(y_position = 1.07, xmin = 1, xmax = 2, annotation = "n.s.", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.0, 1.1), breaks = c(0.0, 0.5, 1.0)) +
+    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
+    geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.5, 1.0)) +
     labs(y = NULL, x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
     legend_none()
-
-p_df = gg_df %>%
-  mutate(estimate = if_else(has_dxax == "No DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_dxax1","Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(has_dxax == "DXAX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_dxax1", "Estimate"]), estimate))
-p2 = p_df %>%
-  filter(optimal_ax == "1") %>%
-  ggplot(aes(has_dxax, num_optimal_ax / num_actions, group = has_dxax, colour=has_dxax)) +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
-    geom_signif(y_position = 1.07, xmin = 1, xmax = 2, annotation = "*", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.0, 1.1), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = NULL, x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
-    theme_economist_white(base_size = 13) +
-    theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
-    legend_none()
-
-grid.arrange(p1, p2, ncol = 2)
 ```
 
 ```{r, echo=F, results=F, message=F, warning=F}
