@@ -40,7 +40,7 @@ library(GGally)
 library(tidybayes)
 library(bayestestR)
 library(sjstats)
-library(report)
+library(parameters)
 library(see)
 
 # Setup for multiprocessing
@@ -287,7 +287,10 @@ plot_df = users %>%
          has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed)
 
-text_short(report(plot_df))
+print(summary(plot_df %>%
+                mutate(scenario_completed = factor(scenario_completed)) %>%
+                select(-X1, -id)
+))
 ```
 
 ## Data
@@ -905,7 +908,11 @@ plot_df = actions %>%
          has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed, num_actions, optimal_ax)
 
-text_short(report(plot_df))
+print(summary(plot_df %>%
+                mutate(optimal_ax = factor(optimal_ax),
+                       scenario_completed = factor(scenario_completed)) %>%
+                select(-X1, -id)
+))
 ```
 
 ## Data
