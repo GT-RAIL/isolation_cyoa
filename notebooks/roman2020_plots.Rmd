@@ -229,14 +229,14 @@ gg_df %>%
   ggplot(aes(suggestion_type, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
+    labs(y = "Failure Resolution Rate (FRR)\n", x = NULL) +
+    scale_y_continuous(breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           legend.title = element_blank(),
           legend.position = "bottom",
-          axis.title.y = element_blank())
+          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0)))
 ```
 
 Significance Results:
@@ -248,7 +248,7 @@ Significance Results:
 So the related plots:
 
 
-```{r, fig.width=3.5, fig.height=2.5}
+```{r, fig.width=3.5, fig.height=5}
 eff = fixef(scenario_completed.model.t)
 base_eff = inv_logit_scaled(
   eff["Intercept", "Estimate"]
@@ -293,16 +293,19 @@ gg_df %>%
     geom_boxplot(aes(y = estimate)) +
     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "***", textsize = 8, color = "black") +
     geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "***", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.5, 1.2), breaks = c(0.5, 0.75, 1.0)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
+    labs(y = "Failure Resolution Rate (FRR)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
-```{r, fig.width=3.5, fig.height=2.5}
+```{r, fig.width=3.5, fig.height=5}
 eff = fixef(scenario_completed.model.v)
 noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
 noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
@@ -330,20 +333,21 @@ gg_df %>%
              xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
-             x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.85),
-             label = "Mean of all levels",
+             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 1),
+             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
              angle = 90,
              group = NA,
-             colour = "black") +
-    scale_y_continuous(limits = c(0.5, 1.1), breaks = c(0.5, 1.0)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
+             colour = "#785743") +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
+    labs(y = "Failure Resolution Rate (FRR)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank(),
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
@@ -387,12 +391,12 @@ gg_df %>%
   ggplot(aes(suggestion_type, num_optimal_ax / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = "Fraction of optimal actions", x = NULL) +
-    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
+    labs(y = "Rate of Optimal Action Selection (RAX)\n", x = NULL) +
+    scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -449,12 +453,15 @@ gg_df %>%
     geom_boxplot(aes(y = estimate)) +
     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
     geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = NULL, x = NULL) +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
+    labs(y = "Rate of Optimal Action Selection (RAX)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
@@ -497,12 +504,12 @@ gg_df %>%
   ggplot(aes(suggestion_type, num_optimal_dx / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = "Fraction of optimal actions", x = NULL) +
-    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
+    labs(y = "Rate of Correct Diagnosis Selection (RDX)\n", x = NULL) +
+    scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -514,7 +521,7 @@ Significance Results:
 
 So the related plots:
 
-```{r, fig.width=3.5, fig.height=2.5}
+```{r, fig.width=3.5, fig.height=5}
 eff = fixef(optimal_dx.model.t)
 base_eff = inv_logit_scaled(
   eff["Intercept", "Estimate"]
@@ -558,18 +565,21 @@ gg_df %>%
   ggplot(aes(suggestion_type, num_optimal_dx / num_actions, group = suggestion_type, colour=suggestion_type)) +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
-    geom_signif(y_position = 1.15, xmin = 1, xmax = 3, annotation = "*", textsize = 8, color = "black") +
-    geom_signif(y_position = 1.35, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.0, 1.5), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = NULL, x = NULL) +
+    geom_signif(y_position = 1.05, xmin = 1, xmax = 3, annotation = "*", textsize = 8, color = "black") +
+    geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
+    labs(y = "Rate of Correct Diagnosis Selection (RDX)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
-```{r, fig.width=3.5, fig.height=2.5}
+```{r, fig.width=3.5, fig.height=5}
 eff = fixef(optimal_dx.model.v)
 noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
 noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
@@ -597,20 +607,20 @@ gg_df %>%
              xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
-             x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.35),
-             label = "Mean of all levels",
+             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
+             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
              angle = 90,
              group = NA,
-             colour = "black") +
-    scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = "RDX", x = NULL) +
+             colour = "#785743") +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
+    labs(y = "Rate of Correct Diagnosis Selection (RDX)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank(),
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
@@ -653,12 +663,12 @@ gg_df %>%
   ggplot(aes(suggestion_type, num_follow_ax / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = "Fraction of optimal actions", x = NULL) +
-    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
+    labs(y = "Compliance with AX Suggestions (CAX)\n", x = NULL) +
+    scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -702,20 +712,20 @@ gg_df %>%
              xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
-             x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.35),
-             label = "Mean of all levels",
+             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
+             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
              angle = 90,
              group = NA,
-             colour = "black") +
-    scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = "RDX", x = NULL) +
+             colour = "#785743") +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
+    labs(y = "Compliance with AX Suggestions (CAX)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank(),
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
@@ -758,12 +768,12 @@ gg_df %>%
   ggplot(aes(suggestion_type, num_follow_dx / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = "Fraction of optimal actions", x = NULL) +
-    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
+    labs(y = "Compliance with DX Suggestions (CDX)\n", x = NULL) +
+    scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -807,20 +817,20 @@ gg_df %>%
              xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
-             x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.35),
-             label = "Mean of all levels",
+             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
+             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
              angle = 90,
              group = NA,
-             colour = "black") +
-    scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = "RDX", x = NULL) +
+             colour = "#785743") +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
+    labs(y = "Compliance with DX Suggestions (CDX)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank(),
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
@@ -859,12 +869,12 @@ gg_df %>%
     geom_bar(stat = "identity") +
     geom_errorbar(aes(ymin = sus-mad, ymax = sus+mad), width = 0) +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = "SUS Score", x = NULL) +
-    scale_y_continuous(breaks = c(0, 50, 100), limits = c(0, 100)) +
+    labs(y = "System Usability Score (SUS)\n", x = NULL) +
+    scale_y_continuous(limits = c(0, 100), breaks = c(0, 50, 100), labels = c("", 50, 100)) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -914,12 +924,15 @@ gg_df %>%
   ggplot(aes(suggestion_type, sus, group = suggestion_type, colour=suggestion_type)) +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
-    # scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = NULL, x = NULL) +
+    scale_y_continuous(limits = c(0, 120), breaks = c(0, 25, 50, 75, 100), sec.axis = dup_axis()) +
+    labs(y = "System Usability Score (SUS)\n", x = NULL) +
     scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y.right = element_blank(),
+          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.text.y.right = element_text(vjust = -.2),
+          axis.text.y.left = element_blank()) +
     legend_none()
 ```
 
