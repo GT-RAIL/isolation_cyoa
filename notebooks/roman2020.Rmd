@@ -116,7 +116,7 @@ test_hypotheses = function(h_df, rope_values = NULL, log_odds_effects = T) {
 
   if (!log_odds_effects) {
     sd_estimate = h_df %>%
-      point_interval(.point = sd, .simple_names = T) %>%
+      point_interval(.point = mad, .simple_names = T) %>%
       select(colnames(h_df)) %>%
       gather(key = "Parameter", value = "Std.Error")
 

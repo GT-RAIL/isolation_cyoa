@@ -90,65 +90,6 @@ saveModel = function(model, folder = data_folder) {
 loadModel = function(model_name, folder = data_folder) {
   return(readRDS(file.path(folder, paste(model_name, '.rds', sep = ''))))
 }
-
-# Test hypotheses. The NULL arguments need to be provided in this case
-test_hypotheses = function(h_df, rope_values = NULL, log_odds_effects = T) {
-  # Set the default ROPE values
-  if (is.null(rope_values)) {
-    rope_values = c(-0.1, 0.1)
-  }
-
-  pd_test = h_df %>% pd() %>% as_tibble()
-
-  eq_test = h_df %>%
-    equivalence_test(range = rope_values, ci = 1.0, verbose = T) %>%
-    as_tibble() %>%
-    select(Parameter, ROPE_Percentage, ROPE_Equivalence)
-
-  hdi_test = h_df %>% hdi(ci = .89, verbose = T) %>% as_tibble() %>% select(Parameter, CI_low, CI_high)
-
-  point_test = h_df %>%
-    point_interval(.width = 0.89, .point = median, .interval = hdi, .simple_names = T) %>%
-    select(colnames(h_df)) %>%
-    gather(key = "Parameter", value = "Estimate")
-
-  if (!log_odds_effects) {
-    sd_estimate = h_df %>%
-      point_interval(.point = sd, .simple_names = T) %>%
-      select(colnames(h_df)) %>%
-      gather(key = "Parameter", value = "Std.Error")
-
-    effect_test = point_test %>%
-      inner_join(hdi_test, by = "Parameter") %>%
-      inner_join(sd_estimate, by = "Parameter") %>%
-      mutate(Effect_Size = abs(Estimate) / 100 * Std.Error) %>% # Rescale by 100 because we assume 1-100 data
-      select(-Std.Error)
-  } else {
-    effect_test = point_test %>%
-      inner_join(hdi_test, by = "Parameter") %>%
-      mutate(Effect_Size = abs(Estimate) * sqrt(3) / pi)
-             # There's quite a few nuances that I'm missing with this calculation
-             # Effect_CI_low = pmin(abs(CI_low), abs(CI_high)) * sqrt(3) / pi,
-             # Effect_CI_high = pmax(abs(CI_low), abs(CI_high)) * sqrt(3) / pi)
-  }
-
-  hyp_results = effect_test %>%
-    inner_join(pd_test, by = "Parameter") %>%
-    inner_join(eq_test, by = "Parameter")
-
-  return(hyp_results)
-}
-
-# Fit distributions to vectors and print the results. Also return the fit, if necessary
-fit_and_print_dist = function(vec, distr, string, use_mass = F) {
-  if (!use_mass) {
-    f = fitdist(vec, distr)
-  } else {
-    f = MASS::fitdistr(vec, distr)
-  }
-  print(paste(string, f$loglik, f$aic))
-  return(f)
-}
 ```
 
 Data loading:
@@ -280,7 +221,8 @@ scenario_completed.model.v = loadModel("scenario_completed.model.v")
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
+         suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
   count(suggestion_type, noise_level, scenario_completed)
 
 gg_df %>%
@@ -341,7 +283,8 @@ gg_df = plot_df %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
-  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
+  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
 
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
@@ -434,7 +377,8 @@ gg_df =
     mutate(optimal_ax = factor(optimal_ax)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(optimal_ax = fct_recode(optimal_ax, incorrect="0", correct = "1"),
-           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
+           suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
     count(user_id, suggestion_type, noise_level, optimal_ax, num_actions,
           name = "num_optimal_ax")
 
@@ -495,7 +439,8 @@ gg_df = plot_df %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
-  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
+  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
 
 gg_df %>%
   filter(optimal_ax == "1") %>%
@@ -542,7 +487,8 @@ gg_df =
     mutate(optimal_dx = factor(optimal_dx)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(optimal_dx = fct_recode(optimal_dx, incorrect="0", correct = "1"),
-           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
+           suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
     count(user_id, suggestion_type, noise_level, optimal_dx, num_actions,
           name = "num_optimal_dx")
 
@@ -604,7 +550,8 @@ gg_df = plot_df %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
-  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
+  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
 
 gg_df %>%
   filter(optimal_dx == "1") %>%
@@ -902,31 +849,10 @@ sus.model.v = loadModel("sus.model.v")
 
 ```{r, fig.width=3.5, fig.height=5}
 gg_df = plot_df %>%
-  mutate(noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  mutate(noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
+         suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
   group_by(suggestion_type, noise_level) %>%
   summarise(mad = mad(sus), sus = median(sus))
-
-# gg_df =
-#   plot_df %>%
-#     mutate(optimal_dx = factor(optimal_dx)) %>%
-#     mutate(user_id = factor(user_id)) %>%
-#     mutate(optimal_dx = fct_recode(optimal_dx, incorrect="0", correct = "1"),
-#            noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
-#     count(user_id, suggestion_type, noise_level, optimal_dx, num_actions,
-#           name = "num_optimal_dx")
-# 
-# gg_df %>%
-#   filter(optimal_dx == "correct") %>%
-#   ggplot(aes(suggestion_type, num_optimal_dx / num_actions, fill=suggestion_type)) +
-#     geom_boxplot() +
-#     facet_grid(rows = vars(noise_level)) +
-#     labs(y = "Fraction of optimal actions", x = NULL) +
-#     scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
-#     scale_fill_economist() +
-#     theme_economist_white(base_size = 13) +
-#     theme(plot.background = element_rect(fill = "white"),
-#           axis.title.y = element_blank()) +
-#     legend_none()
 
 gg_df %>%
   ggplot(aes(suggestion_type, sus, fill=suggestion_type)) +
@@ -981,7 +907,8 @@ gg_df = plot_df %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
-  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
+  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
 
 gg_df %>%
   ggplot(aes(suggestion_type, sus, group = suggestion_type, colour=suggestion_type)) +
