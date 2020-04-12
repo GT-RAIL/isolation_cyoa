@@ -54,13 +54,16 @@ Global options:
 
 ```{r}
 # Script execution globals
-train_models = F     # Retrain the MCMC models. Also infer unknown demographics
-plot_posteriors = F  # Plot the posterior distributions (debug)
-plot_paper_posteriors = T  # Plot the posterior distributions that are in the paper
-plot_diagnostics = T # Plot the diagnostics
-report_bayesfactors = F  # Report the Bayes Factor scores of model parameters
 default_seed = 0x1331 # For repeatable models and diagnostics
 data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
+
+# Colour palettes
+resolution_pal = c("#e15759", "#59a14f")
+suggestion_type_pal = c("#6794a7", "#7ad2f6", "#01a2d9", "#76c0c1")
+noise_type_pal = c("#a2b627", "#d5bb21", "#f8b620")
+# c("#a2b627", "#d5bb21", "#f8b620", "#f89217")
+# c("#21b087", "#33a65c", "#57a337")
+# c("#e51400", "#008a00", "#f0a30a", "#a4c400")
 ```
 
 Helper functions:
@@ -178,24 +181,6 @@ actions$user_id = actions %>% group_indices(user_id)
 
 # Rescale state ids
 actions$state_idx_rescaled = scales::rescale(actions$state_idx)
-
-# Code to relevel the age group factor to remove unused levels. Also, predict the
-# value of the 1 unknown age from the other indicators of demographics
-# NOTE: If we retrain the model and the output doesn't match the hardcoded
-# values, then update those values
-if (train_models) {
-  plot_df = subset(users, users$age_group != 0)
-  plot_df$age_group = factor(plot_df$age_group, levels = seq(from = 0, to = 8), ordered = T)
-  plot_df$age_group = droplevels(plot_df$age_group)
-  age_group_model = brm(age_group ~ gender + robot_experience, data = plot_df, family = "cumulative")
-  data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
-  as_tibble(predict(age_group_model, data_to_predict))
-# # A tibble: 1 x 7
-#   `P(Y = 2)` `P(Y = 3)` `P(Y = 4)` `P(Y = 5)` `P(Y = 6)` `P(Y = 7)` `P(Y = 8)`
-#        <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
-# 1     0.0838      0.202      0.215      0.188      0.110      0.089      0.111
-  rm(age_group_model)
-}
 ```
 
 Use this notebook to generate the final plots from `iros2020.Rmd`.
@@ -221,8 +206,8 @@ scenario_completed.model.v = loadModel("scenario_completed.model.v")
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
-         suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
+         noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0"),
+         suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE")) %>%
   count(suggestion_type, noise_level, scenario_completed)
 
 gg_df %>%
@@ -230,13 +215,14 @@ gg_df %>%
     geom_bar(stat = "identity") +
     facet_grid(rows = vars(noise_level)) +
     labs(y = "Failure Resolution Rate (FRR)\n", x = NULL) +
-    scale_y_continuous(breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
-    scale_fill_economist() +
-    theme_economist_white(base_size = 13) +
+    scale_y_continuous(breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0"), limits = c(-.1, 1)) +
+    scale_fill_manual(values = resolution_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           legend.title = element_blank(),
           legend.position = "bottom",
-          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0)))
+          axis.title.y.left = element_blank())
+          # axis.title.y.left = element_text(vjust = 0, size = 17, margin = margin(0, 0, 0, 0)))
 ```
 
 Significance Results:
@@ -279,27 +265,27 @@ gg_df = plot_df %>%
   mutate(has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
          has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
          has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+         noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
-  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
+  mutate(suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE"))
 
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
   ggplot(aes(suggestion_type, n/20, group = suggestion_type, colour = suggestion_type)) +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "***", textsize = 8, color = "black") +
     geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "***", textsize = 8, color = "black") +
     scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
     labs(y = "Failure Resolution Rate (FRR)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    theme_economist_white(base_size = 13) +
+    scale_colour_manual(values = suggestion_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
@@ -312,18 +298,18 @@ noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f
 noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
 
 gg_df = gg_df %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "100%", noise_0_eff, -1)) %>%
+  mutate(estimate = if_else(noise_level == "90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
   ggplot(aes(noise_level, n/20, group = noise_level, colour = noise_level)) +
-    geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
-               size = .7, linetype = "dashed", color = "grey") +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    # geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
+    #            size = .7, linetype = "dashed", color = "grey") +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     annotate("segment",
              x = 3, y = noise_0_eff,
              xend = 2, yend = noise_1_eff,
@@ -332,20 +318,20 @@ gg_df %>%
              x = 1, y = noise_2_eff,
              xend = 2, yend = noise_1_eff,
              color = "black") +
-    annotate("text",
-             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 1),
-             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
-             angle = 90,
-             group = NA,
-             colour = "#785743") +
+    # annotate("text",
+    #          x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 1),
+    #          label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
+    #          angle = 90,
+    #          group = NA,
+    #          colour = "#785743") +
     scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
     labs(y = "Failure Resolution Rate (FRR)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
+    scale_colour_manual(values = noise_type_pal) +
     scale_size_area(max_size = 1) +
-    theme_economist_white(base_size = 13) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
@@ -381,8 +367,8 @@ gg_df =
     mutate(optimal_ax = factor(optimal_ax)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(optimal_ax = fct_recode(optimal_ax, incorrect="0", correct = "1"),
-           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
-           suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
+           noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0"),
+           suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE")) %>%
     count(user_id, suggestion_type, noise_level, optimal_ax, num_actions,
           name = "num_optimal_ax")
 
@@ -393,10 +379,11 @@ gg_df %>%
     facet_grid(rows = vars(noise_level)) +
     labs(y = "Rate of Optimal Action Selection (RAX)\n", x = NULL) +
     scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
-    scale_fill_economist() +
-    theme_economist_white(base_size = 13) +
+    scale_fill_manual(values = suggestion_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
+          axis.title.y.left = element_blank()) +
+          # axis.title.y.left = element_text(vjust = 0, size = 17, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -437,29 +424,29 @@ gg_df = plot_df %>%
          has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
          has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
          has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+         noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
   count(user_id, suggestion_type, optimal_ax, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
         name = "num_optimal_ax") %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
-  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
+  mutate(suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE"))
 
 gg_df %>%
   filter(optimal_ax == "1") %>%
   ggplot(aes(suggestion_type, num_optimal_ax / num_actions, group = suggestion_type, colour=suggestion_type)) +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
     geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
     scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
     labs(y = "Rate of Optimal Action Selection (RAX)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    theme_economist_white(base_size = 13) +
+    scale_colour_manual(values = suggestion_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
@@ -494,8 +481,8 @@ gg_df =
     mutate(optimal_dx = factor(optimal_dx)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(optimal_dx = fct_recode(optimal_dx, incorrect="0", correct = "1"),
-           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
-           suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
+           noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0"),
+           suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE")) %>%
     count(user_id, suggestion_type, noise_level, optimal_dx, num_actions,
           name = "num_optimal_dx")
 
@@ -506,10 +493,11 @@ gg_df %>%
     facet_grid(rows = vars(noise_level)) +
     labs(y = "Rate of Correct Diagnosis Selection (RDX)\n", x = NULL) +
     scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
-    scale_fill_economist() +
-    theme_economist_white(base_size = 13) +
+    scale_fill_manual(values = suggestion_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
+          axis.title.y.left = element_blank()) +
+          # axis.title.y.left = element_text(vjust = 0, size = 17, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -551,29 +539,29 @@ gg_df = plot_df %>%
          has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
          has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
          has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+         noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
   count(user_id, suggestion_type, optimal_dx, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
         name = "num_optimal_dx") %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
-  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
+  mutate(suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE"))
 
 gg_df %>%
   filter(optimal_dx == "1") %>%
   ggplot(aes(suggestion_type, num_optimal_dx / num_actions, group = suggestion_type, colour=suggestion_type)) +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     geom_signif(y_position = 1.05, xmin = 1, xmax = 3, annotation = "*", textsize = 8, color = "black") +
     geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
     scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
     labs(y = "Rate of Correct Diagnosis Selection (RDX)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    theme_economist_white(base_size = 13) +
+    scale_colour_manual(values = suggestion_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
@@ -586,18 +574,18 @@ noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f
 noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
 
 gg_df = gg_df %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "100%", noise_0_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
   filter(optimal_dx == "1") %>%
   ggplot(aes(noise_level, num_optimal_dx / num_actions, group = noise_level, colour = noise_level)) +
-    geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
-               size = .7, linetype = "dashed", color = "grey") +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    # geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
+    #            size = .7, linetype = "dashed", color = "grey") +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     annotate("segment",
              x = 3, y = noise_0_eff,
              xend = 2, yend = noise_1_eff,
@@ -606,19 +594,19 @@ gg_df %>%
              x = 1, y = noise_2_eff,
              xend = 2, yend = noise_1_eff,
              color = "black") +
-    annotate("text",
-             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
-             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
-             angle = 90,
-             group = NA,
-             colour = "#785743") +
+    # annotate("text",
+    #          x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
+    #          label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
+    #          angle = 90,
+    #          group = NA,
+    #          colour = "#785743") +
     scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
     labs(y = "Rate of Correct Diagnosis Selection (RDX)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    theme_economist_white(base_size = 13) +
+    scale_colour_manual(values = noise_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
@@ -654,7 +642,7 @@ gg_df =
     mutate(chose_ax = factor(chose_ax)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(chose_ax = fct_recode(chose_ax, no_follow="0", follow = "1"),
-           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+           noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
     count(user_id, suggestion_type, chose_ax, num_actions, noise_level,
           name = "num_follow_ax")
 
@@ -665,10 +653,11 @@ gg_df %>%
     facet_grid(rows = vars(noise_level)) +
     labs(y = "Compliance with AX Suggestions (CAX)\n", x = NULL) +
     scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
-    scale_fill_economist() +
-    theme_economist_white(base_size = 13) +
+    scale_fill_manual(values = suggestion_type_pal[c(2,4)]) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
+          axis.title.y.left = element_blank()) +
+          # axis.title.y.left = element_text(vjust = 0, size = 17, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -688,21 +677,21 @@ gg_df = plot_df %>%
   mutate(chose_ax = factor(chose_ax)) %>%
   mutate(chose_ax = fct_recode(chose_ax, no_follow="0", follow="1"),
          has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+         noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
   count(user_id, suggestion_type, chose_ax, num_actions, has_dx, noise_level,
         name = "num_follow_ax") %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, -1)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "100%", noise_0_eff, -1)) %>%
+  mutate(estimate = if_else(noise_level == "90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
   filter(chose_ax == "follow") %>%
   ggplot(aes(noise_level, num_follow_ax / num_actions, group = noise_level, colour = noise_level)) +
-    geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
-               size = .7, linetype = "dashed", color = "grey") +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    # geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
+    #            size = .7, linetype = "dashed", color = "grey") +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     annotate("segment",
              x = 3, y = noise_0_eff,
              xend = 2, yend = noise_1_eff,
@@ -711,19 +700,19 @@ gg_df %>%
              x = 1, y = noise_2_eff,
              xend = 2, yend = noise_1_eff,
              color = "black") +
-    annotate("text",
-             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
-             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
-             angle = 90,
-             group = NA,
-             colour = "#785743") +
+    # annotate("text",
+    #          x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
+    #          label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
+    #          angle = 90,
+    #          group = NA,
+    #          colour = "#785743") +
     scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
     labs(y = "Compliance with AX Suggestions (CAX)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    theme_economist_white(base_size = 13) +
+    scale_colour_manual(values = noise_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
@@ -759,7 +748,7 @@ gg_df =
     mutate(chose_dx = factor(chose_dx)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(chose_dx = fct_recode(chose_dx, no_follow="0", follow = "1"),
-           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+           noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
     count(user_id, suggestion_type, chose_dx, num_actions, noise_level,
           name = "num_follow_dx")
 
@@ -770,10 +759,11 @@ gg_df %>%
     facet_grid(rows = vars(noise_level)) +
     labs(y = "Compliance with DX Suggestions (CDX)\n", x = NULL) +
     scale_y_continuous(limits = c(-.1, 1), breaks = c(0.0, 0.5, 1.0), labels = c("", 0.5, "1.0")) +
-    scale_fill_economist() +
-    theme_economist_white(base_size = 13) +
+    scale_fill_manual(values = suggestion_type_pal[c(3, 4)]) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
+          axis.title.y.left = element_blank()) +
+          # axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -793,21 +783,21 @@ gg_df = plot_df %>%
   mutate(chose_dx = factor(chose_dx)) %>%
   mutate(chose_dx = fct_recode(chose_dx, no_follow="0", follow="1"),
          has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+         noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
   count(user_id, suggestion_type, chose_dx, num_actions, has_ax, noise_level,
         name = "num_follow_dx") %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, -1)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "100%", noise_0_eff, -1)) %>%
+  mutate(estimate = if_else(noise_level == "90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
   filter(chose_dx == "follow") %>%
   ggplot(aes(noise_level, num_follow_dx / num_actions, group = noise_level, colour = noise_level)) +
-    geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
-               size = .7, linetype = "dashed", color = "grey") +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    # geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
+    #            size = .7, linetype = "dashed", color = "grey") +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     annotate("segment",
              x = 3, y = noise_0_eff,
              xend = 2, yend = noise_1_eff,
@@ -816,19 +806,19 @@ gg_df %>%
              x = 1, y = noise_2_eff,
              xend = 2, yend = noise_1_eff,
              color = "black") +
-    annotate("text",
-             x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
-             label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
-             angle = 90,
-             group = NA,
-             colour = "#785743") +
+    # annotate("text",
+    #          x = 0.5, y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.0),
+    #          label = sprintf("Mean of all levels: %.2f", inv_logit_scaled(eff["Intercept", "Estimate"])),
+    #          angle = 90,
+    #          group = NA,
+    #          colour = "#785743") +
     scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), sec.axis = dup_axis()) +
     labs(y = "Compliance with DX Suggestions (CDX)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    theme_economist_white(base_size = 13) +
+    scale_colour_manual(values = noise_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
@@ -859,8 +849,8 @@ sus.model.v = loadModel("sus.model.v")
 
 ```{r, fig.width=3.5, fig.height=5}
 gg_df = plot_df %>%
-  mutate(noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
-         suggestion_type = fct_recode(suggestion_type, BASELINE="NONE")) %>%
+  mutate(noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0"),
+         suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE")) %>%
   group_by(suggestion_type, noise_level) %>%
   summarise(mad = mad(sus), sus = median(sus))
 
@@ -870,11 +860,12 @@ gg_df %>%
     geom_errorbar(aes(ymin = sus-mad, ymax = sus+mad), width = 0) +
     facet_grid(rows = vars(noise_level)) +
     labs(y = "System Usability Score (SUS)\n", x = NULL) +
-    scale_y_continuous(limits = c(0, 100), breaks = c(0, 50, 100), labels = c("", 50, 100)) +
-    scale_fill_economist() +
-    theme_economist_white(base_size = 13) +
+    scale_y_continuous(limits = c(-10, 100), breaks = c(0, 50, 100), labels = c("", 50, 100)) +
+    scale_fill_manual(values = suggestion_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y.left = element_text(vjust = 0, size = 14, margin = margin(0, 0, 0, 0))) +
+          axis.title.y.left = element_blank()) +
+          # axis.title.y.left = element_text(vjust = 0, size = 17, margin = margin(0, 0, 0, 0))) +
     legend_none()
 ```
 
@@ -913,24 +904,24 @@ gg_df = plot_df %>%
   mutate(has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
          has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
          has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+         noise_level = fct_recode(noise_level, "100%"="0.0", "90%"="1.0", "80%"="2.0")) %>%
   mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
   mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
   mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate)) %>%
-  mutate(suggestion_type = fct_recode(suggestion_type, BASELINE="NONE"))
+  mutate(suggestion_type = fct_recode(suggestion_type, `BASELINE      `="NONE"))
 
 gg_df %>%
   ggplot(aes(suggestion_type, sus, group = suggestion_type, colour=suggestion_type)) +
-    geom_count(aes(colour = NULL)) +
-    geom_boxplot(aes(y = estimate)) +
+    geom_count(aes(colour = NULL), alpha = .3) +
+    geom_boxplot(aes(y = estimate), fatten = 4) +
     scale_y_continuous(limits = c(0, 120), breaks = c(0, 25, 50, 75, 100), sec.axis = dup_axis()) +
     labs(y = "System Usability Score (SUS)\n", x = NULL) +
-    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
-    theme_economist_white(base_size = 13) +
+    scale_colour_manual(values = suggestion_type_pal) +
+    theme_economist_white(base_size = 15) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y.right = element_blank(),
-          axis.title.y.left = element_text(vjust = 1, size = 14, margin = margin(1, 0, .1, 0)),
+          axis.title.y.left = element_text(vjust = 1, size = 17, margin = margin(0, 0, 0, 0)),
           axis.text.y.right = element_text(vjust = -.2),
           axis.text.y.left = element_blank()) +
     legend_none()
