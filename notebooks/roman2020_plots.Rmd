@@ -34,10 +34,11 @@ library(loo)
 # library(rstanarm)
 library(brms)
 library(bayesplot)
+library(GGally)
 library(tidybayes)
 library(bayestestR)
 library(sjstats)
-library(report)
+library(parameters)
 library(see)
 
 # Setup for multiprocessing
@@ -52,7 +53,13 @@ options(contrasts = c("contr.sum", "contr.poly"))
 Global options:
 
 ```{r}
-default_seed = 0x1331
+# Script execution globals
+train_models = F     # Retrain the MCMC models. Also infer unknown demographics
+plot_posteriors = F  # Plot the posterior distributions (debug)
+plot_paper_posteriors = T  # Plot the posterior distributions that are in the paper
+plot_diagnostics = T # Plot the diagnostics
+report_bayesfactors = F  # Report the Bayes Factor scores of model parameters
+default_seed = 0x1331 # For repeatable models and diagnostics
 data_folder = "~/Documents/GT/Research/Data/arbitration/2019-12-09/results"
 ```
 
@@ -85,30 +92,60 @@ loadModel = function(model_name, folder = data_folder) {
 }
 
 # Test hypotheses. The NULL arguments need to be provided in this case
-test_hypotheses = function(h_df = NULL, rope_values = NULL, hypotheses_list = NULL, model = NULL) {
-  # Option 1: Use the hypothesis function in brms
-  if (!is.null(hypotheses_list)) {
-    hyp_results = hypothesis(model, hypothesis = hypotheses_list, seed = default_seed)
-    return(hyp_results)
+test_hypotheses = function(h_df, rope_values = NULL, log_odds_effects = T) {
+  # Set the default ROPE values
+  if (is.null(rope_values)) {
+    rope_values = c(-0.1, 0.1)
   }
 
-  # Option 2: Use the ROPE & Overlap amount
-  else {
-    if (is.null(rope_values)) {
-      rope_values = c(-0.1, 0.1)
-    }
-    hyp_results =
-      h_df %>%
-        equivalence_test(range = rope_values) %>%
-        as_tibble() %>%
-        bind_cols(h_df %>% pd() %>% select(pd))
-    return(hyp_results)
+  pd_test = h_df %>% pd() %>% as_tibble()
+
+  eq_test = h_df %>%
+    equivalence_test(range = rope_values, ci = 1.0, verbose = T) %>%
+    as_tibble() %>%
+    select(Parameter, ROPE_Percentage, ROPE_Equivalence)
+
+  hdi_test = h_df %>% hdi(ci = .89, verbose = T) %>% as_tibble() %>% select(Parameter, CI_low, CI_high)
+
+  point_test = h_df %>%
+    point_interval(.width = 0.89, .point = median, .interval = hdi, .simple_names = T) %>%
+    select(colnames(h_df)) %>%
+    gather(key = "Parameter", value = "Estimate")
+
+  if (!log_odds_effects) {
+    sd_estimate = h_df %>%
+      point_interval(.point = sd, .simple_names = T) %>%
+      select(colnames(h_df)) %>%
+      gather(key = "Parameter", value = "Std.Error")
+
+    effect_test = point_test %>%
+      inner_join(hdi_test, by = "Parameter") %>%
+      inner_join(sd_estimate, by = "Parameter") %>%
+      mutate(Effect_Size = abs(Estimate) / 100 * Std.Error) %>% # Rescale by 100 because we assume 1-100 data
+      select(-Std.Error)
+  } else {
+    effect_test = point_test %>%
+      inner_join(hdi_test, by = "Parameter") %>%
+      mutate(Effect_Size = abs(Estimate) * sqrt(3) / pi)
+             # There's quite a few nuances that I'm missing with this calculation
+             # Effect_CI_low = pmin(abs(CI_low), abs(CI_high)) * sqrt(3) / pi,
+             # Effect_CI_high = pmax(abs(CI_low), abs(CI_high)) * sqrt(3) / pi)
   }
+
+  hyp_results = effect_test %>%
+    inner_join(pd_test, by = "Parameter") %>%
+    inner_join(eq_test, by = "Parameter")
+
+  return(hyp_results)
 }
 
 # Fit distributions to vectors and print the results. Also return the fit, if necessary
-fit_and_print_dist = function(vec, distr, string) {
-  f = fitdist(vec, distr)
+fit_and_print_dist = function(vec, distr, string, use_mass = F) {
+  if (!use_mass) {
+    f = fitdist(vec, distr)
+  } else {
+    f = MASS::fitdistr(vec, distr)
+  }
   print(paste(string, f$loglik, f$aic))
   return(f)
 }
@@ -124,9 +161,10 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
     file.path(data_folder, filename),
     col_types = cols(
       study_condition = col_factor(),
+      suggestion_type = col_factor(levels = c("NONE", "AX", "DX", "DXAX")),
       noise_level = col_factor(ordered = T),
-      gender = col_factor(levels = c("F", "M", "U")),
-      age_group = col_factor(levels = seq(from = 0, to = 8)),
+      # gender = col_factor(levels = c("F", "M", "U")),
+      # age_group = col_factor(levels = seq(from = 0, to = 8)),  # We don't load this as a factor yet
       robot_experience = col_factor(levels = seq(from = 0, to = 4))
     )
   )
@@ -142,15 +180,19 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
                                                             "DX_90", "AX_90", "DXAX_90",
                                                             "DX_80", "AX_80", "DXAX_80")))
 
-  # Relevel the non-binary gender
-  dat$gender[dat$gender == 'U'] = 'M'
+  # Relevel the non-binary gender and make it a factor
+  dat = dat %>%
+    mutate(gender = ifelse(gender == "U", "M", gender)) %>%
+    mutate(gender = factor(gender, levels = c("F", "M")))
 
   # Change binary responses to integers
-  dat$scenario_completed = as.integer(dat$scenario_completed)
-  
-  # Relevel age_group
-  dat[dat$age_group == 0,]$age_group = age_group_fill
-  
+  dat = dat %>% mutate(scenario_completed = as.integer(scenario_completed))
+
+  # Relevel age_group and make it a factor
+  dat = dat %>%
+    mutate(age_group = ifelse(age_group == 0, age_group_fill, age_group)) %>%
+    mutate(age_group = factor(age_group, levels = seq(from = 0, to = 8)))
+
   # Create an unordered noise_level. Also drop unused levels
   dat$age_group = droplevels(dat$age_group)
   dat$gender = droplevels(dat$gender)
@@ -165,9 +207,13 @@ loadCSV = function(filename, age_group_fill, contrast_func) {
   contrasts(dat$has_dx) = contrast_func(2)
   contrasts(dat$has_noise) = contrast_func(2)
   contrasts(dat$has_dxax) = contrast_func(2)
+  contrasts(dat$has_ax_only) = contrast_func(2)
+  contrasts(dat$has_dx_only) = contrast_func(2)
+  contrasts(dat$has_suggestions) = contrast_func(2)
+  contrasts(dat$suggestion_type) = contr.helmert(4)  # This is a hardcode
 
   contrasts(dat$noise_level_f) = contrast_func(length(levels(dat$noise_level_f)))
-  
+
   # Return the data frame
   return(dat)
 }
@@ -177,10 +223,13 @@ users = loadCSV("users.csv", 4, contr.sum)
 actions = loadCSV("actions.csv", 4, contr.sum)
 
 # Change more binary responses to integers
-actions$optimal_ax = as.integer(actions$optimal_ax)
-actions$chose_ax = as.integer(actions$chose_ax)
-actions$optimal_dx = as.integer(actions$optimal_dx)
-actions$chose_dx = as.integer(actions$chose_dx)
+# actions %>%
+#   mutate(optimal_ax)
+actions = actions %>%
+  mutate(optimal_ax = as.integer(optimal_ax),
+         chose_ax = as.integer(chose_ax),
+         optimal_dx = as.integer(optimal_dx),
+         chose_dx = as.integer(chose_dx))
 
 # Relabel user ids to be in the range 1-200. Otherwise, we're using DB ids
 # The user ID column in the users table that we can now join on is X1
@@ -193,19 +242,19 @@ actions$state_idx_rescaled = scales::rescale(actions$state_idx)
 # value of the 1 unknown age from the other indicators of demographics
 # NOTE: If we retrain the model and the output doesn't match the hardcoded
 # values, then update those values
-# if (train_models) {
-#   plot_df = subset(users, users$age_group != 0)
-#   plot_df$age_group = factor(plot_df$age_group, levels = seq(from = 0, to = 8), ordered = T)
-#   plot_df$age_group = droplevels(plot_df$age_group)
-#   age_group_model = brm(age_group ~ gender + robot_experience, data = plot_df, family = "cumulative")
-#   data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
-#   as_tibble(predict(age_group_model, data_to_predict))
+if (train_models) {
+  plot_df = subset(users, users$age_group != 0)
+  plot_df$age_group = factor(plot_df$age_group, levels = seq(from = 0, to = 8), ordered = T)
+  plot_df$age_group = droplevels(plot_df$age_group)
+  age_group_model = brm(age_group ~ gender + robot_experience, data = plot_df, family = "cumulative")
+  data_to_predict = users %>% filter(age_group == 0) %>% select(c("robot_experience", "gender"))
+  as_tibble(predict(age_group_model, data_to_predict))
 # # A tibble: 1 x 7
 #   `P(Y = 2)` `P(Y = 3)` `P(Y = 4)` `P(Y = 5)` `P(Y = 6)` `P(Y = 7)` `P(Y = 8)`
 #        <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>      <dbl>
 # 1     0.0838      0.202      0.215      0.188      0.110      0.089      0.111
-#   rm(age_group_model)
-# }
+  rm(age_group_model)
+}
 ```
 
 Use this notebook to generate the final plots from `iros2020.Rmd`.
@@ -219,7 +268,8 @@ Load the data and the models:
 plot_df = users %>%
   select(X1, id, study_condition, start_condition, num_optimal,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise, suggestion_type,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          scenario_completed)
 
 scenario_completed.model.t = loadModel("scenario_completed.model.t")
@@ -229,16 +279,14 @@ scenario_completed.model.v = loadModel("scenario_completed.model.v")
 ```{r, fig.width=3.5, fig.height=5}
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
-  count(has_ax, has_dx, noise_level, scenario_completed) %>%
-  mutate(has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  count(suggestion_type, noise_level, scenario_completed)
 
 gg_df %>%
-  ggplot(aes(has_ax, n / 20, fill=scenario_completed)) +
+  ggplot(aes(suggestion_type, n / 20, fill=scenario_completed)) +
     geom_bar(stat = "identity") +
-    facet_grid(rows = vars(noise_level), cols = vars(has_dx)) +
+    facet_grid(rows = vars(noise_level)) +
     labs(y = "Fraction of participants that resolved fault", x = NULL) +
     scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
     scale_fill_economist() +
@@ -251,37 +299,60 @@ gg_df %>%
 
 Significance Results:
 
-1. Medium positive effect of AX
-1. Medium U-shaped effect of accuracy
-1. Small positive effect of 100% accurate suggestions
-1. Small negative effect of 90% accurate suggestions
+1. Large positive effect of AX
+1. Large positive effect of DXAX
+1. Small U-shaped effect of accuracy
 
 So the related plots:
 
 
 ```{r, fig.width=3.5, fig.height=2.5}
-eff = fixef(scenario_completed.model.v)
+eff = fixef(scenario_completed.model.t)
+base_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  - eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+ax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+dx_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (2 * eff["suggestion_type2", "Estimate"])
+  - eff["suggestion_type3", "Estimate"]
+)
+dxax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (3 * eff["suggestion_type3", "Estimate"])
+)
 
 gg_df = plot_df %>%
   mutate(scenario_completed = factor(scenario_completed)) %>%
   mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
-  count(has_ax, has_dx, noise_level, scenario_completed) %>%
-  mutate(has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
-         estimate = -1) %>%
-  mutate(estimate = if_else(has_ax == "No AX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_ax1","Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(has_ax == "AX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_ax1", "Estimate"]), estimate))
+  count(suggestion_type, has_ax_only, has_dx_only, has_dxax, noise_level, scenario_completed) %>%
+  mutate(has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
+         has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
+  mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
 
 gg_df %>%
   filter(scenario_completed == 'Resolved') %>%
-  ggplot(aes(has_ax, n/20, group = has_ax, colour = has_ax)) +
+  ggplot(aes(suggestion_type, n/20, group = suggestion_type, colour = suggestion_type)) +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
-    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.5, 1.1)) +
+    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "***", textsize = 8, color = "black") +
+    geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "***", textsize = 8, color = "black") +
+    scale_y_continuous(limits = c(0.5, 1.2), breaks = c(0.5, 0.75, 1.0)) +
     labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
@@ -290,18 +361,14 @@ gg_df %>%
 
 ```{r, fig.width=3.5, fig.height=2.5}
 eff = fixef(scenario_completed.model.v)
+noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
+noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
+noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
 
-gg_df = plot_df %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1")) %>%
-  count(has_ax, has_dx, noise_level, scenario_completed) %>%
-  mutate(has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"),
-         estimate = -1) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]), estimate)) %>%
+gg_df = gg_df %>%
+  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
@@ -312,16 +379,12 @@ gg_df %>%
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
-             x = 3,
-             y = inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 3, y = noise_0_eff,
+             xend = 2, yend = noise_1_eff,
              colour = "black") +
     annotate("segment",
-             x = 1,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 1, y = noise_2_eff,
+             xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
              x = 3.5,
@@ -332,72 +395,18 @@ gg_df %>%
              colour = "black") +
     scale_y_continuous(limits = c(0.5, 1.1), breaks = c(0.5, 1.0)) +
     labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y = element_blank(),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     legend_none()
 ```
 
 
 ```{r, echo=F, results=F, message=F, warning=F}
 rm(scenario_completed.model.t, scenario_completed.model.v)
-gc()
-```
-
-
-# Num Actions Diff
-
-Load the data and the models:
-
-```{r}
-plot_df = users %>%
-  select(X1, id, study_condition, start_condition, num_optimal,
-         age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, num_actions_diff, frac_actions_diff) %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
-
-num_actions_diff.model.t = loadModel("num_actions_diff.model.t")
-num_actions_diff.model.v = loadModel("num_actions_diff.model.v")
-```
-
-```{r, fig.width=7, fig.height=5}
-gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":"))
-
-fit_df = fitdist(gg_df %>% filter(scenario_completed == "Resolved") %>% pull(num_actions_diff),
-                 "nbinom")
-
-gg_df %>%
-  ggplot(aes(num_actions_diff, group = scenario_completed, fill = scenario_completed)) +
-    geom_histogram(binwidth = 1) +
-    stat_function(fun = function(z, size, mu)(dnbinom(z, size = size, mu = mu) * 200 * 1),
-                  args = as.list(fit_df$estimate),
-                  aes(colour = "Negative Binomial"),
-                  n = 18) +
-    xlab("Number of Unncessary Actions (UA)") +
-    ylab("Number of Participants") +
-    scale_fill_economist() +
-    theme_economist_white(base_size = 13) +
-    theme(plot.background = element_rect(fill = "white"),
-          legend.position = "top",
-          legend.title = element_blank())
-```
-
-Significance Results:
-
-None
-
-So the related plots:
-
-```{r, echo=F, results=F, message=F, warning=F}
-rm(num_actions_diff.model.t, num_actions_diff.model.v)
 gc()
 ```
 
@@ -411,32 +420,31 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, optimal_ax) %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+         noise_level, noise_level_f, has_noise, suggestion_type,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
+         scenario_completed, num_actions, optimal_ax)
 
 optimal_ax.model.t = loadModel("optimal_ax.model.t")
 optimal_ax.model.v = loadModel("optimal_ax.model.v")
 ```
 
 ```{r, fig.width=3.5, fig.height=5}
-gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, optimal_ax, num_actions, has_ax, has_dx, noise_level,
-        name = "num_optimal_ax")
+gg_df =
+  plot_df %>%
+    mutate(optimal_ax = factor(optimal_ax)) %>%
+    mutate(user_id = factor(user_id)) %>%
+    mutate(optimal_ax = fct_recode(optimal_ax, incorrect="0", correct = "1"),
+           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+    count(user_id, suggestion_type, noise_level, optimal_ax, num_actions,
+          name = "num_optimal_ax")
 
 gg_df %>%
-  filter(optimal_ax == "1") %>%
-  ggplot(aes(has_ax, num_optimal_ax / num_actions, fill=.fill_column)) +
+  filter(optimal_ax == "correct") %>%
+  ggplot(aes(suggestion_type, num_optimal_ax / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
-    # geom_count() +
-    facet_grid(rows = vars(noise_level), cols = vars(has_dx)) +
-    labs(y = NULL, x = NULL) +
-    scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
+    facet_grid(rows = vars(noise_level)) +
+    labs(y = "Fraction of optimal actions", x = NULL) +
+    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
@@ -446,30 +454,59 @@ gg_df %>%
 
 Significance Results:
 
-1. Small positive effect of AX
+1. Medium positive effect of AX
+1. Medium positive effect of DXAX
 
 So the related plots:
 
 ```{r, fig.width=3.5, fig.height=5}
 eff = fixef(optimal_ax.model.v)
+base_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  - eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+ax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+dx_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (2 * eff["suggestion_type2", "Estimate"])
+  - eff["suggestion_type3", "Estimate"]
+)
+dxax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (3 * eff["suggestion_type3", "Estimate"])
+)
 
 gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, optimal_ax, num_actions, has_ax, has_dx, noise_level,
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
+         has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
+         has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  count(user_id, suggestion_type, optimal_ax, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
         name = "num_optimal_ax") %>%
-  mutate(estimate = -1) %>%
-  mutate(estimate = if_else(has_ax == "No AX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_ax1","Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(has_ax == "AX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_ax1", "Estimate"]), estimate))
+  mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
+  mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
 
 gg_df %>%
   filter(optimal_ax == "1") %>%
-  ggplot(aes(has_ax, num_optimal_ax / num_actions, group = has_ax, colour=has_ax)) +
+  ggplot(aes(suggestion_type, num_optimal_ax / num_actions, group = suggestion_type, colour=suggestion_type)) +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
-    geom_signif(y_position = 1.07, xmin = 1, xmax = 2, annotation = "*", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.0, 1.1), breaks = c(0.0, 0.5, 1.0)) +
+    geom_signif(y_position = 1.05, xmin = 1, xmax = 2, annotation = "**", textsize = 8, color = "black") +
+    geom_signif(y_position = 1.15, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.5, 1.0)) +
     labs(y = NULL, x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
@@ -491,32 +528,31 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, optimal_dx) %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+         noise_level, noise_level_f, has_noise, suggestion_type,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
+         scenario_completed, num_actions, optimal_dx)
 
 optimal_dx.model.t = loadModel("optimal_dx.model.t")
 optimal_dx.model.v = loadModel("optimal_dx.model.v")
 ```
 
 ```{r, fig.width=3.5, fig.height=5}
-gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, optimal_dx, num_actions, has_ax, has_dx, noise_level,
-        name = "num_correct_dx")
+gg_df =
+  plot_df %>%
+    mutate(optimal_dx = factor(optimal_dx)) %>%
+    mutate(user_id = factor(user_id)) %>%
+    mutate(optimal_dx = fct_recode(optimal_dx, incorrect="0", correct = "1"),
+           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+    count(user_id, suggestion_type, noise_level, optimal_dx, num_actions,
+          name = "num_optimal_dx")
 
 gg_df %>%
-  filter(optimal_dx == "1") %>%
-  ggplot(aes(has_ax, num_correct_dx / num_actions, fill=.fill_column)) +
+  filter(optimal_dx == "correct") %>%
+  ggplot(aes(suggestion_type, num_optimal_dx / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
-    # geom_count() +
-    facet_grid(rows = vars(noise_level), cols = vars(has_dx)) +
-    labs(y = NULL, x = NULL) +
-    scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
+    facet_grid(rows = vars(noise_level)) +
+    labs(y = "Fraction of optimal actions", x = NULL) +
+    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
@@ -527,30 +563,59 @@ gg_df %>%
 Significance Results:
 
 1. Small positive effect of DX
-1. Insignificant linear effect of Noise
+1. Medium positive effect of DXAX
+1. Small linear effect of Noise
 
 So the related plots:
 
 ```{r, fig.width=3.5, fig.height=2.5}
-eff = fixef(optimal_dx.model.v)
+eff = fixef(optimal_dx.model.t)
+base_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  - eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+ax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+dx_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (2 * eff["suggestion_type2", "Estimate"])
+  - eff["suggestion_type3", "Estimate"]
+)
+dxax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + (3 * eff["suggestion_type3", "Estimate"])
+)
 
 gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, optimal_dx, num_actions, has_ax, has_dx, noise_level,
-        name = "num_correct_dx") %>%
-  mutate(estimate = -1) %>%
-  mutate(estimate = if_else(has_dx == "No DX", inv_logit_scaled(eff["Intercept", "Estimate"] + eff["has_dx1","Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(has_dx == "DX", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["has_dx1", "Estimate"]), estimate))
+  mutate(scenario_completed = factor(scenario_completed)) %>%
+  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
+         has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
+         has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  count(user_id, suggestion_type, optimal_dx, num_actions, has_ax_only, has_dx_only, has_dxax, noise_level,
+        name = "num_optimal_dx") %>%
+  mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
+  mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
 
 gg_df %>%
   filter(optimal_dx == "1") %>%
-  ggplot(aes(has_dx, num_correct_dx / num_actions, group = has_dx, colour=has_dx)) +
+  ggplot(aes(suggestion_type, num_optimal_dx / num_actions, group = suggestion_type, colour=suggestion_type)) +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
-    geom_signif(y_position = 1.15, xmin = 1, xmax = 2, annotation = "*", textsize = 8, color = "black") +
-    scale_y_continuous(limits = c(0.0, 1.25), breaks = c(0.0, 0.5, 1.0)) +
+    geom_signif(y_position = 1.15, xmin = 1, xmax = 3, annotation = "*", textsize = 8, color = "black") +
+    geom_signif(y_position = 1.35, xmin = 1, xmax = 4, annotation = "**", textsize = 8, color = "black") +
+    scale_y_continuous(limits = c(0.0, 1.5), breaks = c(0.0, 0.5, 1.0)) +
     labs(y = NULL, x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
           axis.title.y = element_blank()) +
@@ -559,50 +624,46 @@ gg_df %>%
 
 ```{r, fig.width=3.5, fig.height=2.5}
 eff = fixef(optimal_dx.model.v)
+noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
+noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
+noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
 
-gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, optimal_dx, num_actions, has_ax, has_dx, noise_level,
-        name = "num_correct_dx") %>%
-  mutate(estimate = -1) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]), estimate)) %>%
+gg_df = gg_df %>%
+  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
   filter(optimal_dx == "1") %>%
-  ggplot(aes(noise_level, num_correct_dx / num_actions, group = noise_level, colour = noise_level)) +
+  ggplot(aes(noise_level, num_optimal_dx / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
-             x = 3,
-             y = inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 3, y = noise_0_eff,
+             xend = 2, yend = noise_1_eff,
              colour = "black") +
     annotate("segment",
-             x = 1,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 1, y = noise_2_eff,
+             xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
              x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.85),
+             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.35),
              label = "Mean of all levels",
              angle = 90,
              group = NA,
              colour = "black") +
     scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    labs(y = "RDX", x = NULL) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y = element_blank(),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     legend_none()
 ```
 
@@ -622,31 +683,31 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, chose_ax) %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+         noise_level, noise_level_f, has_noise, suggestion_type,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
+         scenario_completed, num_actions, chose_ax)
 
 chose_ax.model.t = loadModel("chose_ax.model.t")
 chose_ax.model.v = loadModel("chose_ax.model.v")
 ```
 
 ```{r, fig.width=3.5, fig.height=5}
-gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, chose_ax, num_actions, has_dx, noise_level,
-        name = "num_chose_ax")
+gg_df =
+  plot_df %>%
+    mutate(chose_ax = factor(chose_ax)) %>%
+    mutate(user_id = factor(user_id)) %>%
+    mutate(chose_ax = fct_recode(chose_ax, no_follow="0", follow = "1"),
+           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+    count(user_id, suggestion_type, chose_ax, num_actions, noise_level,
+          name = "num_follow_ax")
 
 gg_df %>%
-  filter(chose_ax == "1") %>%
-  ggplot(aes(has_dx, num_chose_ax / num_actions, fill=.fill_column)) +
+  filter(chose_ax == "follow") %>%
+  ggplot(aes(suggestion_type, num_follow_ax / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
-    # geom_count() +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = NULL, x = NULL) +
-    scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
+    labs(y = "Fraction of optimal actions", x = NULL) +
+    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
@@ -656,56 +717,58 @@ gg_df %>%
 
 Significance Results:
 
-1. Insignificant linear effect of noise
+No significant results.
 
-So the related plots:
+Still plotting a linear effect:
 
 ```{r, fig.width=3.5, fig.height=5}
 eff = fixef(chose_ax.model.v)
+noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
+noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
+noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
 
 gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, chose_ax, num_actions, has_dx, noise_level,
-        name = "num_chose_ax") %>%
-  mutate(estimate = -1) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]), estimate)) %>%
+  mutate(chose_ax = factor(chose_ax)) %>%
+  mutate(chose_ax = fct_recode(chose_ax, no_follow="0", follow="1"),
+         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  count(user_id, suggestion_type, chose_ax, num_actions, has_dx, noise_level,
+        name = "num_follow_ax") %>%
+  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, -1)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
-  filter(chose_ax == "1") %>%
-  ggplot(aes(noise_level, num_chose_ax / num_actions, group = noise_level, colour = noise_level)) +
+  filter(chose_ax == "follow") %>%
+  ggplot(aes(noise_level, num_follow_ax / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
-             x = 3,
-             y = inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 3, y = noise_0_eff,
+             xend = 2, yend = noise_1_eff,
              colour = "black") +
     annotate("segment",
-             x = 1,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 1, y = noise_2_eff,
+             xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
              x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.25),
+             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.35),
              label = "Mean of all levels",
              angle = 90,
              group = NA,
              colour = "black") +
     scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    labs(y = "RDX", x = NULL) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y = element_blank(),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     legend_none()
 ```
 
@@ -725,31 +788,31 @@ plot_df = actions %>%
   select(X1, id, user_id, study_condition, start_condition, num_optimal,
          state_idx, state_idx_rescaled,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, chose_dx) %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+         noise_level, noise_level_f, has_noise, suggestion_type,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
+         scenario_completed, num_actions, chose_dx)
 
 chose_dx.model.t = loadModel("chose_dx.model.t")
 chose_dx.model.v = loadModel("chose_dx.model.v")
 ```
 
 ```{r, fig.width=3.5, fig.height=5}
-gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, chose_dx, num_actions, has_ax, noise_level,
-        name = "num_chose_dx")
+gg_df =
+  plot_df %>%
+    mutate(chose_dx = factor(chose_dx)) %>%
+    mutate(user_id = factor(user_id)) %>%
+    mutate(chose_dx = fct_recode(chose_dx, no_follow="0", follow = "1"),
+           noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+    count(user_id, suggestion_type, chose_dx, num_actions, noise_level,
+          name = "num_follow_dx")
 
 gg_df %>%
-  filter(chose_dx == "1") %>%
-  ggplot(aes(has_ax, num_chose_dx / num_actions, fill=.fill_column)) +
+  filter(chose_dx == "follow") %>%
+  ggplot(aes(suggestion_type, num_follow_dx / num_actions, fill=suggestion_type)) +
     geom_boxplot() +
-    # geom_count() +
     facet_grid(rows = vars(noise_level)) +
-    labs(y = NULL, x = NULL) +
-    scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
+    labs(y = "Fraction of optimal actions", x = NULL) +
+    scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
@@ -765,50 +828,52 @@ So the related plots:
 
 ```{r, fig.width=3.5, fig.height=5}
 eff = fixef(chose_dx.model.v)
+noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
+noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
+noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
 
 gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, chose_dx, num_actions, has_ax, noise_level,
-        name = "num_chose_dx") %>%
-  mutate(estimate = -1) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]), estimate)) %>%
+  mutate(chose_dx = factor(chose_dx)) %>%
+  mutate(chose_dx = fct_recode(chose_dx, no_follow="0", follow="1"),
+         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  count(user_id, suggestion_type, chose_dx, num_actions, has_ax, noise_level,
+        name = "num_follow_dx") %>%
+  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, -1)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
 gg_df %>%
-  filter(chose_dx == "1") %>%
-  ggplot(aes(noise_level, num_chose_dx / num_actions, group = noise_level, colour = noise_level)) +
+  filter(chose_dx == "follow") %>%
+  ggplot(aes(noise_level, num_follow_dx / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
-             x = 3,
-             y = inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 3, y = noise_0_eff,
+             xend = 2, yend = noise_1_eff,
              colour = "black") +
     annotate("segment",
-             x = 1,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 1, y = noise_2_eff,
+             xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
              x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.25),
+             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.35),
              label = "Mean of all levels",
              angle = 90,
              group = NA,
              colour = "black") +
     scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    labs(y = "RDX", x = NULL) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y = element_blank(),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     legend_none()
 ```
 
@@ -826,47 +891,108 @@ Load the data and the models:
 plot_df = users %>%
   select(X1, id, study_condition, start_condition, num_optimal,
          age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
+         noise_level, noise_level_f, has_noise, suggestion_type,
+         has_dx, has_ax, has_ax_only, has_dx_only, has_dxax,
          sus, scenario_completed) %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         has_dx = fct_recode(has_dx, "No DX"="FALSE", "DX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
+  mutate(scenario_completed = factor(scenario_completed))
 
 sus.model.t = loadModel("sus.model.t")
 sus.model.v = loadModel("sus.model.v")
 ```
 
-Significance Results:
-
-None
-
-So the related plots:
-
-```{r, fig.width=5, fig.height=3.5}
+```{r, fig.width=3.5, fig.height=5}
 gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  mutate(study_condition = fct_rev(study_condition)) %>%
-  group_by(study_condition, .fill_column) %>%
+  mutate(noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  group_by(suggestion_type, noise_level) %>%
   summarise(mad = mad(sus), sus = median(sus))
 
+# gg_df =
+#   plot_df %>%
+#     mutate(optimal_dx = factor(optimal_dx)) %>%
+#     mutate(user_id = factor(user_id)) %>%
+#     mutate(optimal_dx = fct_recode(optimal_dx, incorrect="0", correct = "1"),
+#            noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+#     count(user_id, suggestion_type, noise_level, optimal_dx, num_actions,
+#           name = "num_optimal_dx")
+# 
+# gg_df %>%
+#   filter(optimal_dx == "correct") %>%
+#   ggplot(aes(suggestion_type, num_optimal_dx / num_actions, fill=suggestion_type)) +
+#     geom_boxplot() +
+#     facet_grid(rows = vars(noise_level)) +
+#     labs(y = "Fraction of optimal actions", x = NULL) +
+#     scale_y_continuous(breaks = c(0, 0.5, 1.0)) +
+#     scale_fill_economist() +
+#     theme_economist_white(base_size = 13) +
+#     theme(plot.background = element_rect(fill = "white"),
+#           axis.title.y = element_blank()) +
+#     legend_none()
+
 gg_df %>%
-  ggplot(aes(study_condition, sus, fill=.fill_column)) +
-    # geom_boxplot() +
+  ggplot(aes(suggestion_type, sus, fill=suggestion_type)) +
     geom_bar(stat = "identity") +
     geom_errorbar(aes(ymin = sus-mad, ymax = sus+mad), width = 0) +
-    # coord_flip() +
-    # facet_grid(rows = vars(noise_level), cols = vars(has_dx)) +
-    labs(y = NULL, x = NULL) +
-    scale_y_continuous(limits = c(0.0, 100.0), breaks = c(0.0, 50, 100)) +
-    scale_x_discrete() +
+    facet_grid(rows = vars(noise_level)) +
+    labs(y = "SUS Score", x = NULL) +
+    scale_y_continuous(breaks = c(0, 50, 100), limits = c(0, 100)) +
     scale_fill_economist() +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank(),
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
-          panel.grid.major.y = element_blank()) +
+          axis.title.y = element_blank()) +
+    legend_none()
+```
+
+Significance Results:
+
+1. Insignificant effect of AX
+1. Insignificant effect of DX
+
+So the related plots:
+
+```{r, fig.width=3.5, fig.height=5}
+eff = fixef(sus.model.t)
+base_eff = (
+  eff["Intercept", "Estimate"]
+  - eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+ax_eff = (
+  eff["Intercept", "Estimate"]
+  + eff["suggestion_type1", "Estimate"]
+  - eff["suggestion_type2", "Estimate"]
+  - eff["suggestion_type3", "Estimate"]
+)
+dx_eff = (
+  eff["Intercept", "Estimate"]
+  + (2 * eff["suggestion_type2", "Estimate"])
+  - eff["suggestion_type3", "Estimate"]
+)
+dxax_eff = (
+  eff["Intercept", "Estimate"]
+  + (3 * eff["suggestion_type3", "Estimate"])
+)
+
+gg_df = plot_df %>%
+  mutate(has_ax_only = fct_recode(has_ax_only, "No AX"="FALSE", "AX"="TRUE"),
+         has_dx_only = fct_recode(has_dx_only, "No DX"="FALSE", "DX"="TRUE"),
+         has_dxax = fct_recode(has_dxax, "No DXAX"="FALSE", "DXAX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  mutate(estimate = ifelse(suggestion_type == "NONE", base_eff, -1)) %>%
+  mutate(estimate = ifelse(suggestion_type == "AX", ax_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, estimate)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
+
+gg_df %>%
+  ggplot(aes(suggestion_type, sus, group = suggestion_type, colour=suggestion_type)) +
+    geom_count(aes(colour = NULL)) +
+    geom_boxplot(aes(y = estimate)) +
+    # scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.5, 1.0)) +
+    labs(y = NULL, x = NULL) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          axis.title.y = element_blank()) +
     legend_none()
 ```
 
@@ -874,8 +1000,3 @@ gg_df %>%
 rm(sus.model.t, sus.model.v)
 gc()
 ```
-
-
-# Demographics
-
-TODO
