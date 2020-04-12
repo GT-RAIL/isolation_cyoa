@@ -3082,8 +3082,7 @@ gg_df = plot_df %>%
     mutate(chose_dx = factor(chose_dx)) %>%
     mutate(user_id = factor(user_id)) %>%
     mutate(chose_dx = fct_recode(chose_dx, no_follow="0", follow = "1")) %>%
-    mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-    count(user_id, study_condition, .fill_column, chose_dx, num_actions, has_ax, has_dx, noise_level,
+    count(user_id, suggestion_type, chose_dx, num_actions, has_ax, noise_level,
           name = "num_follow_dx")
 
 # Simulate predictions on new data
@@ -3099,26 +3098,37 @@ p_df =
             state_idx_rescaled = seq_range(state_idx_rescaled, n = 4),
             .model = chose_dx.model.v)
 
-fits_p_df = p_df %>% add_fitted_draws(chose_dx.model.v,
-                                      re_formula = NA,
-                                      n = 100,
-                                      seed = default_seed)
+fits_p_df = p_df %>% 
+  add_fitted_draws(chose_dx.model.v, re_formula = NA, n = 100, seed = default_seed) %>%
+  mutate(suggestion_type = ifelse(has_ax == F, "DX", "DXAX")) %>%
+  mutate(suggestion_type = factor(suggestion_type, levels = c("DX", "DXAX")))
 gc()
+
 pars_p_df = chose_dx.model.t %>%
-  extract_draws(newdata = p_df %>% rename(noise_level = noise_level_f),
-                re_formula = NA,
-                nsamples = 100)
+  extract_draws(newdata = p_df %>% rename(noise_level = noise_level_f), re_formula = NA, nsamples = 100)
 gc()
 
-# We don't want predicted draws because that's a raw count of ones and zeros; not the
-# probability distribution
-# preds_p_df = p_df %>% add_predicted_draws(scenario_completed.model.v)
+# Plot the posterior distributions. In each of the following, the reference ROPE band
+# can be marked based on 3 methods. Make sure to update that ROPE value baased on the
+# method that we want to display.
 
-# Plot the posterior distributions
-rope_value = gg_df %>%
-  filter(chose_dx == 'follow', has_ax == F) %>%
-  summarise(.value = median(num_follow_dx / num_actions)) %>%
-  pull(.value)
+# If centering ROPE on the posterior distributions. Here we center the ROPE around the posterior
+# predicted value for the DX condition
+preds_p_df = p_df %>%
+  add_predicted_draws(chose_dx.model.v, re_formula = NA)  %>% # 0, 1 predictions for each predicted value
+  ungroup() %>%
+  count(has_ax, noise_level_f, .prediction) %>%
+  mutate(suggestion_type = ifelse(has_ax == F, "DX", "DXAX")) %>%
+  mutate(suggestion_type = factor(suggestion_type, levels = c("DX", "DXAX")))
+rope_value = median(
+  preds_p_df %>%
+    filter(suggestion_type == "DX") %>%
+    spread(.prediction, n) %>%
+    mutate(.value = `1` / (`0` + `1`)) %>%
+    pull(.value)
+)
+gc()
+
 gg_df %>%
   filter(chose_dx == 'follow') %>%
   ggplot(aes(x = has_ax, y = num_follow_dx / num_actions)) +
@@ -3127,16 +3137,13 @@ gg_df %>%
               color = "transparent", fill = "white") +
     annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
     stat_halfeye(aes(y = .value), data = fits_p_df, position = position_nudge(x = 0.1)) +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    geom_point(aes(color = paste(has_ax, noise_level, sep = ":")),
+               size = 2, position = position_jitter(width = .1, height = 0)) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "follow_dx", color = "AX:DX:Noise")
+    labs(y = "CDX", color = "HasAX:Noise")
 
-rope_value = gg_df %>%
-  filter(chose_dx == 'follow', noise_level == "0.0") %>%
-  summarise(.value = median(num_follow_dx / num_actions)) %>%
-  pull(.value)
 gg_df %>%
   filter(chose_dx == 'follow') %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
@@ -3146,27 +3153,22 @@ gg_df %>%
               color = "transparent", fill = "white") +
     annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
     stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    geom_point(aes(color = paste(has_ax, noise_level, sep = ":")),
+               size = 2, position = position_jitter(width = .1, height = 0)) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "follow_dx", color = "AX:DX:Noise")
+    labs(y = "CDX", color = "HasAX:Noise")
 
 # Create a plot to show the trend
 pars_p_df_X = pars_p_df$dpars$mu$fe$X[,c("Intercept", "noise_level.L")]
 pars_p_df_b = pars_p_df$dpars$mu$fe$b[,c("b_Intercept", "b_noise_level.L")]
 pars_p_df_y = pars_p_df_X %*% t(pars_p_df_b)
 pars_p_df_y = inv_logit_scaled(pars_p_df_y)
-p_df =
-  p_df %>%
+p_df =p_df %>%
   bind_cols(as_tibble(pars_p_df_y)) %>%
   gather(key = ".sample", value = ".value", V1:V100) %>%
   rename(noise_level = noise_level_f)
-
-rope_value = gg_df %>%
-  filter(chose_dx == 'follow', noise_level == "0.0") %>%
-  summarise(.value = median(num_follow_dx / num_actions)) %>%
-  pull(.value)
 gg_df %>%
   filter(chose_dx == 'follow') %>%
   mutate(noise_level = fct_rev(noise_level)) %>%
@@ -3177,76 +3179,98 @@ gg_df %>%
     annotate("text", x = 0.5, y = rope_value, label = "ROPE", angle = 90) +
     stat_halfeye(aes(y = .value, x = noise_level_f), data = fits_p_df, position = position_nudge(x = 0.1)) +
     geom_line(aes(y = .value, group = .sample, alpha = 0.3), data = p_df) +
-    geom_point(aes(color = paste(has_ax, has_dx, noise_level, sep = ":")), size = 2) +
-    stat_summary(fun.y = median, geom = "point", shape = 23, size = 6) +
+    geom_point(aes(color = paste(has_ax, noise_level, sep = ":")),
+               size = 2, position = position_jitter(width = .1, height = 0)) +
+    stat_summary(fun = median, geom = "point", shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    labs(y = "scenario_completed", color = "AX:DX:Noise") +
+    labs(y = "CDX", color = "HasAX:Noise") +
     guides(alpha = F)
 
 # Remove the giant fits data frames
+rm(preds_p_df) # If using the posterior-predictions-based ROPE
 rm(fits_p_df, pars_p_df, pars_p_df_b, pars_p_df_X, pars_p_df_y, p_df, gg_df)
 ```
 
-```{r eval=plot_posteriors}
-plot_df = actions %>%
-  filter(has_dx == T) %>%
-  select(X1, id, user_id, study_condition, start_condition, num_optimal,
-         state_idx, state_idx_rescaled,
-         age_group, gender, robot_experience,
-         noise_level, noise_level_f, has_noise, has_dx, has_ax,
-         scenario_completed, num_actions, chose_dx) %>%
-  mutate(scenario_completed = factor(scenario_completed)) %>%
-  mutate(scenario_completed = fct_recode(scenario_completed, Unresolved="0", Resolved = "1"),
-         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
-         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0"))
-
-eff = fixef(chose_dx.model.v)
+```{r eval=plot_paper_posteriors}
+eff = fixef(chose_dx.model.t)
+dx_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  + eff["has_ax1", "Estimate"]
+)
+dxax_eff = inv_logit_scaled(
+  eff["Intercept", "Estimate"]
+  - eff["has_ax1", "Estimate"]
+)
 
 gg_df = plot_df %>%
-  mutate(.fill_column = paste(noise_level, !(study_condition == 'BASELINE'), sep = ":")) %>%
-  count(user_id, study_condition, .fill_column, chose_dx, num_actions, has_ax, noise_level,
-        name = "num_chose_dx") %>%
-  mutate(estimate = -1) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 100%", inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 90%", inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]), estimate)) %>%
-  mutate(estimate = if_else(noise_level == "Acc: 80%", inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]), estimate)) %>%
+  mutate(chose_dx = factor(chose_dx)) %>%
+  mutate(chose_dx = fct_recode(chose_dx, no_follow="0", follow="1"),
+         has_ax = fct_recode(has_ax, "No AX"="FALSE", "AX"="TRUE"),
+         noise_level = fct_recode(noise_level, "Acc: 100%"="0.0", "Acc: 90%"="1.0", "Acc: 80%"="2.0")) %>%
+  count(user_id, suggestion_type, chose_dx, num_actions, has_ax, noise_level,
+        name = "num_follow_dx") %>%
+  mutate(estimate = ifelse(suggestion_type == "DX", dx_eff, -1)) %>%
+  mutate(estimate = ifelse(suggestion_type == "DXAX", dxax_eff, estimate))
+
+p1 = gg_df %>%
+  filter(chose_dx == "follow") %>%
+  ggplot(aes(suggestion_type, num_follow_dx / num_actions, group = suggestion_type, colour=suggestion_type)) +
+    geom_count(aes(colour = NULL)) +
+    geom_boxplot(aes(y = estimate)) +
+    scale_y_continuous(limits = c(0.0, 1.2), breaks = c(0.0, 0.5, 1.0)) +
+    labs(y = NULL, x = NULL) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
+    theme_economist_white(base_size = 13) +
+    theme(plot.background = element_rect(fill = "white"),
+          axis.title.y = element_blank()) +
+    legend_none()
+
+eff = fixef(chose_dx.model.v)
+noise_0_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f1","Estimate"])
+noise_1_eff = inv_logit_scaled(eff["Intercept", "Estimate"] + eff["noise_level_f2","Estimate"])
+noise_2_eff = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"])
+
+gg_df = gg_df %>%
+  mutate(estimate = if_else(noise_level == "Acc: 100%", noise_0_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 90%", noise_1_eff, estimate)) %>%
+  mutate(estimate = if_else(noise_level == "Acc: 80%", noise_2_eff, estimate)) %>%
   mutate(noise_level = fct_rev(noise_level))
 
-gg_df %>%
-  filter(chose_dx == "1") %>%
-  ggplot(aes(noise_level, num_chose_dx / num_actions, group = noise_level, colour = noise_level)) +
+p2 = gg_df %>%
+  filter(chose_dx == "follow") %>%
+  ggplot(aes(noise_level, num_follow_dx / num_actions, group = noise_level, colour = noise_level)) +
     geom_hline(yintercept = inv_logit_scaled(eff["Intercept", "Estimate"]),
                size = .7, linetype = "dashed", color = "grey") +
     geom_count(aes(colour = NULL)) +
     geom_boxplot(aes(y = estimate)) +
     annotate("segment",
-             x = 3,
-             y = inv_logit_scaled(eff["noise_level_f1","Estimate"] + eff["Intercept", "Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 3, y = noise_0_eff,
+             xend = 2, yend = noise_1_eff,
              colour = "black") +
     annotate("segment",
-             x = 1,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - eff["noise_level_f1","Estimate"] - eff["noise_level_f2","Estimate"]),
-             xend = 2,
-             yend = inv_logit_scaled(eff["noise_level_f2","Estimate"] + eff["Intercept", "Estimate"]),
+             x = 1, y = noise_2_eff,
+             xend = 2, yend = noise_1_eff,
              color = "black") +
     annotate("text",
              x = 3.5,
-             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.25),
+             y = inv_logit_scaled(eff["Intercept", "Estimate"] - 0.35),
              label = "Mean of all levels",
              angle = 90,
              group = NA,
              colour = "black") +
     scale_y_continuous(limits = c(0.0, 1.0), breaks = c(0.0, 0.5, 1.0)) +
-    labs(y = "Fraction of participants that resolved fault", x = NULL) +
-    scale_colour_manual(values = c("#d62728", "#2ca02c", "#ff7f0e")) +
+    labs(y = "RDX", x = NULL) +
+    scale_colour_manual(values = c("#e51400", "#008a00", "#f0a30a", "#a4c400")) +
     scale_size_area(max_size = 1) +
     theme_economist_white(base_size = 13) +
     theme(plot.background = element_rect(fill = "white"),
-          axis.title.y = element_blank()) +
+          axis.title.y = element_blank(),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     legend_none()
+
+grid.arrange(p1, p2, nrow = 1, ncol = 2)
+rm(p1, p2)
 ```
 
 ```{r, echo=F, results=F, message=F, warning=F}
