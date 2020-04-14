@@ -600,6 +600,25 @@ print(summary(plot_df %&gt;%
 ##
 ##
 ## </code></pre>
+<pre class="r"><code>print(as.matrix(
+  plot_df %&gt;%
+    filter(scenario_completed == 1) %&gt;%
+    group_by(study_condition) %&gt;%
+    count() %&gt;%
+    mutate(.value = n/20) %&gt;%
+    select(-n)
+))</code></pre>
+<pre><code>##       study_condition .value
+##  [1,] &quot;DX_100&quot;        &quot;0.70&quot;
+##  [2,] &quot;AX_100&quot;        &quot;1.00&quot;
+##  [3,] &quot;DXAX_100&quot;      &quot;0.90&quot;
+##  [4,] &quot;DX_90&quot;         &quot;0.60&quot;
+##  [5,] &quot;AX_90&quot;         &quot;0.80&quot;
+##  [6,] &quot;DXAX_90&quot;       &quot;0.90&quot;
+##  [7,] &quot;DX_80&quot;         &quot;0.65&quot;
+##  [8,] &quot;AX_80&quot;         &quot;0.95&quot;
+##  [9,] &quot;DXAX_80&quot;       &quot;0.85&quot;
+## [10,] &quot;BASELINE&quot;      &quot;0.75&quot;</code></pre>
 <div id="data" class="section level2">
 <h2>Data</h2>
 <pre class="r"><code># Plot by the study condition
@@ -644,9 +663,9 @@ gg_df %&gt;%
     stat_summary(fun = median, geom=&quot;point&quot;, shape=23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    legend_none()
-
-p2 = gg_df %&gt;%
+    legend_none()</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>p2 = gg_df %&gt;%
   filter(scenario_completed == &#39;complete&#39;) %&gt;%
   ggplot(aes(noise_level, n/20)) +
     geom_violin() +
@@ -657,9 +676,11 @@ p2 = gg_df %&gt;%
     ylim(0, 1) +
     labs(color = &quot;Type:Noise&quot;) +
     theme(legend.position = &quot;right&quot;) +
-    guides(size = F)
-
-grid.arrange(p1, p2, ncol = 2)</code></pre>
+    guides(size = F)</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>grid.arrange(p1, p2, ncol = 2)</code></pre>
+<pre><code>## No summary function supplied, defaulting to `mean_se()
+## No summary function supplied, defaulting to `mean_se()</code></pre>
 <p><img src="{% static 'roman2020_files/figure-html/unnamed-chunk-6-4.png' %}" width="1440" /></p>
 </div>
 <div id="model" class="section level2">
@@ -1334,6 +1355,27 @@ print(summary(plot_df %&gt;%
 ##  3rd Qu.:20.0
 ##  Max.   :20.0
 ## </code></pre>
+<pre class="r"><code>print(as.matrix(
+  plot_df %&gt;%
+    filter(optimal_ax == 1) %&gt;%
+    group_by(study_condition, num_actions, user_id) %&gt;%
+    count() %&gt;%
+    ungroup() %&gt;%
+    mutate(.value = n/num_actions) %&gt;%
+    group_by(study_condition) %&gt;%
+    summarise(.value = median(.value))
+))</code></pre>
+<pre><code>##       study_condition .value
+##  [1,] &quot;DX_100&quot;        &quot;0.5000000&quot;
+##  [2,] &quot;AX_100&quot;        &quot;0.7638889&quot;
+##  [3,] &quot;DXAX_100&quot;      &quot;0.5634921&quot;
+##  [4,] &quot;DX_90&quot;         &quot;0.5714286&quot;
+##  [5,] &quot;AX_90&quot;         &quot;0.5714286&quot;
+##  [6,] &quot;DXAX_90&quot;       &quot;0.6410256&quot;
+##  [7,] &quot;DX_80&quot;         &quot;0.5000000&quot;
+##  [8,] &quot;AX_80&quot;         &quot;0.6153846&quot;
+##  [9,] &quot;DXAX_80&quot;       &quot;0.6000000&quot;
+## [10,] &quot;BASELINE&quot;      &quot;0.5357143&quot;</code></pre>
 <div id="data-1" class="section level2">
 <h2>Data</h2>
 <pre class="r"><code># Plot by the study condition
@@ -1403,9 +1445,9 @@ gg_df %&gt;%
     stat_summary(fun = median, geom = &quot;point&quot;, shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    legend_none()
-
-p2 = gg_df %&gt;%
+    legend_none()</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>p2 = gg_df %&gt;%
   filter(optimal_ax == &quot;correct&quot;) %&gt;%
   ggplot(aes(noise_level, num_optimal_ax / num_actions)) +
     geom_violin() +
@@ -1416,9 +1458,11 @@ p2 = gg_df %&gt;%
     ylim(0, 1) +
     labs(color = &quot;Type:Noise&quot;) +
     theme(legend.position = &quot;right&quot;) +
-    guides(size = F)
-
-grid.arrange(p1, p2, ncol = 2)</code></pre>
+    guides(size = F)</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>grid.arrange(p1, p2, ncol = 2)</code></pre>
+<pre><code>## No summary function supplied, defaulting to `mean_se()
+## No summary function supplied, defaulting to `mean_se()</code></pre>
 <p><img src="{% static 'roman2020_files/figure-html/unnamed-chunk-17-5.png' %}" width="1440" /></p>
 </div>
 <div id="model-1" class="section level2">
@@ -2023,6 +2067,27 @@ print(summary(plot_df %&gt;%
 ##  3rd Qu.:20.0   3rd Qu.:1.0000
 ##  Max.   :20.0   Max.   :1.0000
 ## </code></pre>
+<pre class="r"><code>print(as.matrix(
+  plot_df %&gt;%
+    filter(optimal_dx == 1) %&gt;%
+    group_by(study_condition, num_actions, user_id) %&gt;%
+    count() %&gt;%
+    ungroup() %&gt;%
+    mutate(.value = n/num_actions) %&gt;%
+    group_by(study_condition) %&gt;%
+    summarise(.value = median(.value))
+))</code></pre>
+<pre><code>##       study_condition .value
+##  [1,] &quot;DX_100&quot;        &quot;0.8590909&quot;
+##  [2,] &quot;AX_100&quot;        &quot;0.6904762&quot;
+##  [3,] &quot;DXAX_100&quot;      &quot;0.7166667&quot;
+##  [4,] &quot;DX_90&quot;         &quot;0.7250000&quot;
+##  [5,] &quot;AX_90&quot;         &quot;0.7083333&quot;
+##  [6,] &quot;DXAX_90&quot;       &quot;0.8000000&quot;
+##  [7,] &quot;DX_80&quot;         &quot;0.5857143&quot;
+##  [8,] &quot;AX_80&quot;         &quot;0.6274510&quot;
+##  [9,] &quot;DXAX_80&quot;       &quot;0.7500000&quot;
+## [10,] &quot;BASELINE&quot;      &quot;0.6428571&quot;</code></pre>
 <div id="data-2" class="section level2">
 <h2>Data</h2>
 <pre class="r"><code># Plot by the study condition
@@ -2092,9 +2157,9 @@ gg_df %&gt;%
     stat_summary(fun = median, geom = &quot;point&quot;, shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    legend_none()
-
-p2 = gg_df %&gt;%
+    legend_none()</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>p2 = gg_df %&gt;%
   filter(optimal_dx == &quot;correct&quot;) %&gt;%
   ggplot(aes(noise_level, num_optimal_dx / num_actions)) +
     geom_violin() +
@@ -2105,9 +2170,11 @@ p2 = gg_df %&gt;%
     ylim(0, 1) +
     labs(color = &quot;Type:Noise&quot;) +
     theme(legend.position = &quot;right&quot;) +
-    guides(size = F)
-
-grid.arrange(p1, p2, ncol = 2)</code></pre>
+    guides(size = F)</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>grid.arrange(p1, p2, ncol = 2)</code></pre>
+<pre><code>## No summary function supplied, defaulting to `mean_se()
+## No summary function supplied, defaulting to `mean_se()</code></pre>
 <p><img src="{% static 'roman2020_files/figure-html/unnamed-chunk-28-5.png' %}" width="1440" /></p>
 </div>
 <div id="model-2" class="section level2">
@@ -2745,6 +2812,7 @@ grid.arrange(p1, p2, nrow = 1, ncol = 2)</code></pre>
 # With these dropped levels, the suggestion_type variable is the same as the
 # boolean flags for each suggestion type
 plot_df$suggestion_type = droplevels(plot_df$suggestion_type)
+plot_df$study_condition = droplevels(plot_df$study_condition)
 
 print(summary(plot_df %&gt;%
                 mutate(chose_ax = factor(chose_ax),
@@ -2752,13 +2820,13 @@ print(summary(plot_df %&gt;%
                 select(-X1, -id)
 ))</code></pre>
 <pre><code>##     user_id      study_condition start_condition     num_optimal
-##  Min.   :  1.0   AX_90   :217    Length:1138        Min.   :3.000
-##  1st Qu.: 62.0   AX_80   :204    Class :character   1st Qu.:4.000
-##  Median :102.0   DXAX_100:193    Mode  :character   Median :4.000
-##  Mean   :104.3   DXAX_80 :189                       Mean   :4.804
-##  3rd Qu.:150.0   DXAX_90 :183                       3rd Qu.:7.000
-##  Max.   :198.0   AX_100  :152                       Max.   :7.000
-##                  (Other) :  0
+##  Min.   :  1.0   AX_100  :152    Length:1138        Min.   :3.000
+##  1st Qu.: 62.0   DXAX_100:193    Class :character   1st Qu.:4.000
+##  Median :102.0   AX_90   :217    Mode  :character   Median :4.000
+##  Mean   :104.3   DXAX_90 :183                       Mean   :4.804
+##  3rd Qu.:150.0   AX_80   :204                       3rd Qu.:7.000
+##  Max.   :198.0   DXAX_80 :189                       Max.   :7.000
+##
 ##    state_idx      state_idx_rescaled age_group gender  robot_experience
 ##  Min.   :  1.00   Min.   :0.0000     2:160     F:453   0:665
 ##  1st Qu.: 35.00   1st Qu.:0.2000     3:323     M:685   1:260
@@ -2791,6 +2859,23 @@ print(summary(plot_df %&gt;%
 ##
 ##
 ## </code></pre>
+<pre class="r"><code>print(as.matrix(
+  plot_df %&gt;%
+    filter(chose_ax == 1) %&gt;%
+    group_by(study_condition, num_actions, user_id) %&gt;%
+    count() %&gt;%
+    ungroup() %&gt;%
+    mutate(.value = n/num_actions) %&gt;%
+    group_by(study_condition) %&gt;%
+    summarise(.value = median(.value))
+))</code></pre>
+<pre><code>##      study_condition .value
+## [1,] &quot;AX_100&quot;        &quot;0.7638889&quot;
+## [2,] &quot;DXAX_100&quot;      &quot;0.6833333&quot;
+## [3,] &quot;AX_90&quot;         &quot;0.5500000&quot;
+## [4,] &quot;DXAX_90&quot;       &quot;0.6201923&quot;
+## [5,] &quot;AX_80&quot;         &quot;0.6201923&quot;
+## [6,] &quot;DXAX_80&quot;       &quot;0.6333333&quot;</code></pre>
 <div id="data-3" class="section level2">
 <h2>Data</h2>
 <pre class="r"><code># Plot by the study condition
@@ -2860,9 +2945,9 @@ gg_df %&gt;%
     stat_summary(fun = median, geom = &quot;point&quot;, shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    legend_none()
-
-p2 = gg_df %&gt;%
+    legend_none()</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>p2 = gg_df %&gt;%
   filter(chose_ax == &quot;follow&quot;) %&gt;%
   ggplot(aes(noise_level, num_follow_ax / num_actions)) +
     geom_violin() +
@@ -2873,9 +2958,11 @@ p2 = gg_df %&gt;%
     ylim(0, 1) +
     labs(color = &quot;Type:Noise&quot;) +
     theme(legend.position = &quot;right&quot;) +
-    guides(size = F)
-
-grid.arrange(p1, p2, ncol = 2)</code></pre>
+    guides(size = F)</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>grid.arrange(p1, p2, ncol = 2)</code></pre>
+<pre><code>## No summary function supplied, defaulting to `mean_se()
+## No summary function supplied, defaulting to `mean_se()</code></pre>
 <p><img src="{% static 'roman2020_files/figure-html/unnamed-chunk-39-5.png' %}" width="1440" /></p>
 </div>
 <div id="model-3" class="section level2">
@@ -3416,6 +3503,7 @@ grid.arrange(p1, p2, nrow = 1, ncol = 2)</code></pre>
 # With these dropped levels, the suggestion_type variable is the same as the
 # boolean flags for each suggestion type
 plot_df$suggestion_type = droplevels(plot_df$suggestion_type)
+plot_df$study_condition = droplevels(plot_df$study_condition)
 
 print(summary(plot_df %&gt;%
                 mutate(chose_dx = factor(chose_dx),
@@ -3423,13 +3511,13 @@ print(summary(plot_df %&gt;%
                 select(-X1, -id)
 ))</code></pre>
 <pre><code>##     user_id      study_condition start_condition     num_optimal
-##  Min.   :  1.0   DX_80   :256    Length:1322        Min.   :3.00
-##  1st Qu.: 64.0   DX_90   :254    Class :character   1st Qu.:4.00
-##  Median :123.5   DX_100  :247    Mode  :character   Median :4.00
-##  Mean   :109.5   DXAX_100:193                       Mean   :4.72
-##  3rd Qu.:160.0   DXAX_80 :189                       3rd Qu.:7.00
-##  Max.   :200.0   DXAX_90 :183                       Max.   :7.00
-##                  (Other) :  0
+##  Min.   :  1.0   DX_100  :247    Length:1322        Min.   :3.00
+##  1st Qu.: 64.0   DXAX_100:193    Class :character   1st Qu.:4.00
+##  Median :123.5   DX_90   :254    Mode  :character   Median :4.00
+##  Mean   :109.5   DXAX_90 :183                       Mean   :4.72
+##  3rd Qu.:160.0   DX_80   :256                       3rd Qu.:7.00
+##  Max.   :200.0   DXAX_80 :189                       Max.   :7.00
+##
 ##    state_idx      state_idx_rescaled age_group gender  robot_experience
 ##  Min.   :  1.00   Min.   :0.0000     2:112     F:544   0:840
 ##  1st Qu.: 37.00   1st Qu.:0.2118     3:318     M:778   1:190
@@ -3462,6 +3550,23 @@ print(summary(plot_df %&gt;%
 ##
 ##
 ## </code></pre>
+<pre class="r"><code>print(as.matrix(
+  plot_df %&gt;%
+    filter(chose_dx == 1) %&gt;%
+    group_by(study_condition, num_actions, user_id) %&gt;%
+    count() %&gt;%
+    ungroup() %&gt;%
+    mutate(.value = n/num_actions) %&gt;%
+    group_by(study_condition) %&gt;%
+    summarise(.value = median(.value))
+))</code></pre>
+<pre><code>##      study_condition .value
+## [1,] &quot;DX_100&quot;        &quot;0.8796791&quot;
+## [2,] &quot;DXAX_100&quot;      &quot;0.8090909&quot;
+## [3,] &quot;DX_90&quot;         &quot;0.7500000&quot;
+## [4,] &quot;DXAX_90&quot;       &quot;0.7735043&quot;
+## [5,] &quot;DX_80&quot;         &quot;0.6583333&quot;
+## [6,] &quot;DXAX_80&quot;       &quot;0.7321429&quot;</code></pre>
 <div id="data-4" class="section level2">
 <h2>Data</h2>
 <pre class="r"><code># Plot by the study condition
@@ -3531,9 +3636,9 @@ gg_df %&gt;%
     stat_summary(fun = median, geom = &quot;point&quot;, shape = 23, size = 6) +
     scale_color_metro() +
     ylim(0, 1) +
-    legend_none()
-
-p2 = gg_df %&gt;%
+    legend_none()</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>p2 = gg_df %&gt;%
   filter(chose_dx == &quot;1&quot;) %&gt;%
   ggplot(aes(noise_level, num_follow_dx / num_actions)) +
     geom_violin() +
@@ -3544,9 +3649,11 @@ p2 = gg_df %&gt;%
     ylim(0, 1) +
     labs(color = &quot;Type:Noise&quot;) +
     theme(legend.position = &quot;right&quot;) +
-    guides(size = F)
-
-grid.arrange(p1, p2, ncol = 2)</code></pre>
+    guides(size = F)</code></pre>
+<pre><code>## Warning: Ignoring unknown parameters: fun</code></pre>
+<pre class="r"><code>grid.arrange(p1, p2, ncol = 2)</code></pre>
+<pre><code>## No summary function supplied, defaulting to `mean_se()
+## No summary function supplied, defaulting to `mean_se()</code></pre>
 <p><img src="{% static 'roman2020_files/figure-html/unnamed-chunk-50-5.png' %}" width="1440" /></p>
 </div>
 <div id="model-4" class="section level2">
@@ -4124,6 +4231,22 @@ print(summary(plot_df %&gt;%
 ##
 ##
 ## </code></pre>
+<pre class="r"><code>print(as.matrix(
+  plot_df %&gt;%
+    group_by(study_condition) %&gt;%
+    summarise(.value = median(sus))
+))</code></pre>
+<pre><code>##       study_condition .value
+##  [1,] &quot;DX_100&quot;        &quot;73.75&quot;
+##  [2,] &quot;AX_100&quot;        &quot;72.50&quot;
+##  [3,] &quot;DXAX_100&quot;      &quot;67.50&quot;
+##  [4,] &quot;DX_90&quot;         &quot;66.25&quot;
+##  [5,] &quot;AX_90&quot;         &quot;75.00&quot;
+##  [6,] &quot;DXAX_90&quot;       &quot;76.25&quot;
+##  [7,] &quot;DX_80&quot;         &quot;70.00&quot;
+##  [8,] &quot;AX_80&quot;         &quot;71.25&quot;
+##  [9,] &quot;DXAX_80&quot;       &quot;73.75&quot;
+## [10,] &quot;BASELINE&quot;      &quot;67.50&quot;</code></pre>
 <div id="data-5" class="section level2">
 <h2>Data</h2>
 <pre class="r"><code># Plot by the study condition

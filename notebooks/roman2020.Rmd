@@ -323,6 +323,15 @@ print(summary(plot_df %>%
                 mutate(scenario_completed = factor(scenario_completed)) %>%
                 select(-X1, -id)
 ))
+
+print(as.matrix(
+  plot_df %>%
+    filter(scenario_completed == 1) %>%
+    group_by(study_condition) %>%
+    count() %>%
+    mutate(.value = n/20) %>%
+    select(-n)
+))
 ```
 
 ## Data
@@ -940,6 +949,17 @@ print(summary(plot_df %>%
                        scenario_completed = factor(scenario_completed)) %>%
                 select(-X1, -id)
 ))
+
+print(as.matrix(
+  plot_df %>%
+    filter(optimal_ax == 1) %>%
+    group_by(study_condition, num_actions, user_id) %>%
+    count() %>%
+    ungroup() %>%
+    mutate(.value = n/num_actions) %>%
+    group_by(study_condition) %>%
+    summarise(.value = median(.value))
+))
 ```
 
 ## Data
@@ -1513,6 +1533,17 @@ print(summary(plot_df %>%
                 mutate(optimal_ax = factor(optimal_dx),
                        scenario_completed = factor(scenario_completed)) %>%
                 select(-X1, -id)
+))
+
+print(as.matrix(
+  plot_df %>%
+    filter(optimal_dx == 1) %>%
+    group_by(study_condition, num_actions, user_id) %>%
+    count() %>%
+    ungroup() %>%
+    mutate(.value = n/num_actions) %>%
+    group_by(study_condition) %>%
+    summarise(.value = median(.value))
 ))
 ```
 
@@ -2159,11 +2190,23 @@ plot_df = actions %>%
 # With these dropped levels, the suggestion_type variable is the same as the
 # boolean flags for each suggestion type
 plot_df$suggestion_type = droplevels(plot_df$suggestion_type)
+plot_df$study_condition = droplevels(plot_df$study_condition)
 
 print(summary(plot_df %>%
                 mutate(chose_ax = factor(chose_ax),
                        scenario_completed = factor(scenario_completed)) %>%
                 select(-X1, -id)
+))
+
+print(as.matrix(
+  plot_df %>%
+    filter(chose_ax == 1) %>%
+    group_by(study_condition, num_actions, user_id) %>%
+    count() %>%
+    ungroup() %>%
+    mutate(.value = n/num_actions) %>%
+    group_by(study_condition) %>%
+    summarise(.value = median(.value))
 ))
 ```
 
@@ -2734,11 +2777,23 @@ plot_df = actions %>%
 # With these dropped levels, the suggestion_type variable is the same as the
 # boolean flags for each suggestion type
 plot_df$suggestion_type = droplevels(plot_df$suggestion_type)
+plot_df$study_condition = droplevels(plot_df$study_condition)
 
 print(summary(plot_df %>%
                 mutate(chose_dx = factor(chose_dx),
                        scenario_completed = factor(scenario_completed)) %>%
                 select(-X1, -id)
+))
+
+print(as.matrix(
+  plot_df %>%
+    filter(chose_dx == 1) %>%
+    group_by(study_condition, num_actions, user_id) %>%
+    count() %>%
+    ungroup() %>%
+    mutate(.value = n/num_actions) %>%
+    group_by(study_condition) %>%
+    summarise(.value = median(.value))
 ))
 ```
 
@@ -3306,6 +3361,12 @@ plot_df = users %>%
 print(summary(plot_df %>%
                 mutate(scenario_completed = factor(scenario_completed)) %>%
                 select(-X1, -id)
+))
+
+print(as.matrix(
+  plot_df %>%
+    group_by(study_condition) %>%
+    summarise(.value = median(sus))
 ))
 ```
 
