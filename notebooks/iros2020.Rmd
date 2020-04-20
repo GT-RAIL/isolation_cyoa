@@ -204,6 +204,7 @@ actions$user_id = actions %>% group_indices(user_id)
 
 # Rescale state ids
 actions$state_idx_rescaled = scales::rescale(actions$state_idx)
+actions$action_val_rescaled = scales::rescale(actions$action_val)
 
 # Code to relevel the age group factor to remove unused levels. Also, predict the
 # value of the 1 unknown age from the other indicators of demographics

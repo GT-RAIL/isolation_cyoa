@@ -262,7 +262,9 @@ def get_actions_df(*, actions=None, use_cache=True):
 
     # Update the state information so that it incorporates value counts
     state_counts = _cached_actions_df['start_state'].value_counts()
+    action_counts = _cached_actions_df['action'].value_counts()
     _cached_actions_df['state_idx'] = _cached_actions_df['start_state'].apply(lambda x: state_counts[x])
+    _cached_actions_df['action_val'] = _cached_actions_df['action'].apply(lambda x: action_counts[x])
 
     return _cached_actions_df.copy()
 
