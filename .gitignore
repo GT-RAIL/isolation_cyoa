@@ -72,3 +72,6 @@ notebooks/*.html
 notebooks/*_files/
 notebooks/*_libs/
 .RData
+
+# VS Code
+.vscode/
